@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { v4 as uuidv4 } from "uuid";
+import { Pencil, Trash2, CheckSquare, Square } from "lucide-react";
 import TopBar from "@/components/TopBar";
 import { api } from "@/lib/api";
 import type { Medication } from "@/lib/storage";
@@ -35,8 +36,7 @@ export default function MedicationsPage() {
     const med: Medication = { id: editing?.id || uuidv4(), ...form, log: editing?.log || {} };
     await api.medications.save(med);
     if (!editing) api.activity.push({ type: "medication", label: `Added medication: ${med.name}`, at: new Date().toISOString() });
-    const updated = await api.medications.getAll();
-    setMeds(updated);
+    setMeds(await api.medications.getAll());
     setShowModal(false);
     toast.success(editing ? "Medication updated" : "Medication added");
   }
@@ -79,8 +79,8 @@ export default function MedicationsPage() {
             <span className="text-sm font-medium text-gray-700">Today&apos;s doses</span>
             <span className="text-sm text-gray-500">{takenDoses.length} of {allDoses.length} taken</span>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-2.5">
-            <div className="bg-teal-500 h-2.5 rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
+          <div className="w-full bg-gray-200 rounded-full h-2">
+            <div className="bg-teal-500 h-2 rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
           </div>
           <p className="text-xs text-gray-400 mt-1">{progress}% complete</p>
         </div>
@@ -89,7 +89,6 @@ export default function MedicationsPage() {
           <div className="flex justify-center py-12"><div className="w-8 h-8 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" /></div>
         ) : meds.length === 0 ? (
           <div className="card text-center py-10 text-gray-400">
-            <div className="text-4xl mb-3">💊</div>
             <p className="font-medium">No medications yet</p>
             <p className="text-sm mt-1">Add a medication to start tracking</p>
           </div>
@@ -103,29 +102,36 @@ export default function MedicationsPage() {
                     <div className="flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="font-semibold text-gray-900">{med.name}</h3>
-                        <span className="badge-gray">{med.dosage}</span>
-                        <span className="badge-purple">{med.frequency}</span>
+                        {med.dosage && <span className="badge-gray">{med.dosage}</span>}
+                        {med.frequency && <span className="badge-purple">{med.frequency}</span>}
                       </div>
                       {med.notes && <p className="text-xs text-gray-500 mt-1">{med.notes}</p>}
                     </div>
-                    <div className="flex gap-2">
-                      <button onClick={() => openEdit(med)} className="text-sm text-gray-400 hover:text-teal-600 transition-colors">✏️</button>
-                      <button onClick={() => deleteMed(med.id)} className="text-sm text-gray-400 hover:text-red-500 transition-colors">🗑️</button>
+                    <div className="flex gap-1">
+                      <button onClick={() => openEdit(med)} className="p-1.5 text-gray-400 hover:text-teal-600 transition-colors rounded-lg hover:bg-teal-50">
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => deleteMed(med.id)} className="p-1.5 text-gray-400 hover:text-red-500 transition-colors rounded-lg hover:bg-red-50">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
-                  <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-gray-100">
-                    {med.times.map((time) => {
-                      const taken = todayLog[time];
-                      return (
-                        <button key={time} onClick={() => toggleDose(med, time)}
-                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-all ${
-                            taken ? "bg-green-50 border-green-200 text-green-700" : "bg-gray-50 border-gray-200 text-gray-500 hover:border-teal-300"
-                          }`}>
-                          <span>{taken ? "✅" : "⬜"}</span>{time}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  {med.times.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-gray-100">
+                      {med.times.map((time) => {
+                        const taken = todayLog[time];
+                        return (
+                          <button key={time} onClick={() => toggleDose(med, time)}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-all ${
+                              taken ? "bg-green-50 border-green-200 text-green-700" : "bg-gray-50 border-gray-200 text-gray-500 hover:border-teal-300"
+                            }`}>
+                            {taken ? <CheckSquare className="w-3.5 h-3.5" /> : <Square className="w-3.5 h-3.5" />}
+                            {time}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               );
             })}

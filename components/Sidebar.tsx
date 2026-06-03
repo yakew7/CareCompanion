@@ -3,15 +3,16 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import Image from "next/image";
+import { LayoutDashboard, FileText, Pill, Activity, Calendar, Heart, LogOut } from "lucide-react";
 import { api } from "@/lib/api";
 import type { UserProfile } from "@/lib/storage";
 
 const nav = [
-  { href: "/", label: "Dashboard", icon: "🏠" },
-  { href: "/records", label: "Records & Chat", icon: "📋" },
-  { href: "/medications", label: "Medications", icon: "💊" },
-  { href: "/symptoms", label: "Symptoms", icon: "🌡️" },
-  { href: "/appointments", label: "Appointments", icon: "📅" },
+  { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/records", label: "Records & Chat", icon: FileText },
+  { href: "/medications", label: "Medications", icon: Pill },
+  { href: "/symptoms", label: "Symptoms", icon: Activity },
+  { href: "/appointments", label: "Appointments", icon: Calendar },
 ];
 
 export default function Sidebar({ profile }: { profile: UserProfile }) {
@@ -29,18 +30,18 @@ export default function Sidebar({ profile }: { profile: UserProfile }) {
     <aside className="hidden md:flex flex-col w-64 h-screen bg-white border-r border-gray-200 fixed left-0 top-0 z-30">
       <div className="p-6 border-b border-gray-200">
         <div className="flex items-center gap-2">
-          <span className="text-2xl">❤️</span>
+          <Heart className="w-5 h-5 text-teal-600 fill-teal-600" />
           <span className="text-xl font-bold text-teal-600">CareCompanion</span>
         </div>
-        <p className="text-xs text-gray-400 mt-1 ml-8">AI Caregiver Dashboard</p>
+        <p className="text-xs text-gray-400 mt-1 ml-7">AI Caregiver Dashboard</p>
       </div>
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-        {nav.map(({ href, label, icon }) => (
+        {nav.map(({ href, label, icon: Icon }) => (
           <Link key={href} href={href}
             className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
               pathname === href ? "bg-teal-50 text-teal-700" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
             }`}>
-            <span className="text-base">{icon}</span>
+            <Icon className="w-4 h-4 flex-shrink-0" />
             {label}
           </Link>
         ))}
@@ -62,7 +63,8 @@ export default function Sidebar({ profile }: { profile: UserProfile }) {
           </div>
         </div>
         <button onClick={handleSignOut}
-          className="w-full text-left px-4 py-2 text-xs text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors">
+          className="w-full flex items-center gap-2 px-4 py-2 text-xs text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors">
+          <LogOut className="w-3 h-3" />
           Sign out
         </button>
         <p className="text-xs text-gray-400 text-center">V1TROUS Hackathon 2026</p>

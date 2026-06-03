@@ -2,6 +2,7 @@
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { Heart } from "lucide-react";
 import { api } from "@/lib/api";
 import type { UserProfile } from "@/lib/storage";
 import Sidebar from "@/components/Sidebar";
@@ -88,7 +89,7 @@ function AuthShell({ children }: { children: React.ReactNode }) {
   if (status === "loading" || (status === "authenticated" && profile === "loading")) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="w-10 h-10 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -96,7 +97,7 @@ function AuthShell({ children }: { children: React.ReactNode }) {
   if (status === "unauthenticated") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="w-10 h-10 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -107,7 +108,9 @@ function AuthShell({ children }: { children: React.ReactNode }) {
       <div className="min-h-screen bg-gradient-to-br from-teal-50 to-white flex items-center justify-center p-4">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
-            <div className="text-5xl mb-3">❤️</div>
+            <div className="flex justify-center mb-3">
+              <Heart className="w-10 h-10 text-teal-600 fill-teal-600" />
+            </div>
             <h1 className="text-3xl font-bold text-teal-600">CareCompanion</h1>
             <p className="text-gray-500 mt-1 text-sm">Welcome, {session?.user?.name?.split(" ")[0]}!</p>
           </div>
@@ -146,7 +149,7 @@ function AuthShell({ children }: { children: React.ReactNode }) {
               </div>
             )}
             <button onClick={completeSetup} disabled={saving} className="btn-primary w-full py-3 text-base disabled:opacity-60">
-              {saving ? "Saving..." : "Go to dashboard →"}
+              {saving ? "Saving..." : "Go to dashboard"}
             </button>
           </div>
         </div>

@@ -2,6 +2,7 @@
 import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import { Heart } from "lucide-react";
 
 function SignInContent() {
   const searchParams = useSearchParams();
@@ -10,22 +11,18 @@ function SignInContent() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-teal-50 to-white flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        {/* Logo */}
         <div className="text-center mb-10">
-          <div className="text-6xl mb-4">❤️</div>
+          <div className="flex justify-center mb-4">
+            <Heart className="w-12 h-12 text-teal-600 fill-teal-600" />
+          </div>
           <h1 className="text-3xl font-bold text-teal-600">CareCompanion</h1>
-          <p className="text-gray-500 mt-2">
-            AI-powered dashboard for family caregivers
-          </p>
+          <p className="text-gray-500 mt-2">AI-powered dashboard for family caregivers</p>
         </div>
 
-        {/* Card */}
         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 space-y-6">
           <div className="text-center">
             <h2 className="text-xl font-bold text-gray-900">Welcome</h2>
-            <p className="text-sm text-gray-500 mt-1">
-              Sign in to access your care dashboard
-            </p>
+            <p className="text-sm text-gray-500 mt-1">Sign in to access your care dashboard</p>
           </div>
 
           <button
@@ -42,7 +39,7 @@ function SignInContent() {
           </button>
 
           <p className="text-xs text-gray-400 text-center">
-            Your health data stays private and secure on your device
+            Your health data stays private and secure
           </p>
         </div>
 
@@ -50,7 +47,7 @@ function SignInContent() {
           Built for 40 million family caregivers in India · V1TROUS Hackathon 2026
         </p>
         <p className="text-center text-xs text-gray-400 mt-2 max-w-sm mx-auto">
-          ⚠️ CareCompanion is not a medical device. AI summaries are for informational purposes only and do not constitute medical advice. Always consult a qualified healthcare professional.
+          CareCompanion is not a medical device. AI summaries are for informational purposes only and do not constitute medical advice. Always consult a qualified healthcare professional.
         </p>
       </div>
     </div>
