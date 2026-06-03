@@ -12,6 +12,7 @@ const titles: Record<string, string> = {
   "/medications": "Medications",
   "/symptoms": "Symptom Log",
   "/appointments": "Appointments",
+  "/notes": "Notes",
 };
 
 export default function TopBar({ reportName }: { reportName?: string }) {

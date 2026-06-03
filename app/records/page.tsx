@@ -99,6 +99,15 @@ export default function RecordsPage() {
       };
       await api.records.save(record);
       await api.activity.push({ type: "record", label: `Uploaded report: ${file.name}`, at: record.uploadedAt });
+
+      // Auto-save dietary and other notes extracted from the report
+      if (sumData.dietary?.trim()) {
+        await api.dietary.save({ id: uuidv4(), content: sumData.dietary.trim(), source: file.name, createdAt: record.uploadedAt });
+      }
+      if (sumData.other?.trim()) {
+        await api.other.save({ id: uuidv4(), content: sumData.other.trim(), source: file.name, createdAt: record.uploadedAt });
+      }
+
       setRecords(await api.records.getAll());
       openRecord(record);
       toast.success("Report uploaded and summarised!");
@@ -205,8 +214,11 @@ export default function RecordsPage() {
           const a = item.data;
           const days = (a.daysFromNow as number) || 30;
           await api.appointments.save({ id: uuidv4(), doctor: (a.doctor as string) || "", specialty: (a.specialty as string) || "", datetime: new Date(Date.now() + days * 86400000).toISOString(), location: "", notes: (a.notes as string) || "", status: "upcoming", postVisitNotes: "" });
+        } else if (item.type === "dietary") {
+          await api.dietary.save({ id: uuidv4(), content: item.label, source: activeRecord?.name || "Report", createdAt: new Date().toISOString() });
+        } else if (item.type === "other") {
+          await api.other.save({ id: uuidv4(), content: item.label, source: activeRecord?.name || "Report", createdAt: new Date().toISOString() });
         }
-        // dietary and other are already in the report summary — no extra save needed
       }
       await api.activity.push({ type: "record", label: `Added ${selected.length} items from report`, at: new Date().toISOString() });
       toast.success(`Added ${selected.length} item${selected.length > 1 ? "s" : ""} from report`);

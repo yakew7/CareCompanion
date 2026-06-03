@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, FileText, Pill, Activity, Calendar } from "lucide-react";
+import { LayoutDashboard, FileText, Pill, Activity, Calendar, NotebookPen } from "lucide-react";
 
 const nav = [
   { href: "/", label: "Home", icon: LayoutDashboard },
@@ -9,6 +9,7 @@ const nav = [
   { href: "/medications", label: "Meds", icon: Pill },
   { href: "/symptoms", label: "Symptoms", icon: Activity },
   { href: "/appointments", label: "Appts", icon: Calendar },
+  { href: "/notes", label: "Notes", icon: NotebookPen },
 ];
 
 export default function BottomNav() {
@@ -19,13 +20,13 @@ export default function BottomNav() {
         <Link
           key={href}
           href={href}
-          className={`flex-1 flex flex-col items-center py-2 text-xs gap-0.5 transition-colors ${
+          className={`flex-1 flex flex-col items-center py-2 text-[10px] gap-0.5 transition-colors ${
             pathname === href
               ? "text-teal-600 dark:text-teal-400 font-semibold"
               : "text-gray-500 dark:text-gray-400"
           }`}
         >
-          <Icon className="w-5 h-5" />
+          <Icon className="w-4 h-4" />
           {label}
         </Link>
       ))}

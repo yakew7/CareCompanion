@@ -51,6 +51,13 @@ export interface ActivityEntry {
   at: string;
 }
 
+export interface Note {
+  id: string;
+  content: string;
+  source: string; // "manual" or the report file name
+  createdAt: string;
+}
+
 // Kept for legacy API compatibility
 export interface UserProfile {
   name: string;
@@ -144,7 +151,7 @@ function pk(base: string, personId: string) {
   return `${base}__${personId}`;
 }
 
-const DATA_KEYS = ["medications", "symptoms", "appointments", "records", "activity"] as const;
+const DATA_KEYS = ["medications", "symptoms", "appointments", "records", "activity", "dietary", "other"] as const;
 
 export const storage = {
   persons: {
@@ -204,6 +211,20 @@ export const storage = {
       list.unshift(entry);
       setList(pk("activity", personId), list.slice(0, 20));
     },
+  },
+  dietary: {
+    getAll: (personId: string) => getList<Note>(pk("dietary", personId)),
+    save: (n: Note, personId: string) => upsert(pk("dietary", personId), n, true),
+    delete: (id: string, personId: string) =>
+      setList(pk("dietary", personId), getList<Note>(pk("dietary", personId)).filter((n) => n.id !== id)),
+    clearAll: (personId: string) => setList(pk("dietary", personId), []),
+  },
+  other: {
+    getAll: (personId: string) => getList<Note>(pk("other", personId)),
+    save: (n: Note, personId: string) => upsert(pk("other", personId), n, true),
+    delete: (id: string, personId: string) =>
+      setList(pk("other", personId), getList<Note>(pk("other", personId)).filter((n) => n.id !== id)),
+    clearAll: (personId: string) => setList(pk("other", personId), []),
   },
   theme: {
     get: (): "light" | "dark" => {
