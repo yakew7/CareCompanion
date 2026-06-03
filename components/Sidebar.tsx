@@ -9,7 +9,7 @@ import {
   Heart, LogOut, Sun, Moon, Plus, X, Check,
 } from "lucide-react";
 import { usePersonContext } from "@/contexts/PersonContext";
-import { PersonColor, PERSON_COLORS, personColorClasses } from "@/lib/storage";
+import { PRESET_COLORS, personColorHex, getNextPersonColor } from "@/lib/storage";
 import { useTheme } from "@/lib/theme";
 
 const nav = [
@@ -20,17 +20,13 @@ const nav = [
   { href: "/appointments", label: "Appointments", icon: Calendar },
 ];
 
-const COLOR_LABELS: Record<PersonColor, string> = {
-  teal: "Teal", purple: "Purple", blue: "Blue", orange: "Orange", rose: "Rose",
-};
-
 export default function Sidebar() {
   const pathname = usePathname();
   const { data: session } = useSession();
   const { persons, activePerson, activePersonId, switchPerson, addPerson, removePerson } = usePersonContext();
   const { dark, toggle } = useTheme();
   const [addOpen, setAddOpen] = useState(false);
-  const [addForm, setAddForm] = useState<{ nickname: string; color: PersonColor }>({ nickname: "", color: "purple" });
+  const [addForm, setAddForm] = useState<{ nickname: string; color: string }>({ nickname: "", color: "purple" });
   const [addError, setAddError] = useState("");
 
   async function handleSignOut() {
@@ -48,9 +44,11 @@ export default function Sidebar() {
     setAddError("");
   }
 
-  // Pick a default color that isn't already used
-  const usedColors = persons.map((p) => p.color);
-  const defaultNewColor = PERSON_COLORS.find((c) => !usedColors.includes(c)) || "teal";
+  function openAdd() {
+    const nextColor = getNextPersonColor(persons.map((p) => p.color));
+    setAddForm({ nickname: "", color: nextColor });
+    setAddOpen(true);
+  }
 
   return (
     <aside className="hidden md:flex flex-col w-64 h-screen bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 fixed left-0 top-0 z-30">
@@ -83,9 +81,9 @@ export default function Sidebar() {
       {/* People switcher */}
       <div className="px-4 pb-3 border-t border-gray-200 dark:border-gray-700 pt-3">
         <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-2 px-1">People</p>
-        <div className="space-y-0.5">
+        <div className="space-y-0.5 max-h-40 overflow-y-auto">
           {persons.map((p) => {
-            const cls = personColorClasses(p.color);
+            const hex = personColorHex(p.color);
             const isActive = p.id === activePersonId;
             return (
               <div key={p.id} className="flex items-center group">
@@ -97,7 +95,10 @@ export default function Sidebar() {
                       : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
                   }`}
                 >
-                  <span className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 ${cls.bg}`}>
+                  <span
+                    style={{ backgroundColor: hex }}
+                    className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+                  >
                     {p.nickname[0]?.toUpperCase()}
                   </span>
                   <span className="truncate">{p.nickname}</span>
@@ -128,19 +129,20 @@ export default function Sidebar() {
               onChange={(e) => { setAddForm({ ...addForm, nickname: e.target.value }); setAddError(""); }}
               onKeyDown={(e) => e.key === "Enter" && handleAddPerson()}
             />
-            <div className="flex gap-1.5 px-0.5">
-              {PERSON_COLORS.map((c) => {
-                const cls = personColorClasses(c);
-                return (
-                  <button
-                    key={c}
-                    type="button"
-                    onClick={() => setAddForm({ ...addForm, color: c })}
-                    title={COLOR_LABELS[c]}
-                    className={`w-5 h-5 rounded-full ${cls.bg} ${addForm.color === c ? "ring-2 ring-offset-1 ring-gray-400 scale-110" : "hover:scale-105"} transition-transform`}
-                  />
-                );
-              })}
+            {/* Colour picker — 7 presets */}
+            <div className="flex flex-wrap gap-1.5 px-0.5">
+              {PRESET_COLORS.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => setAddForm({ ...addForm, color: c.id })}
+                  title={c.label}
+                  style={{ backgroundColor: c.hex }}
+                  className={`w-5 h-5 rounded-full transition-transform ${
+                    addForm.color === c.id ? "ring-2 ring-offset-1 ring-gray-400 scale-110" : "hover:scale-105"
+                  }`}
+                />
+              ))}
             </div>
             {addError && <p className="text-red-500 text-xs px-1">{addError}</p>}
             <div className="flex gap-1.5">
@@ -149,20 +151,17 @@ export default function Sidebar() {
             </div>
           </div>
         ) : (
-          persons.length < 5 && (
-            <button
-              onClick={() => { setAddOpen(true); setAddForm({ nickname: "", color: defaultNewColor }); }}
-              className="flex items-center gap-2 px-3 py-2 mt-1 text-xs text-gray-500 dark:text-gray-400 hover:text-teal-600 dark:hover:text-teal-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl w-full transition-colors"
-            >
-              <Plus className="w-3.5 h-3.5" /> Add person
-            </button>
-          )
+          <button
+            onClick={openAdd}
+            className="flex items-center gap-2 px-3 py-2 mt-1 text-xs text-gray-500 dark:text-gray-400 hover:text-teal-600 dark:hover:text-teal-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl w-full transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" /> Add person
+          </button>
         )}
       </div>
 
-      {/* Bottom: account + dark mode + sign out */}
+      {/* Bottom: dark mode + account + sign out */}
       <div className="p-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
-        {/* Dark mode toggle */}
         <button
           onClick={toggle}
           className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl transition-colors"
@@ -171,7 +170,6 @@ export default function Sidebar() {
           {dark ? "Light mode" : "Dark mode"}
         </button>
 
-        {/* Account info */}
         <div className="flex items-center gap-3 px-2">
           {session?.user?.image ? (
             <Image src={session.user.image} alt="Profile" width={28} height={28} className="rounded-full flex-shrink-0" />

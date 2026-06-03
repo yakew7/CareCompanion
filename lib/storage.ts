@@ -1,4 +1,4 @@
-export type PersonColor = "teal" | "purple" | "blue" | "orange" | "rose";
+export type PersonColor = string; // preset name or hex value
 
 export interface Person {
   id: string;
@@ -51,7 +51,7 @@ export interface ActivityEntry {
   at: string;
 }
 
-// Kept for legacy API compatibility — no longer written to Supabase
+// Kept for legacy API compatibility
 export interface UserProfile {
   name: string;
   patientName: string;
@@ -59,18 +59,59 @@ export interface UserProfile {
   createdAt: string;
 }
 
-export const PERSON_COLORS: PersonColor[] = ["teal", "purple", "blue", "orange", "rose"];
+// ─── Colour system ────────────────────────────────────────────────────────────
 
-export function personColorClasses(color: PersonColor) {
-  const map: Record<PersonColor, { bg: string; text: string; light: string; border: string; ring: string }> = {
-    teal:   { bg: "bg-teal-500",   text: "text-teal-600",   light: "bg-teal-50 dark:bg-teal-900/30",   border: "border-teal-200 dark:border-teal-700",   ring: "ring-teal-400"   },
-    purple: { bg: "bg-purple-500", text: "text-purple-600", light: "bg-purple-50 dark:bg-purple-900/30", border: "border-purple-200 dark:border-purple-700", ring: "ring-purple-400" },
-    blue:   { bg: "bg-blue-500",   text: "text-blue-600",   light: "bg-blue-50 dark:bg-blue-900/30",   border: "border-blue-200 dark:border-blue-700",   ring: "ring-blue-400"   },
-    orange: { bg: "bg-orange-500", text: "text-orange-600", light: "bg-orange-50 dark:bg-orange-900/30", border: "border-orange-200 dark:border-orange-700", ring: "ring-orange-400" },
-    rose:   { bg: "bg-rose-500",   text: "text-rose-600",   light: "bg-rose-50 dark:bg-rose-900/30",   border: "border-rose-200 dark:border-rose-700",   ring: "ring-rose-400"   },
-  };
-  return map[color] || map.teal;
+interface PresetColor { id: string; hex: string; label: string; }
+
+export const PRESET_COLORS: PresetColor[] = [
+  { id: "teal",    hex: "#0D9488", label: "Teal"    },
+  { id: "purple",  hex: "#7C3AED", label: "Purple"  },
+  { id: "blue",    hex: "#2563EB", label: "Blue"    },
+  { id: "orange",  hex: "#EA580C", label: "Orange"  },
+  { id: "rose",    hex: "#E11D48", label: "Rose"    },
+  { id: "emerald", hex: "#059669", label: "Emerald" },
+  { id: "amber",   hex: "#D97706", label: "Amber"   },
+];
+
+// Extra pool used once all 7 presets are taken (all on-theme, look good in dark mode)
+const EXTRA_COLOR_POOL: string[] = [
+  "#0891B2", // cyan
+  "#4F46E5", // indigo
+  "#DB2777", // pink
+  "#65A30D", // lime
+  "#0284C7", // sky
+  "#A21CAF", // fuchsia
+  "#6D28D9", // violet
+  "#B45309", // warm gold
+  "#15803D", // forest green
+  "#B91C1C", // deep red
+  "#0E7490", // dark cyan
+  "#9333EA", // grape
+];
+
+// All preset color IDs, used in pickers
+export const PERSON_COLORS: PersonColor[] = PRESET_COLORS.map((c) => c.id);
+
+/** Resolve a color name or hex string to a CSS hex value */
+export function personColorHex(color: PersonColor): string {
+  return PRESET_COLORS.find((c) => c.id === color)?.hex ?? color;
 }
+
+/** Suggest a default color for the next new person */
+export function getNextPersonColor(existingColors: PersonColor[]): PersonColor {
+  // Try presets first in order
+  for (const preset of PERSON_COLORS) {
+    if (!existingColors.includes(preset)) return preset;
+  }
+  // All presets used — cycle through extra pool
+  for (const hex of EXTRA_COLOR_POOL) {
+    if (!existingColors.includes(hex)) return hex;
+  }
+  // Fully exhausted — pick a random extra
+  return EXTRA_COLOR_POOL[Math.floor(Math.random() * EXTRA_COLOR_POOL.length)];
+}
+
+// ─── Storage helpers ─────────────────────────────────────────────────────────
 
 function getList<T>(key: string): T[] {
   if (typeof window === "undefined") return [];
@@ -127,7 +168,6 @@ export const storage = {
   records: {
     getAll: (personId: string) => getList<MedicalRecord>(pk("records", personId)),
     save: (r: MedicalRecord, personId: string) => {
-      // Strip text before persisting — text is never written to storage
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { text: _t, ...rest } = r;
       upsert(pk("records", personId), { ...rest, text: "" } as MedicalRecord, true);

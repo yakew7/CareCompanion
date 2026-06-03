@@ -4,19 +4,11 @@ import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Heart } from "lucide-react";
 import { usePersonContext } from "@/contexts/PersonContext";
-import { PersonColor, PERSON_COLORS, personColorClasses } from "@/lib/storage";
+import { PRESET_COLORS, personColorHex } from "@/lib/storage";
 import Sidebar from "@/components/Sidebar";
 import BottomNav from "@/components/BottomNav";
 
 const DEV_SKIP_AUTH = process.env.NEXT_PUBLIC_DEV_SKIP_AUTH === "true";
-
-const COLOR_LABELS: Record<PersonColor, string> = {
-  teal: "Teal",
-  purple: "Purple",
-  blue: "Blue",
-  orange: "Orange",
-  rose: "Rose",
-};
 
 export default function AuthGate({ children }: { children: React.ReactNode }) {
   if (DEV_SKIP_AUTH) return <DevShell>{children}</DevShell>;
@@ -59,7 +51,7 @@ function AuthShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { persons, addPerson, personsLoading, refreshPersons } = usePersonContext();
-  const [form, setForm] = useState<{ nickname: string; color: PersonColor }>({ nickname: "", color: "teal" });
+  const [form, setForm] = useState<{ nickname: string; color: string }>({ nickname: "", color: "teal" });
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -125,19 +117,19 @@ function AuthShell({ children }: { children: React.ReactNode }) {
             </div>
             <div>
               <label className="label">Pick a colour</label>
-              <div className="flex gap-3 mt-1">
-                {PERSON_COLORS.map((c) => {
-                  const cls = personColorClasses(c);
-                  return (
-                    <button
-                      key={c}
-                      type="button"
-                      onClick={() => setForm({ ...form, color: c })}
-                      title={COLOR_LABELS[c]}
-                      className={`w-9 h-9 rounded-full ${cls.bg} transition-transform ${form.color === c ? "ring-2 ring-offset-2 ring-gray-400 scale-110" : "hover:scale-105"}`}
-                    />
-                  );
-                })}
+              <div className="flex flex-wrap gap-3 mt-1">
+                {PRESET_COLORS.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => setForm({ ...form, color: c.id })}
+                    title={c.label}
+                    style={{ backgroundColor: c.hex }}
+                    className={`w-9 h-9 rounded-full transition-transform ${
+                      form.color === c.id ? "ring-2 ring-offset-2 ring-gray-400 scale-110" : "hover:scale-105"
+                    }`}
+                  />
+                ))}
               </div>
             </div>
             {error && <p className="text-red-500 text-xs">{error}</p>}
