@@ -1,3 +1,10 @@
+export interface UserProfile {
+  name: string;
+  patientName: string;
+  relation: string;
+  createdAt: string;
+}
+
 export interface MedicalRecord {
   id: string;
   name: string;
@@ -99,6 +106,25 @@ export const storage = {
       const list = getList<ActivityEntry>("activity");
       list.unshift(entry);
       setList("activity", list.slice(0, 20));
+    },
+  },
+  profile: {
+    get: (): UserProfile | null => {
+      if (typeof window === "undefined") return null;
+      try {
+        const raw = localStorage.getItem("userProfile");
+        return raw ? JSON.parse(raw) : null;
+      } catch {
+        return null;
+      }
+    },
+    save: (p: UserProfile) => {
+      if (typeof window === "undefined") return;
+      localStorage.setItem("userProfile", JSON.stringify(p));
+    },
+    clear: () => {
+      if (typeof window === "undefined") return;
+      localStorage.removeItem("userProfile");
     },
   },
 };

@@ -4,6 +4,7 @@ import toast from "react-hot-toast";
 import { v4 as uuidv4 } from "uuid";
 import TopBar from "@/components/TopBar";
 import { storage, MedicalRecord } from "@/lib/storage";
+import { formatDateIST } from "@/lib/time";
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -225,7 +226,7 @@ export default function RecordsPage() {
                           📄 {r.name}
                         </p>
                         <p className="text-xs text-gray-400 mt-0.5">
-                          {new Date(r.uploadedAt).toLocaleDateString()}
+                          {formatDateIST(r.uploadedAt)}
                         </p>
                       </div>
                       <button

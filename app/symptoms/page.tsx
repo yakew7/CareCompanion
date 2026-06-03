@@ -4,6 +4,7 @@ import toast from "react-hot-toast";
 import { v4 as uuidv4 } from "uuid";
 import TopBar from "@/components/TopBar";
 import { storage, Symptom } from "@/lib/storage";
+import { nowIST, formatIST } from "@/lib/time";
 
 const SEVERITY_EMOJI = ["", "😊", "🙂", "😐", "😟", "😰"];
 const SEVERITY_LABELS = ["", "Mild", "Light", "Moderate", "Concerning", "Severe"];
@@ -27,7 +28,7 @@ export default function SymptomsPage() {
     symptom: "",
     severity: 3,
     notes: "",
-    loggedAt: new Date().toISOString().slice(0, 16),
+    loggedAt: nowIST(),
   });
 
   useEffect(() => {
@@ -70,7 +71,7 @@ export default function SymptomsPage() {
       symptom: "",
       severity: 3,
       notes: "",
-      loggedAt: new Date().toISOString().slice(0, 16),
+      loggedAt: nowIST(),
     });
     toast.success("Symptom logged");
   }
@@ -209,7 +210,7 @@ export default function SymptomsPage() {
                       <p className="text-sm text-gray-500 mt-1">{s.notes}</p>
                     )}
                     <p className="text-xs text-gray-400 mt-1.5">
-                      {new Date(s.loggedAt).toLocaleString()}
+                      {formatIST(s.loggedAt)}
                     </p>
                   </div>
                   <button

@@ -4,11 +4,12 @@ import toast from "react-hot-toast";
 import { v4 as uuidv4 } from "uuid";
 import TopBar from "@/components/TopBar";
 import { storage, Appointment } from "@/lib/storage";
+import { nowIST, formatIST } from "@/lib/time";
 
 const emptyForm = (): Omit<Appointment, "id"> => ({
   doctor: "",
   specialty: "",
-  datetime: "",
+  datetime: nowIST(),
   location: "",
   notes: "",
   status: "upcoming",
@@ -117,7 +118,7 @@ export default function AppointmentsPage() {
               <span className={statusBadge(appt.status)}>{statusLabel(appt.status)}</span>
             </div>
             <div className="text-sm text-gray-500 mt-1 space-y-0.5">
-              <p>📅 {new Date(appt.datetime).toLocaleString()}</p>
+              <p>📅 {formatIST(appt.datetime)}</p>
               {appt.location && <p>📍 {appt.location}</p>}
               {appt.notes && <p className="text-xs text-gray-400 italic">{appt.notes}</p>}
             </div>

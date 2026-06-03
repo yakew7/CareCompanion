@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import TopBar from "@/components/TopBar";
-import { storage, ActivityEntry } from "@/lib/storage";
+import { storage, ActivityEntry, UserProfile } from "@/lib/storage";
 
 interface Stats {
   medications: number;
@@ -20,9 +20,11 @@ export default function DashboardPage() {
   });
   const [activity, setActivity] = useState<ActivityEntry[]>([]);
   const [hour, setHour] = useState(new Date().getHours());
+  const [profile, setProfile] = useState<UserProfile | null>(null);
 
   useEffect(() => {
     setHour(new Date().getHours());
+    setProfile(storage.profile.get());
     const meds = storage.medications.getAll();
     const symptoms = storage.symptoms.getAll();
     const appts = storage.appointments.getAll();
@@ -90,10 +92,12 @@ export default function DashboardPage() {
         {/* Greeting */}
         <div>
           <h2 className="text-2xl font-bold text-gray-900">
-            {greeting}, Caregiver 👋
+            {greeting}, {profile?.name || "Caregiver"} 👋
           </h2>
           <p className="text-gray-500 mt-1 text-sm">
-            Here&apos;s a summary of your care dashboard
+            {profile?.patientName
+              ? `Here's a summary of your care for ${profile.patientName}`
+              : "Here's a summary of your care dashboard"}
           </p>
         </div>
 
