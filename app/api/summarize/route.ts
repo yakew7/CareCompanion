@@ -17,42 +17,40 @@ export async function POST(req: NextRequest) {
           role: "system",
           content: `You are a medical report interpreter for family caregivers with no medical background.
 
-Respond using EXACTLY this format with these three section headers. Do not add any other text outside the sections.
+Respond using EXACTLY these three labeled sections. Each label must be on its own line followed by a colon. Do not skip any section.
 
 SUMMARY:
-Write 2-3 short paragraphs in plain English. Cover key findings, diagnoses, test results, and anything concerning. No medical jargon.
+Write 2-3 plain-English paragraphs covering everything in the report: diagnoses, test results, prescribed medications, reported symptoms, upcoming appointments, and anything the doctors are concerned about. Keep it simple — no medical jargon.
 
 DIETARY:
-List any food restrictions, diet advice, or nutrition instructions the doctor mentioned. If none are mentioned in the report, write: none
+Copy any food restrictions, diet advice, or nutrition instructions mentioned. If none are mentioned, write: None.
 
 OTHER:
-List any other important instructions not covered above — such as bed rest, activity restrictions, wound care, follow-up tests, or emergency warning signs. If none, write: none`,
+Copy any other instructions not already covered — bed rest, activity limits, wound care, follow-up tests, warning signs to watch for. If none, write: None.`,
         },
         { role: "user", content: text },
       ],
-      max_tokens: 1200,
+      max_tokens: 1400,
       temperature: 0.2,
     });
 
     const raw = completion.choices[0].message.content?.trim() || "";
 
-    const extractSection = (label: string): string => {
-      const pattern = new RegExp(`${label}:\\s*([\\s\\S]*?)(?=\\n[A-Z]+:|$)`, "i");
-      const match = raw.match(pattern);
-      const val = match?.[1]?.trim() || "";
-      return val.toLowerCase() === "none" ? "" : val;
+    // Parse each section by splitting on the known headers
+    const summaryMatch = raw.match(/SUMMARY:\s*([\s\S]*?)(?=\nDIETARY:|\nOTHER:|$)/i);
+    const dietaryMatch = raw.match(/DIETARY:\s*([\s\S]*?)(?=\nSUMMARY:|\nOTHER:|$)/i);
+    const otherMatch = raw.match(/OTHER:\s*([\s\S]*?)(?=\nSUMMARY:|\nDIETARY:|$)/i);
+
+    const clean = (s: string | undefined) => {
+      const v = s?.trim() || "";
+      return v.toLowerCase() === "none" || v.toLowerCase() === "none." ? "" : v;
     };
 
-    const summary = extractSection("SUMMARY");
-    const dietary = extractSection("DIETARY");
-    const other = extractSection("OTHER");
+    const summary = clean(summaryMatch?.[1]) || raw;
+    const dietary = clean(dietaryMatch?.[1]);
+    const other = clean(otherMatch?.[1]);
 
-    // Fallback: if parsing fails, treat whole response as summary
-    return NextResponse.json({
-      summary: summary || raw,
-      dietary,
-      other,
-    });
+    return NextResponse.json({ summary, dietary, other });
   } catch {
     return NextResponse.json({ error: "AI request failed" }, { status: 500 });
   }

@@ -129,12 +129,12 @@ export default function RecordsPage() {
           data: s,
         })),
         ...(extracted.dietary || []).map((d: Record<string, unknown>) => ({
-          id: uuidv4(), type: "dietary" as const, selected: false,
+          id: uuidv4(), type: "dietary" as const, selected: true,
           label: (d.advice as string) || "",
           data: d,
         })),
         ...(extracted.other || []).map((o: Record<string, unknown>) => ({
-          id: uuidv4(), type: "other" as const, selected: false,
+          id: uuidv4(), type: "other" as const, selected: true,
           label: (o.note as string) || "",
           data: o,
         })),
@@ -206,7 +206,7 @@ export default function RecordsPage() {
           const days = (a.daysFromNow as number) || 30;
           await api.appointments.save({ id: uuidv4(), doctor: (a.doctor as string) || "", specialty: (a.specialty as string) || "", datetime: new Date(Date.now() + days * 86400000).toISOString(), location: "", notes: (a.notes as string) || "", status: "upcoming", postVisitNotes: "" });
         }
-        // dietary and other items are informational only — shown in the summary, not added to any tracker
+        // dietary and other are already in the report summary — no extra save needed
       }
       await api.activity.push({ type: "record", label: `Added ${selected.length} items from report`, at: new Date().toISOString() });
       toast.success(`Added ${selected.length} item${selected.length > 1 ? "s" : ""} from report`);
