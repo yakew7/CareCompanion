@@ -7,14 +7,14 @@ export async function GET() {
     const userId = await requireUserId();
     const { data, error } = await getSupabase()
       .from("medical_records")
-      .select("*")
+      .select("id, name, summary, uploaded_at") // never fetch raw text
       .eq("user_id", userId)
       .order("uploaded_at", { ascending: false });
     if (error) throw error;
     return NextResponse.json(data.map(row => ({
       id: row.id,
       name: row.name,
-      text: row.text_content,
+      text: "", // raw text is never stored or returned
       summary: row.summary,
       uploadedAt: row.uploaded_at,
     })));
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
       id: r.id,
       user_id: userId,
       name: r.name,
-      text_content: r.text || "",
+      text_content: "", // never store raw report text
       summary: r.summary || "",
       uploaded_at: r.uploadedAt,
     });

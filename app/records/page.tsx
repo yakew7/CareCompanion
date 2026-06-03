@@ -66,8 +66,9 @@ export default function RecordsPage() {
       toast.dismiss("summary");
       if (sumData.error) throw new Error(sumData.error);
 
+      // text stays in memory only — never sent to DB
       const record: MedicalRecord = { id: uuidv4(), name: file.name, text, summary: sumData.summary || "", uploadedAt: new Date().toISOString() };
-      await api.records.save(record);
+      await api.records.save(record); // API strips text before storing
       await api.activity.push({ type: "record", label: `Uploaded report: ${file.name}`, at: record.uploadedAt });
       setRecords(await api.records.getAll());
       loadRecord(record);
@@ -107,7 +108,15 @@ export default function RecordsPage() {
 
   function loadRecord(record: MedicalRecord) {
     setActiveRecord(record);
-    setMessages([{ role: "assistant", content: `**Summary of ${record.name}**\n\n${record.summary}\n\n---\n*Ask me anything about this report.*` }]);
+    const hasFullText = !!record.text;
+    setMessages([{
+      role: "assistant",
+      content: `**Summary of ${record.name}**\n\n${record.summary}\n\n---\n${
+        hasFullText
+          ? "*Ask me anything about this report.*"
+          : "*You can ask questions based on the summary above. To chat with the full report, upload it again.*"
+      }`,
+    }]);
   }
 
   async function sendMessage() {
@@ -120,7 +129,7 @@ export default function RecordsPage() {
     try {
       const res = await fetch("/api/chat", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: newMessages.map(m => ({ role: m.role, content: m.content })), context: activeRecord?.text || "" }),
+        body: JSON.stringify({ messages: newMessages.map(m => ({ role: m.role, content: m.content })), context: activeRecord?.text || activeRecord?.summary || "" }),
       });
       if (!res.body) throw new Error();
       const reader = res.body.getReader();
@@ -220,6 +229,7 @@ export default function RecordsPage() {
                   <div className="text-3xl mb-2">📤</div>
                   <p className="text-sm font-medium text-gray-700">Drop a report here or click to upload</p>
                   <p className="text-xs text-gray-400 mt-1">PDF or TXT files</p>
+                  <p className="text-xs text-gray-400 mt-2">🔒 Report text is never stored — only the AI summary is saved</p>
                 </>
               )}
             </div>
