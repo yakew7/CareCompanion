@@ -2,9 +2,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
-import { useEffect, useState } from "react";
 import Image from "next/image";
-import { storage, UserProfile } from "@/lib/storage";
+import { api } from "@/lib/api";
+import type { UserProfile } from "@/lib/storage";
 
 const nav = [
   { href: "/", label: "Dashboard", icon: "🏠" },
@@ -14,18 +14,15 @@ const nav = [
   { href: "/appointments", label: "Appointments", icon: "📅" },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ profile }: { profile: UserProfile }) {
   const pathname = usePathname();
   const { data: session } = useSession();
-  const [profile, setProfile] = useState<UserProfile | null>(null);
 
-  useEffect(() => {
-    setProfile(storage.profile.get());
-  }, []);
-
-  function handleSignOut() {
-    storage.profile.clear();
-    signOut({ callbackUrl: "/signin" });
+  async function handleSignOut() {
+    if (confirm("Sign out?")) {
+      await api.profile.clear();
+      signOut({ callbackUrl: "/signin" });
+    }
   }
 
   return (
@@ -37,58 +34,35 @@ export default function Sidebar() {
         </div>
         <p className="text-xs text-gray-400 mt-1 ml-8">AI Caregiver Dashboard</p>
       </div>
-
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
         {nav.map(({ href, label, icon }) => (
-          <Link
-            key={href}
-            href={href}
+          <Link key={href} href={href}
             className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
-              pathname === href
-                ? "bg-teal-50 text-teal-700"
-                : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-            }`}
-          >
+              pathname === href ? "bg-teal-50 text-teal-700" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+            }`}>
             <span className="text-base">{icon}</span>
             {label}
           </Link>
         ))}
       </nav>
-
       <div className="p-4 border-t border-gray-200 space-y-3">
-        {session?.user && (
-          <div className="flex items-center gap-3 px-2">
-            {session.user.image ? (
-              <Image
-                src={session.user.image}
-                alt="Profile"
-                width={32}
-                height={32}
-                className="rounded-full flex-shrink-0"
-              />
-            ) : (
-              <div className="w-8 h-8 rounded-full bg-teal-100 flex items-center justify-center text-teal-700 font-bold text-sm flex-shrink-0">
-                {session.user.name?.[0]?.toUpperCase()}
-              </div>
-            )}
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">
-                {session.user.name}
-              </p>
-              {profile?.patientName && (
-                <p className="text-xs text-gray-400 truncate">
-                  {profile.relation === "I am the patient"
-                    ? "Managing my own health"
-                    : `Caring for ${profile.patientName}`}
-                </p>
-              )}
+        <div className="flex items-center gap-3 px-2">
+          {session?.user?.image ? (
+            <Image src={session.user.image} alt="Profile" width={32} height={32} className="rounded-full flex-shrink-0" />
+          ) : (
+            <div className="w-8 h-8 rounded-full bg-teal-100 flex items-center justify-center text-teal-700 font-bold text-sm flex-shrink-0">
+              {profile.name[0]?.toUpperCase()}
             </div>
+          )}
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-gray-900 truncate">{profile.name}</p>
+            <p className="text-xs text-gray-400 truncate">
+              {profile.relation === "I am the patient" ? "Managing my own health" : `Caring for ${profile.patientName}`}
+            </p>
           </div>
-        )}
-        <button
-          onClick={handleSignOut}
-          className="w-full text-left px-4 py-2 text-xs text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"
-        >
+        </div>
+        <button onClick={handleSignOut}
+          className="w-full text-left px-4 py-2 text-xs text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors">
           Sign out
         </button>
         <p className="text-xs text-gray-400 text-center">V1TROUS Hackathon 2026</p>

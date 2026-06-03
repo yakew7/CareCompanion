@@ -3,37 +3,35 @@ import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { v4 as uuidv4 } from "uuid";
 import TopBar from "@/components/TopBar";
-import { storage, MedicalRecord } from "@/lib/storage";
+import { api } from "@/lib/api";
+import type { MedicalRecord } from "@/lib/storage";
 import { formatDateIST } from "@/lib/time";
 
-interface ChatMessage {
-  role: "user" | "assistant";
-  content: string;
-}
+interface ChatMessage { role: "user" | "assistant"; content: string; }
 
 export default function RecordsPage() {
   const [records, setRecords] = useState<MedicalRecord[]>([]);
+  const [loading, setLoading] = useState(true);
   const [activeRecord, setActiveRecord] = useState<MedicalRecord | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [uploading, setUploading] = useState(false);
   const [streaming, setStreaming] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
-  const [dragOver, setDragOver] = useState(false);
 
   useEffect(() => {
-    setRecords(storage.records.getAll());
+    api.records.getAll().then(data => { setRecords(data); setLoading(false); });
   }, []);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, streaming]);
+  }, [messages]);
 
   async function processFile(file: File) {
     if (!file.name.endsWith(".pdf") && !file.name.endsWith(".txt")) {
-      toast.error("Only PDF and TXT files are supported");
-      return;
+      toast.error("Only PDF and TXT files are supported"); return;
     }
     setUploading(true);
     try {
@@ -43,41 +41,24 @@ export default function RecordsPage() {
       } else {
         const formData = new FormData();
         formData.append("file", file);
-        const res = await fetch("/api/parse-pdf", {
-          method: "POST",
-          body: formData,
-        });
+        const res = await fetch("/api/parse-pdf", { method: "POST", body: formData });
         if (!res.ok) throw new Error("Parse failed");
         const data = await res.json();
         text = data.text;
       }
-
       toast.loading("Generating AI summary...", { id: "summary" });
       const sumRes = await fetch("/api/summarize", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text }),
       });
       const sumData = await sumRes.json();
       toast.dismiss("summary");
-
       if (sumData.error) throw new Error(sumData.error);
 
-      const record: MedicalRecord = {
-        id: uuidv4(),
-        name: file.name,
-        text,
-        summary: sumData.summary || "",
-        uploadedAt: new Date().toISOString(),
-      };
-      storage.records.save(record);
-      storage.activity.push({
-        type: "record",
-        label: `Uploaded report: ${file.name}`,
-        at: record.uploadedAt,
-      });
-      const updated = storage.records.getAll();
-      setRecords(updated);
+      const record: MedicalRecord = { id: uuidv4(), name: file.name, text, summary: sumData.summary || "", uploadedAt: new Date().toISOString() };
+      await api.records.save(record);
+      await api.activity.push({ type: "record", label: `Uploaded report: ${file.name}`, at: record.uploadedAt });
+      setRecords(await api.records.getAll());
       loadRecord(record);
       toast.success("Report uploaded and summarized!");
     } catch {
@@ -89,12 +70,7 @@ export default function RecordsPage() {
 
   function loadRecord(record: MedicalRecord) {
     setActiveRecord(record);
-    setMessages([
-      {
-        role: "assistant",
-        content: `**Summary of ${record.name}**\n\n${record.summary}\n\n---\n*Ask me anything about this report.*`,
-      },
-    ]);
+    setMessages([{ role: "assistant", content: `**Summary of ${record.name}**\n\n${record.summary}\n\n---\n*Ask me anything about this report.*` }]);
   }
 
   async function sendMessage() {
@@ -104,48 +80,30 @@ export default function RecordsPage() {
     setMessages(newMessages);
     setInput("");
     setStreaming(true);
-
     try {
       const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
-          context: activeRecord?.text || "",
-        }),
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: newMessages.map(m => ({ role: m.role, content: m.content })), context: activeRecord?.text || "" }),
       });
-
-      if (!res.body) throw new Error("No stream");
+      if (!res.body) throw new Error();
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let aiContent = "";
-
-      setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
-
+      setMessages(prev => [...prev, { role: "assistant", content: "" }]);
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         aiContent += decoder.decode(value, { stream: true });
-        setMessages((prev) => {
-          const updated = [...prev];
-          updated[updated.length - 1] = { role: "assistant", content: aiContent };
-          return updated;
-        });
+        setMessages(prev => { const u = [...prev]; u[u.length - 1] = { role: "assistant", content: aiContent }; return u; });
       }
-    } catch {
-      toast.error("AI response failed. Try again.");
-    } finally {
-      setStreaming(false);
-    }
+    } catch { toast.error("AI response failed. Try again."); }
+    finally { setStreaming(false); }
   }
 
-  function deleteRecord(id: string) {
-    storage.records.delete(id);
-    setRecords(storage.records.getAll());
-    if (activeRecord?.id === id) {
-      setActiveRecord(null);
-      setMessages([]);
-    }
+  async function deleteRecord(id: string) {
+    await api.records.delete(id);
+    setRecords(await api.records.getAll());
+    if (activeRecord?.id === id) { setActiveRecord(null); setMessages([]); }
     toast.success("Report deleted");
   }
 
@@ -155,35 +113,16 @@ export default function RecordsPage() {
       <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
         {/* Left panel */}
         <div className="w-full md:w-[40%] flex flex-col border-r border-gray-200 bg-white overflow-y-auto">
-          {/* Upload area */}
           <div className="p-4 border-b border-gray-200">
             <div
-              className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${
-                dragOver
-                  ? "border-teal-400 bg-teal-50"
-                  : "border-gray-300 hover:border-teal-400 hover:bg-gray-50"
-              }`}
+              className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${dragOver ? "border-teal-400 bg-teal-50" : "border-gray-300 hover:border-teal-400 hover:bg-gray-50"}`}
               onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
               onDragLeave={() => setDragOver(false)}
-              onDrop={(e) => {
-                e.preventDefault();
-                setDragOver(false);
-                const file = e.dataTransfer.files[0];
-                if (file) processFile(file);
-              }}
+              onDrop={(e) => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files[0]; if (f) processFile(f); }}
               onClick={() => fileRef.current?.click()}
             >
-              <input
-                ref={fileRef}
-                type="file"
-                accept=".pdf,.txt"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) processFile(file);
-                  e.target.value = "";
-                }}
-              />
+              <input ref={fileRef} type="file" accept=".pdf,.txt" className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) processFile(f); e.target.value = ""; }} />
               {uploading ? (
                 <div className="flex flex-col items-center gap-2">
                   <div className="w-6 h-6 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
@@ -192,49 +131,33 @@ export default function RecordsPage() {
               ) : (
                 <>
                   <div className="text-3xl mb-2">📤</div>
-                  <p className="text-sm font-medium text-gray-700">
-                    Drop a report here or click to upload
-                  </p>
+                  <p className="text-sm font-medium text-gray-700">Drop a report here or click to upload</p>
                   <p className="text-xs text-gray-400 mt-1">PDF or TXT files</p>
                 </>
               )}
             </div>
           </div>
-
-          {/* Past reports */}
           <div className="flex-1 p-4">
             <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
               Uploaded Reports ({records.length})
             </h3>
-            {records.length === 0 ? (
+            {loading ? (
+              <div className="flex justify-center py-8"><div className="w-6 h-6 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" /></div>
+            ) : records.length === 0 ? (
               <p className="text-sm text-gray-400 text-center py-8">No reports yet</p>
             ) : (
               <ul className="space-y-2">
-                {records.map((r) => (
-                  <li
-                    key={r.id}
-                    className={`p-3 rounded-xl border cursor-pointer transition-all ${
-                      activeRecord?.id === r.id
-                        ? "border-teal-400 bg-teal-50"
-                        : "border-gray-200 hover:border-gray-300 bg-white"
-                    }`}
-                    onClick={() => loadRecord(r)}
-                  >
+                {records.map(r => (
+                  <li key={r.id}
+                    className={`p-3 rounded-xl border cursor-pointer transition-all ${activeRecord?.id === r.id ? "border-teal-400 bg-teal-50" : "border-gray-200 hover:border-gray-300 bg-white"}`}
+                    onClick={() => loadRecord(r)}>
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-800 truncate">
-                          📄 {r.name}
-                        </p>
-                        <p className="text-xs text-gray-400 mt-0.5">
-                          {formatDateIST(r.uploadedAt)}
-                        </p>
+                        <p className="text-sm font-medium text-gray-800 truncate">📄 {r.name}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">{formatDateIST(r.uploadedAt)}</p>
                       </div>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); deleteRecord(r.id); }}
-                        className="text-gray-300 hover:text-red-400 transition-colors flex-shrink-0 text-sm"
-                      >
-                        🗑️
-                      </button>
+                      <button onClick={(e) => { e.stopPropagation(); deleteRecord(r.id); }}
+                        className="text-gray-300 hover:text-red-400 transition-colors flex-shrink-0 text-sm">🗑️</button>
                     </div>
                   </li>
                 ))}
@@ -249,26 +172,16 @@ export default function RecordsPage() {
             <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
               <div className="text-5xl mb-4">💬</div>
               <h3 className="text-lg font-semibold text-gray-700">No report loaded</h3>
-              <p className="text-gray-400 text-sm mt-2">
-                Upload a report or select one from the left to start chatting
-              </p>
+              <p className="text-gray-400 text-sm mt-2">Upload a report or select one from the left to start chatting</p>
             </div>
           ) : (
             <>
-              {/* Messages */}
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {messages.map((msg, i) => (
-                  <div
-                    key={i}
-                    className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-                  >
-                    <div
-                      className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm whitespace-pre-wrap leading-relaxed ${
-                        msg.role === "user"
-                          ? "bg-teal-600 text-white rounded-br-sm"
-                          : "bg-white border border-gray-200 text-gray-800 rounded-bl-sm shadow-sm"
-                      }`}
-                    >
+                  <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                    <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm whitespace-pre-wrap leading-relaxed ${
+                      msg.role === "user" ? "bg-teal-600 text-white rounded-br-sm" : "bg-white border border-gray-200 text-gray-800 rounded-bl-sm shadow-sm"
+                    }`}>
                       {msg.content || (
                         <span className="inline-flex gap-1">
                           <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:0ms]" />
@@ -281,27 +194,13 @@ export default function RecordsPage() {
                 ))}
                 <div ref={chatEndRef} />
               </div>
-
-              {/* Input */}
               <div className="p-4 bg-white border-t border-gray-200">
                 <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
+                  <input type="text" value={input} onChange={(e) => setInput(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendMessage()}
-                    placeholder="Ask anything about this report..."
-                    className="input flex-1"
-                    disabled={streaming}
-                  />
-                  <button
-                    onClick={sendMessage}
-                    disabled={!input.trim() || streaming}
-                    className="btn-primary px-4 disabled:opacity-50"
-                  >
-                    {streaming ? (
-                      <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" />
-                    ) : "Send"}
+                    placeholder="Ask anything about this report..." className="input flex-1" disabled={streaming} />
+                  <button onClick={sendMessage} disabled={!input.trim() || streaming} className="btn-primary px-4 disabled:opacity-50">
+                    {streaming ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" /> : "Send"}
                   </button>
                 </div>
               </div>
