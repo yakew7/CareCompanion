@@ -100,7 +100,7 @@ export default function AppointmentsPage() {
   async function createFollowup() {
     if (!followupSuggestion) return;
     const { appt, daysFromNow } = followupSuggestion;
-    const followupDate = new Date();
+    const followupDate = new Date(appt.datetime);
     followupDate.setDate(followupDate.getDate() + daysFromNow);
     const newAppt: Appointment = {
       id: uuidv4(), doctor: appt.doctor, specialty: appt.specialty,
@@ -252,7 +252,7 @@ export default function AppointmentsPage() {
                 <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Follow-up suggested</p>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5">{followupSuggestion.reason}</p>
                 <p className="text-xs text-teal-600 dark:text-teal-400 mt-1 font-medium">
-                  {new Date(Date.now() + followupSuggestion.daysFromNow * 86400000).toLocaleDateString("en-IN", {
+                  {new Date(new Date(followupSuggestion.appt.datetime).getTime() + followupSuggestion.daysFromNow * 86400000).toLocaleDateString("en-IN", {
                     timeZone: "Asia/Kolkata", day: "numeric", month: "long", year: "numeric",
                   })}{" "}with {followupSuggestion.appt.doctor}
                 </p>
