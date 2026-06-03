@@ -27,17 +27,21 @@ const RELATIONS = [
 ];
 
 export default function AuthGate({ children }: { children: React.ReactNode }) {
-  // Dev bypass — skip Google auth entirely in local dev/preview
-  if (DEV_SKIP_AUTH) {
-    return (
-      <>
-        <Sidebar profile={DEV_PROFILE} />
-        <div className="md:ml-64 min-h-screen pb-20 md:pb-0">{children}</div>
-        <BottomNav />
-      </>
-    );
-  }
+  if (DEV_SKIP_AUTH) return <DevShell>{children}</DevShell>;
+  return <AuthShell>{children}</AuthShell>;
+}
 
+function DevShell({ children }: { children: React.ReactNode }) {
+  return (
+    <>
+      <Sidebar profile={DEV_PROFILE} />
+      <div className="md:ml-64 min-h-screen pb-20 md:pb-0">{children}</div>
+      <BottomNav />
+    </>
+  );
+}
+
+function AuthShell({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession();
   const pathname = usePathname();
   const router = useRouter();
