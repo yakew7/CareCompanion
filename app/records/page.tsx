@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { v4 as uuidv4 } from "uuid";
+import ReactMarkdown from "react-markdown";
 import TopBar from "@/components/TopBar";
 import { api } from "@/lib/api";
 import type { MedicalRecord } from "@/lib/storage";
@@ -179,10 +180,18 @@ export default function RecordsPage() {
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {messages.map((msg, i) => (
                   <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                    <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm whitespace-pre-wrap leading-relaxed ${
+                    <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                       msg.role === "user" ? "bg-teal-600 text-white rounded-br-sm" : "bg-white border border-gray-200 text-gray-800 rounded-bl-sm shadow-sm"
                     }`}>
-                      {msg.content || (
+                      {msg.content ? (
+                        msg.role === "user" ? (
+                          <span className="whitespace-pre-wrap">{msg.content}</span>
+                        ) : (
+                          <div className="prose prose-sm max-w-none prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-li:my-0 prose-strong:font-semibold prose-hr:my-2">
+                            <ReactMarkdown>{msg.content}</ReactMarkdown>
+                          </div>
+                        )
+                      ) : (
                         <span className="inline-flex gap-1">
                           <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:0ms]" />
                           <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:150ms]" />

@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
+import ReactMarkdown from "react-markdown";
 import { v4 as uuidv4 } from "uuid";
 import TopBar from "@/components/TopBar";
 import { api } from "@/lib/api";
@@ -126,10 +127,10 @@ export default function SymptomsPage() {
                 Analyzing patterns...
               </div>
             ) : (
-              <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
-                {analysis}
+              <div className="prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0 prose-strong:font-semibold text-gray-700">
+                <ReactMarkdown>{analysis}</ReactMarkdown>
                 {analyzing && <span className="inline-block w-1 h-4 bg-purple-500 animate-pulse ml-0.5 align-middle" />}
-              </p>
+              </div>
             )}
           </div>
         )}
