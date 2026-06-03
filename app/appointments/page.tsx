@@ -26,6 +26,9 @@ export default function AppointmentsPage() {
   const [form, setForm] = useState(emptyForm());
   const [notesTarget, setNotesTarget] = useState<string | null>(null);
   const [postNotes, setPostNotes] = useState("");
+  const [followupSuggestion, setFollowupSuggestion] = useState<{
+    appt: Appointment; daysFromNow: number; reason: string;
+  } | null>(null);
 
   useEffect(() => {
     api.appointments.getAll().then(data => { setAppointments(data); setLoading(false); });
@@ -59,10 +62,43 @@ export default function AppointmentsPage() {
   async function savePostNotes(id: string) {
     const appt = appointments.find(a => a.id === id);
     if (!appt) return;
-    await api.appointments.save({ ...appt, postVisitNotes: postNotes });
+    const updated = { ...appt, postVisitNotes: postNotes };
+    await api.appointments.save(updated);
     setAppointments(await api.appointments.getAll());
     setNotesTarget(null);
     toast.success("Notes saved");
+
+    if (postNotes.trim()) {
+      const res = await fetch("/api/suggest-followup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notes: postNotes, doctor: appt.doctor, specialty: appt.specialty }),
+      });
+      const data = await res.json();
+      if (data.suggested) setFollowupSuggestion({ appt: updated, daysFromNow: data.daysFromNow, reason: data.reason });
+    }
+  }
+
+  async function createFollowup() {
+    if (!followupSuggestion) return;
+    const { appt, daysFromNow } = followupSuggestion;
+    const followupDate = new Date();
+    followupDate.setDate(followupDate.getDate() + daysFromNow);
+    const newAppt: Appointment = {
+      id: uuidv4(),
+      doctor: appt.doctor,
+      specialty: appt.specialty,
+      datetime: followupDate.toISOString(),
+      location: appt.location,
+      notes: `Follow-up: ${followupSuggestion.reason}`,
+      status: "upcoming",
+      postVisitNotes: "",
+    };
+    await api.appointments.save(newAppt);
+    await api.activity.push({ type: "appointment", label: `Follow-up created: ${appt.doctor}`, at: new Date().toISOString() });
+    setAppointments(await api.appointments.getAll());
+    setFollowupSuggestion(null);
+    toast.success("Follow-up appointment created!");
   }
 
   const now = new Date();
@@ -157,6 +193,34 @@ export default function AppointmentsPage() {
           </>
         )}
       </main>
+
+      {/* AI Follow-up suggestion */}
+      {followupSuggestion && (
+        <div className="fixed bottom-24 md:bottom-6 left-1/2 -translate-x-1/2 w-full max-w-md px-4 z-50">
+          <div className="bg-white border border-teal-200 rounded-2xl shadow-xl p-4 space-y-3">
+            <div className="flex items-start gap-3">
+              <span className="text-2xl flex-shrink-0">🤖</span>
+              <div>
+                <p className="text-sm font-semibold text-gray-900">Follow-up detected</p>
+                <p className="text-sm text-gray-600 mt-0.5">{followupSuggestion.reason}</p>
+                <p className="text-xs text-teal-600 mt-1 font-medium">
+                  📅 {new Date(Date.now() + followupSuggestion.daysFromNow * 86400000)
+                    .toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "long", year: "numeric" })}
+                  {" "}with {followupSuggestion.appt.doctor}
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={createFollowup} className="btn-primary flex-1 py-2">
+                Create Appointment
+              </button>
+              <button onClick={() => setFollowupSuggestion(null)} className="btn-secondary px-4 py-2">
+                Dismiss
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
