@@ -1,7 +1,10 @@
 "use client";
-import { useSession, signIn } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { storage, UserProfile } from "@/lib/storage";
+import Sidebar from "@/components/Sidebar";
+import BottomNav from "@/components/BottomNav";
 
 const RELATIONS = [
   "I am the patient",
@@ -16,9 +19,19 @@ const RELATIONS = [
 
 export default function AuthGate({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession();
+  const pathname = usePathname();
+  const router = useRouter();
   const [profile, setProfile] = useState<UserProfile | null | "loading">("loading");
   const [form, setForm] = useState({ patientName: "", relation: "Child", customRelation: "" });
   const [error, setError] = useState("");
+
+  const isSignInPage = pathname === "/signin";
+
+  useEffect(() => {
+    if (status === "unauthenticated" && !isSignInPage) {
+      router.push("/signin");
+    }
+  }, [status, isSignInPage, router]);
 
   useEffect(() => {
     if (session?.user) {
@@ -48,21 +61,11 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     setProfile(p);
   }
 
-  // Loading spinner
-  if (status === "loading" || (status === "authenticated" && profile === "loading")) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm text-gray-400">Loading...</p>
-        </div>
-      </div>
-    );
-  }
+  // Sign-in page — render bare (no sidebar/nav)
+  if (isSignInPage) return <>{children}</>;
 
-  // Not signed in — redirect to sign-in
-  if (status === "unauthenticated") {
-    signIn(undefined, { callbackUrl: "/" });
+  // Session still loading
+  if (status === "loading") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="w-10 h-10 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
@@ -70,7 +73,25 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Signed in but no patient profile yet — show one-time setup
+  // Not signed in — show spinner while redirect fires
+  if (status === "unauthenticated") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="w-10 h-10 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  // Signed in, profile still loading from localStorage
+  if (profile === "loading") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="w-10 h-10 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  // Signed in but no patient profile — one-time setup
   if (!profile) {
     const isSelf = form.relation === "I am the patient";
     return (
@@ -97,7 +118,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
               <select
                 className="input"
                 value={form.relation}
-                onChange={(e) => { setForm({ ...form, relation: e.target.value }); setError(""); }}
+                onChange={(e) => { setForm({ ...form, relation: e.target.value, customRelation: "" }); setError(""); }}
               >
                 {RELATIONS.map((r) => <option key={r}>{r}</option>)}
               </select>
@@ -110,8 +131,8 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
                   className="input"
                   placeholder="e.g. Family friend, Nurse, Guardian..."
                   value={form.customRelation}
-                  onChange={(e) => { setForm({ ...form, customRelation: e.target.value }); setError(""); }}
                   autoFocus
+                  onChange={(e) => { setForm({ ...form, customRelation: e.target.value }); setError(""); }}
                 />
               </div>
             )}
@@ -123,12 +144,13 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
                   className="input"
                   placeholder="e.g. Radha Sharma"
                   value={form.patientName}
-                  onChange={(e) => { setForm({ ...form, patientName: e.target.value }); setError(""); }}
                   autoFocus={form.relation !== "Other"}
+                  onChange={(e) => { setForm({ ...form, patientName: e.target.value }); setError(""); }}
                 />
-                {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
               </div>
             )}
+
+            {error && <p className="text-red-500 text-xs">{error}</p>}
 
             {isSelf && (
               <div className="bg-teal-50 rounded-xl px-4 py-3 text-sm text-teal-700">
@@ -145,5 +167,14 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  return <>{children}</>;
+  // Fully authenticated — render app shell with sidebar/nav
+  return (
+    <>
+      <Sidebar />
+      <div className="md:ml-64 min-h-screen pb-20 md:pb-0">
+        {children}
+      </div>
+      <BottomNav />
+    </>
+  );
 }

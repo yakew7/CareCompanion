@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import Sidebar from "@/components/Sidebar";
-import BottomNav from "@/components/BottomNav";
 import AuthGate from "@/components/AuthGate";
 import NextAuthProvider from "@/components/NextAuthProvider";
 import { Toaster } from "react-hot-toast";
@@ -19,13 +17,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className={`${inter.className} bg-gray-50`}>
         <NextAuthProvider>
-          <AuthGate>
-            <Sidebar />
-            <div className="md:ml-64 min-h-screen pb-20 md:pb-0">
-              {children}
-            </div>
-            <BottomNav />
-          </AuthGate>
+          <AuthGate>{children}</AuthGate>
           <Toaster
             position="top-right"
             toastOptions={{
