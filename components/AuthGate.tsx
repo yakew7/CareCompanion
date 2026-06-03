@@ -1,23 +1,42 @@
 "use client";
+import { useSession, signIn } from "next-auth/react";
 import { useEffect, useState } from "react";
 import { storage, UserProfile } from "@/lib/storage";
 
-const RELATIONS = ["Child", "Spouse", "Sibling", "Parent", "Grandchild", "Other"];
+const RELATIONS = [
+  "I am the patient",
+  "Child",
+  "Spouse / Partner",
+  "Parent",
+  "Sibling",
+  "Grandchild",
+  "Caretaker",
+  "Other",
+];
 
 export default function AuthGate({ children }: { children: React.ReactNode }) {
+  const { data: session, status } = useSession();
   const [profile, setProfile] = useState<UserProfile | null | "loading">("loading");
-  const [form, setForm] = useState({ name: "", patientName: "", relation: "Child" });
+  const [form, setForm] = useState({ patientName: "", relation: "Child" });
   const [error, setError] = useState("");
 
   useEffect(() => {
-    setProfile(storage.profile.get());
-  }, []);
+    if (session?.user) {
+      setProfile(storage.profile.get());
+    }
+  }, [session]);
 
-  function handleSignIn() {
-    if (!form.name.trim()) { setError("Please enter your name"); return; }
+  function completeSetup() {
+    if (!form.patientName.trim() && form.relation !== "I am the patient") {
+      setError("Please enter the patient's name");
+      return;
+    }
     const p: UserProfile = {
-      name: form.name.trim(),
-      patientName: form.patientName.trim(),
+      name: session!.user!.name || "Caregiver",
+      patientName:
+        form.relation === "I am the patient"
+          ? session!.user!.name || "Yourself"
+          : form.patientName.trim(),
       relation: form.relation,
       createdAt: new Date().toISOString(),
     };
@@ -25,57 +44,48 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     setProfile(p);
   }
 
-  if (profile === "loading") {
+  // Loading spinner
+  if (status === "loading" || (status === "authenticated" && profile === "loading")) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="w-8 h-8 border-3 border-teal-600 border-t-transparent rounded-full animate-spin" />
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-gray-400">Loading...</p>
+        </div>
       </div>
     );
   }
 
+  // Not signed in — redirect to sign-in
+  if (status === "unauthenticated") {
+    signIn(undefined, { callbackUrl: "/" });
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="w-10 h-10 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  // Signed in but no patient profile yet — show one-time setup
   if (!profile) {
+    const isSelf = form.relation === "I am the patient";
     return (
       <div className="min-h-screen bg-gradient-to-br from-teal-50 to-white flex items-center justify-center p-4">
         <div className="w-full max-w-md">
-          {/* Logo */}
           <div className="text-center mb-8">
             <div className="text-5xl mb-3">❤️</div>
             <h1 className="text-3xl font-bold text-teal-600">CareCompanion</h1>
-            <p className="text-gray-500 mt-2 text-sm">
-              AI-powered dashboard for family caregivers
+            <p className="text-gray-500 mt-1 text-sm">
+              Welcome, {session?.user?.name?.split(" ")[0]}!
             </p>
           </div>
 
-          {/* Sign-in card */}
           <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 space-y-5">
             <div>
-              <h2 className="text-xl font-bold text-gray-900">Get started</h2>
+              <h2 className="text-xl font-bold text-gray-900">One last thing</h2>
               <p className="text-sm text-gray-500 mt-1">
-                Tell us a bit about yourself — your details stay on this device only.
+                Tell us who you&apos;re caring for so we can personalise your dashboard.
               </p>
-            </div>
-
-            <div>
-              <label className="label">Your name *</label>
-              <input
-                className="input"
-                placeholder="e.g. Priya Sharma"
-                value={form.name}
-                onChange={(e) => { setForm({ ...form, name: e.target.value }); setError(""); }}
-                onKeyDown={(e) => e.key === "Enter" && handleSignIn()}
-                autoFocus
-              />
-              {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
-            </div>
-
-            <div>
-              <label className="label">Patient&apos;s name (optional)</label>
-              <input
-                className="input"
-                placeholder="e.g. Radha Sharma (your parent / dependent)"
-                value={form.patientName}
-                onChange={(e) => setForm({ ...form, patientName: e.target.value })}
-              />
             </div>
 
             <div>
@@ -83,19 +93,35 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
               <select
                 className="input"
                 value={form.relation}
-                onChange={(e) => setForm({ ...form, relation: e.target.value })}
+                onChange={(e) => { setForm({ ...form, relation: e.target.value }); setError(""); }}
               >
                 {RELATIONS.map((r) => <option key={r}>{r}</option>)}
               </select>
             </div>
 
-            <button onClick={handleSignIn} className="btn-primary w-full py-3 text-base">
-              Start using CareCompanion →
-            </button>
+            {!isSelf && (
+              <div>
+                <label className="label">Patient&apos;s name *</label>
+                <input
+                  className="input"
+                  placeholder="e.g. Radha Sharma"
+                  value={form.patientName}
+                  onChange={(e) => { setForm({ ...form, patientName: e.target.value }); setError(""); }}
+                  autoFocus
+                />
+                {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
+              </div>
+            )}
 
-            <p className="text-xs text-gray-400 text-center">
-              No account needed. Everything is saved privately on this device.
-            </p>
+            {isSelf && (
+              <div className="bg-teal-50 rounded-xl px-4 py-3 text-sm text-teal-700">
+                We&apos;ll set up the dashboard for you to track your own health.
+              </div>
+            )}
+
+            <button onClick={completeSetup} className="btn-primary w-full py-3 text-base">
+              Go to dashboard →
+            </button>
           </div>
         </div>
       </div>

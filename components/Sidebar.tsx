@@ -1,7 +1,9 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSession, signOut } from "next-auth/react";
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { storage, UserProfile } from "@/lib/storage";
 
 const nav = [
@@ -14,17 +16,16 @@ const nav = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { data: session } = useSession();
   const [profile, setProfile] = useState<UserProfile | null>(null);
 
   useEffect(() => {
     setProfile(storage.profile.get());
   }, []);
 
-  function signOut() {
-    if (confirm("Sign out? Your data will stay saved on this device.")) {
-      storage.profile.clear();
-      window.location.reload();
-    }
+  function handleSignOut() {
+    storage.profile.clear();
+    signOut({ callbackUrl: "/signin" });
   }
 
   return (
@@ -55,23 +56,37 @@ export default function Sidebar() {
       </nav>
 
       <div className="p-4 border-t border-gray-200 space-y-3">
-        {profile && (
+        {session?.user && (
           <div className="flex items-center gap-3 px-2">
-            <div className="w-8 h-8 rounded-full bg-teal-100 flex items-center justify-center text-teal-700 font-bold text-sm flex-shrink-0">
-              {profile.name[0].toUpperCase()}
-            </div>
+            {session.user.image ? (
+              <Image
+                src={session.user.image}
+                alt="Profile"
+                width={32}
+                height={32}
+                className="rounded-full flex-shrink-0"
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-teal-100 flex items-center justify-center text-teal-700 font-bold text-sm flex-shrink-0">
+                {session.user.name?.[0]?.toUpperCase()}
+              </div>
+            )}
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">{profile.name}</p>
-              {profile.patientName && (
+              <p className="text-sm font-medium text-gray-900 truncate">
+                {session.user.name}
+              </p>
+              {profile?.patientName && (
                 <p className="text-xs text-gray-400 truncate">
-                  Caring for {profile.patientName}
+                  {profile.relation === "I am the patient"
+                    ? "Managing my own health"
+                    : `Caring for ${profile.patientName}`}
                 </p>
               )}
             </div>
           </div>
         )}
         <button
-          onClick={signOut}
+          onClick={handleSignOut}
           className="w-full text-left px-4 py-2 text-xs text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"
         >
           Sign out

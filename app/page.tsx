@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import TopBar from "@/components/TopBar";
 import { storage, ActivityEntry, UserProfile } from "@/lib/storage";
 
@@ -12,6 +13,7 @@ interface Stats {
 }
 
 export default function DashboardPage() {
+  const { data: session } = useSession();
   const [stats, setStats] = useState<Stats>({
     medications: 0,
     symptomsThisWeek: 0,
@@ -92,7 +94,7 @@ export default function DashboardPage() {
         {/* Greeting */}
         <div>
           <h2 className="text-2xl font-bold text-gray-900">
-            {greeting}, {profile?.name || "Caregiver"} 👋
+            {greeting}, {session?.user?.name?.split(" ")[0] || profile?.name || "Caregiver"} 👋
           </h2>
           <p className="text-gray-500 mt-1 text-sm">
             {profile?.patientName
