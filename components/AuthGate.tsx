@@ -17,7 +17,7 @@ const RELATIONS = [
 export default function AuthGate({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession();
   const [profile, setProfile] = useState<UserProfile | null | "loading">("loading");
-  const [form, setForm] = useState({ patientName: "", relation: "Child" });
+  const [form, setForm] = useState({ patientName: "", relation: "Child", customRelation: "" });
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -31,13 +31,17 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
       setError("Please enter the patient's name");
       return;
     }
+    if (form.relation === "Other" && !form.customRelation.trim()) {
+      setError("Please describe your relation");
+      return;
+    }
     const p: UserProfile = {
       name: session!.user!.name || "Caregiver",
       patientName:
         form.relation === "I am the patient"
           ? session!.user!.name || "Yourself"
           : form.patientName.trim(),
-      relation: form.relation,
+      relation: form.relation === "Other" ? form.customRelation.trim() : form.relation,
       createdAt: new Date().toISOString(),
     };
     storage.profile.save(p);
@@ -99,6 +103,19 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
               </select>
             </div>
 
+            {form.relation === "Other" && (
+              <div>
+                <label className="label">Describe your relation *</label>
+                <input
+                  className="input"
+                  placeholder="e.g. Family friend, Nurse, Guardian..."
+                  value={form.customRelation}
+                  onChange={(e) => { setForm({ ...form, customRelation: e.target.value }); setError(""); }}
+                  autoFocus
+                />
+              </div>
+            )}
+
             {!isSelf && (
               <div>
                 <label className="label">Patient&apos;s name *</label>
@@ -107,7 +124,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
                   placeholder="e.g. Radha Sharma"
                   value={form.patientName}
                   onChange={(e) => { setForm({ ...form, patientName: e.target.value }); setError(""); }}
-                  autoFocus
+                  autoFocus={form.relation !== "Other"}
                 />
                 {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
               </div>
