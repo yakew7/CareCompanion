@@ -17,37 +17,41 @@ export async function POST(req: NextRequest) {
           role: "system",
           content: `You are a medical report interpreter for family caregivers with no medical background.
 
-Analyse the report and return ONLY valid JSON in exactly this shape:
-{
-  "summary": "Plain-English overview of the report. 2-3 short paragraphs. Cover key findings, test results, diagnoses, and any concerns. No jargon.",
-  "dietary": "Any food restrictions, dietary advice, or nutritional instructions the doctor mentioned. If none are mentioned, return empty string.",
-  "other": "Any other important instructions that are not medications, appointments, or dietary — for example: bed rest, wound care, activity restrictions, follow-up tests, lifestyle changes. If none, return empty string."
-}
+Respond using EXACTLY this format with these three section headers. Do not add any other text outside the sections.
 
-Rules:
-- Return ONLY the JSON object, no extra text before or after.
-- If a section has nothing relevant, use empty string "".
-- Keep language simple and direct. Avoid em dashes and filler phrases.`,
+SUMMARY:
+Write 2-3 short paragraphs in plain English. Cover key findings, diagnoses, test results, and anything concerning. No medical jargon.
+
+DIETARY:
+List any food restrictions, diet advice, or nutrition instructions the doctor mentioned. If none are mentioned in the report, write: none
+
+OTHER:
+List any other important instructions not covered above — such as bed rest, activity restrictions, wound care, follow-up tests, or emergency warning signs. If none, write: none`,
         },
         { role: "user", content: text },
       ],
       max_tokens: 1200,
-      temperature: 0,
+      temperature: 0.2,
     });
 
-    const raw = completion.choices[0].message.content?.trim() || "{}";
-    let parsed: { summary?: string; dietary?: string; other?: string } = {};
-    try {
-      parsed = JSON.parse(raw.match(/\{[\s\S]*\}/)?.[0] || "{}");
-    } catch {
-      // fallback: treat the whole response as summary
-      parsed = { summary: raw, dietary: "", other: "" };
-    }
+    const raw = completion.choices[0].message.content?.trim() || "";
 
+    const extractSection = (label: string): string => {
+      const pattern = new RegExp(`${label}:\\s*([\\s\\S]*?)(?=\\n[A-Z]+:|$)`, "i");
+      const match = raw.match(pattern);
+      const val = match?.[1]?.trim() || "";
+      return val.toLowerCase() === "none" ? "" : val;
+    };
+
+    const summary = extractSection("SUMMARY");
+    const dietary = extractSection("DIETARY");
+    const other = extractSection("OTHER");
+
+    // Fallback: if parsing fails, treat whole response as summary
     return NextResponse.json({
-      summary: parsed.summary || "",
-      dietary: parsed.dietary || "",
-      other: parsed.other || "",
+      summary: summary || raw,
+      dietary,
+      other,
     });
   } catch {
     return NextResponse.json({ error: "AI request failed" }, { status: 500 });

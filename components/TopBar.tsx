@@ -3,7 +3,8 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Sun, Moon, Users, Check } from "lucide-react";
 import { usePersonContext } from "@/contexts/PersonContext";
-import { personColorClasses, storage } from "@/lib/storage";
+import { personColorClasses } from "@/lib/storage";
+import { useTheme } from "@/lib/theme";
 
 const titles: Record<string, string> = {
   "/": "Dashboard",
@@ -12,19 +13,6 @@ const titles: Record<string, string> = {
   "/symptoms": "Symptom Log",
   "/appointments": "Appointments",
 };
-
-function useTheme() {
-  const [dark, setDark] = useState(() =>
-    typeof window !== "undefined" && document.documentElement.classList.contains("dark")
-  );
-  function toggle() {
-    const next = !dark;
-    document.documentElement.classList.toggle("dark", next);
-    storage.theme.set(next ? "dark" : "light");
-    setDark(next);
-  }
-  return { dark, toggle };
-}
 
 export default function TopBar({ reportName }: { reportName?: string }) {
   const pathname = usePathname();

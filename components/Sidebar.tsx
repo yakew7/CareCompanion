@@ -9,7 +9,8 @@ import {
   Heart, LogOut, Sun, Moon, Plus, X, Check,
 } from "lucide-react";
 import { usePersonContext } from "@/contexts/PersonContext";
-import { PersonColor, PERSON_COLORS, personColorClasses, storage } from "@/lib/storage";
+import { PersonColor, PERSON_COLORS, personColorClasses } from "@/lib/storage";
+import { useTheme } from "@/lib/theme";
 
 const nav = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -22,19 +23,6 @@ const nav = [
 const COLOR_LABELS: Record<PersonColor, string> = {
   teal: "Teal", purple: "Purple", blue: "Blue", orange: "Orange", rose: "Rose",
 };
-
-function useTheme() {
-  const [dark, setDark] = useState(() =>
-    typeof window !== "undefined" && document.documentElement.classList.contains("dark")
-  );
-  function toggle() {
-    const next = !dark;
-    document.documentElement.classList.toggle("dark", next);
-    storage.theme.set(next ? "dark" : "light");
-    setDark(next);
-  }
-  return { dark, toggle };
-}
 
 export default function Sidebar() {
   const pathname = usePathname();
