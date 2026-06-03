@@ -18,6 +18,14 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<Stats>({ medications: 0, symptomsThisWeek: 0, upcomingAppointments: 0, records: 0 });
   const [activity, setActivity] = useState<ActivityEntry[]>([]);
   const [hour] = useState(new Date().getHours());
+  const [loadingDemo, setLoadingDemo] = useState(false);
+
+  async function loadDemo() {
+    setLoadingDemo(true);
+    const res = await fetch("/api/demo", { method: "POST" });
+    if (res.ok) window.location.reload();
+    setLoadingDemo(false);
+  }
 
   useEffect(() => {
     Promise.all([
@@ -80,6 +88,10 @@ export default function DashboardPage() {
             <Link href="/symptoms" className="btn-secondary">🌡️ Log Symptom</Link>
             <Link href="/medications" className="btn-secondary">💊 Add Medication</Link>
             <Link href="/appointments" className="btn-secondary">📅 Add Appointment</Link>
+            <button onClick={loadDemo} disabled={loadingDemo}
+              className="btn-secondary text-purple-600 border-purple-200 hover:bg-purple-50 disabled:opacity-50">
+              {loadingDemo ? "Loading..." : "🎭 Load Demo Data"}
+            </button>
           </div>
         </div>
 
@@ -99,6 +111,9 @@ export default function DashboardPage() {
             </ul>
           )}
         </div>
+        <p className="text-xs text-gray-400 text-center pb-2">
+          ⚠️ CareCompanion is not a medical device. AI summaries are for informational purposes only — always consult a qualified healthcare professional.
+        </p>
       </main>
     </>
   );

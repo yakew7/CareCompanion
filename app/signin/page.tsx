@@ -49,6 +49,9 @@ function SignInContent() {
         <p className="text-center text-xs text-gray-400 mt-6">
           Built for 40 million family caregivers in India · V1TROUS Hackathon 2026
         </p>
+        <p className="text-center text-xs text-gray-400 mt-2 max-w-sm mx-auto">
+          ⚠️ CareCompanion is not a medical device. AI summaries are for informational purposes only and do not constitute medical advice. Always consult a qualified healthcare professional.
+        </p>
       </div>
     </div>
   );

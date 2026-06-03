@@ -1,4 +1,7 @@
 // SERVER ONLY — do not import from client components
+// Explicitly set Node.js runtime so pdf-parse works on Vercel
+export const runtime = "nodejs";
+
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
@@ -10,12 +13,15 @@ export async function POST(req: NextRequest) {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    // Dynamically import to avoid build issues with pdf-parse
-    const pdfParse = (await import("pdf-parse")).default;
+
+    // Import the inner lib directly to avoid pdf-parse loading test files at require time
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const pdfParse = (await import("pdf-parse/lib/pdf-parse.js" as any)).default;
     const data = await pdfParse(buffer);
 
     return NextResponse.json({ text: data.text.slice(0, 15000) });
-  } catch {
-    return NextResponse.json({ error: "Failed to parse PDF" }, { status: 500 });
+  } catch (err) {
+    console.error("PDF parse error:", err);
+    return NextResponse.json({ error: "Failed to parse PDF. Try saving as a .txt file." }, { status: 500 });
   }
 }

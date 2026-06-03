@@ -7,6 +7,14 @@ import type { UserProfile } from "@/lib/storage";
 import Sidebar from "@/components/Sidebar";
 import BottomNav from "@/components/BottomNav";
 
+const DEV_SKIP_AUTH = process.env.NEXT_PUBLIC_DEV_SKIP_AUTH === "true";
+const DEV_PROFILE: UserProfile = {
+  name: "Yash",
+  patientName: "Mum",
+  relation: "Child",
+  createdAt: new Date().toISOString(),
+};
+
 const RELATIONS = [
   "I am the patient",
   "Child",
@@ -19,6 +27,17 @@ const RELATIONS = [
 ];
 
 export default function AuthGate({ children }: { children: React.ReactNode }) {
+  // Dev bypass — skip Google auth entirely in local dev/preview
+  if (DEV_SKIP_AUTH) {
+    return (
+      <>
+        <Sidebar profile={DEV_PROFILE} />
+        <div className="md:ml-64 min-h-screen pb-20 md:pb-0">{children}</div>
+        <BottomNav />
+      </>
+    );
+  }
+
   const { data: session, status } = useSession();
   const pathname = usePathname();
   const router = useRouter();

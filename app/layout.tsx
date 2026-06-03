@@ -8,8 +8,12 @@ import { Toaster } from "react-hot-toast";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "CareCompanion — AI Caregiver Dashboard",
+  title: {
+    default: "CareCompanion",
+    template: "%s — CareCompanion",
+  },
   description: "AI-powered dashboard for family caregivers managing elderly health",
+  icons: { icon: "/favicon.svg" },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
