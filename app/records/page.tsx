@@ -87,11 +87,15 @@ export default function RecordsPage() {
           label: `💊 ${m.name}${m.dosage ? ` — ${m.dosage}` : ""}${m.frequency ? ` (${m.frequency})` : ""}`,
           data: m,
         })),
-        ...(extracted.appointments || []).map((a: Record<string, unknown>) => ({
-          id: uuidv4(), type: "appointment" as const, selected: true,
-          label: `📅 ${a.doctor || "Doctor"} ${a.specialty ? `(${a.specialty})` : ""} — ${a.notes}`,
-          data: a,
-        })),
+        ...(extracted.appointments || []).map((a: Record<string, unknown>) => {
+          const days = (a.daysFromNow as number) || 30;
+          const date = new Date(Date.now() + days * 86400000).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+          return {
+            id: uuidv4(), type: "appointment" as const, selected: true,
+            label: `📅 ${a.doctor || "Doctor"} ${a.specialty ? `(${a.specialty})` : ""} — ${a.notes} → ${date}`,
+            data: a,
+          };
+        }),
         ...(extracted.symptoms || []).map((s: Record<string, unknown>) => ({
           id: uuidv4(), type: "symptom" as const, selected: true,
           label: `🌡️ ${s.symptom} — severity ${s.severity}/5${s.notes ? ` (${s.notes})` : ""}`,
@@ -159,7 +163,7 @@ export default function RecordsPage() {
             name: m.name as string,
             dosage: (m.dosage as string) || "",
             frequency: (m.frequency as string) || "As needed",
-            times: ["Morning"],
+            times: (m.times as string[]) || [], // only what the report explicitly states
             notes: (m.notes as string) || "",
             log: {},
           });
@@ -174,11 +178,12 @@ export default function RecordsPage() {
           });
         } else if (item.type === "appointment") {
           const a = item.data;
+          const days = (a.daysFromNow as number) || 30;
           await api.appointments.save({
             id: uuidv4(),
-            doctor: (a.doctor as string) || "Doctor",
+            doctor: (a.doctor as string) || "",
             specialty: (a.specialty as string) || "",
-            datetime: new Date(Date.now() + 30 * 86400000).toISOString(), // default 30 days out — user can edit
+            datetime: new Date(Date.now() + days * 86400000).toISOString(),
             location: "",
             notes: (a.notes as string) || "",
             status: "upcoming",

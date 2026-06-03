@@ -12,30 +12,45 @@ export async function POST(req: NextRequest) {
       messages: [
         {
           role: "system",
-          content: `You are a medical data extractor. Extract ONLY explicitly mentioned items from the report — do NOT infer or assume anything not directly stated.
+          content: `You are a strict medical data extractor. Extract ONLY items that are EXPLICITLY and DIRECTLY stated in the report text.
 
-Return ONLY valid JSON in this exact format:
+STRICT RULES:
+- Medications: ONLY include if a medication NAME is explicitly prescribed or listed. dosage/frequency/times must be EXACTLY as written — if times of day are not mentioned, leave "times" as an empty array []. Do NOT infer or guess times.
+- Appointments: ONLY include if a specific follow-up visit is explicitly recommended (e.g. "follow up in 3 months", "return in 6 weeks"). Do NOT create appointments for every doctor mentioned. If no follow-up is mentioned, return [].
+- Symptoms: ONLY include symptoms the patient is explicitly described as experiencing or reporting. Do NOT include test results or diagnoses as symptoms.
+- If something is NOT directly stated, do NOT include it.
+
+Return ONLY valid JSON:
 {
   "medications": [
-    { "name": "string", "dosage": "string or empty", "frequency": "string or empty", "notes": "string or empty" }
+    {
+      "name": "exact name from report",
+      "dosage": "exact dosage or empty string",
+      "frequency": "exact frequency as written or empty string",
+      "times": ["Morning"|"Afternoon"|"Evening"|"Night"] only if EXPLICITLY stated, otherwise [],
+      "notes": "any extra instructions mentioned"
+    }
   ],
   "appointments": [
-    { "doctor": "string or empty", "specialty": "string or empty", "notes": "string describing what was said, e.g. follow up in 3 months" }
+    {
+      "doctor": "doctor name if mentioned or empty string",
+      "specialty": "specialty if mentioned or empty string",
+      "notes": "exact follow-up instruction as written in report",
+      "daysFromNow": number only if timeframe is clearly stated (e.g. 90 for 3 months, 180 for 6 months, 14 for 2 weeks), else 30
+    }
   ],
   "symptoms": [
-    { "symptom": "string", "severity": 1-5, "notes": "exact phrase from report" }
+    {
+      "symptom": "symptom name",
+      "severity": 1-5 only if severity words used (mild=2, moderate=3, significant=4, severe=5), else 3,
+      "notes": "exact phrase from report describing this symptom"
+    }
   ]
-}
-
-Severity mapping (only if explicitly described):
-1-2 = mild/slight/minor, 3 = moderate, 4 = significant/concerning, 5 = severe/critical
-
-If nothing is found for a category, return an empty array.
-Do NOT add anything that is not directly written in the report.`,
+}`,
         },
         {
           role: "user",
-          content: `Extract medications, appointments, and symptoms from this report:\n\n${text.slice(0, 12000)}`,
+          content: `Extract from this report — only what is explicitly stated:\n\n${text.slice(0, 12000)}`,
         },
       ],
       max_tokens: 1500,
