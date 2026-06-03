@@ -9,8 +9,37 @@ import { usePersonContext } from "@/contexts/PersonContext";
 import type { Medication } from "@/lib/storage";
 
 const TIMES = ["Morning", "Afternoon", "Evening", "Night"];
-const FREQUENCIES = ["Once daily", "Twice daily", "Three times daily", "As needed"];
-const emptyForm = () => ({ name: "", dosage: "", frequency: "Once daily", times: ["Morning"], notes: "" });
+const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const DAY_FULL: Record<string, string> = {
+  Mon: "Monday", Tue: "Tuesday", Wed: "Wednesday", Thu: "Thursday",
+  Fri: "Friday", Sat: "Saturday", Sun: "Sunday",
+};
+
+const FREQUENCIES = [
+  "Once daily",
+  "Twice daily",
+  "Three times daily",
+  "As needed",
+  "Once weekly",
+  "Twice weekly",
+  "Three times weekly",
+  "Once monthly",
+];
+
+function isWeekly(freq: string) {
+  return freq.toLowerCase().includes("weekly");
+}
+function isMonthly(freq: string) {
+  return freq.toLowerCase().includes("monthly");
+}
+
+const emptyForm = () => ({
+  name: "", dosage: "", frequency: "Once daily",
+  times: ["Morning"] as string[],
+  weeklyDays: [] as string[],
+  weeklyTime: "Morning",
+  notes: "",
+});
 
 export default function MedicationsPage() {
   const { activePersonId } = usePersonContext();
@@ -28,16 +57,58 @@ export default function MedicationsPage() {
   }, [activePersonId]);
 
   function openAdd() { setEditing(null); setForm(emptyForm()); setShowModal(true); }
+
   function openEdit(med: Medication) {
     setEditing(med);
-    setForm({ name: med.name, dosage: med.dosage, frequency: med.frequency, times: med.times, notes: med.notes });
+    // Detect weekly/monthly from stored times and reconstruct form state
+    const weekly = isWeekly(med.frequency);
+    const monthly = isMonthly(med.frequency);
+    let weeklyDays: string[] = [];
+    let weeklyTime = "Morning";
+    let times = med.times;
+
+    if (weekly && med.times.length > 0) {
+      // times stored as "Monday Morning", "Friday Evening" etc.
+      const parts = med.times[0].split(" ");
+      weeklyTime = parts[parts.length - 1];
+      weeklyDays = med.times.map((t) => {
+        const dayFull = t.split(" ")[0];
+        return Object.entries(DAY_FULL).find(([, v]) => v === dayFull)?.[0] || dayFull;
+      });
+      times = med.times;
+    } else if (monthly) {
+      weeklyTime = med.times[0] || "Morning";
+    }
+
+    setForm({
+      name: med.name, dosage: med.dosage, frequency: med.frequency,
+      times, weeklyDays, weeklyTime, notes: med.notes,
+    });
     setShowModal(true);
+  }
+
+  function buildTimes(): string[] {
+    const freq = form.frequency;
+    if (isWeekly(freq)) {
+      if (form.weeklyDays.length === 0) return [];
+      return form.weeklyDays.map((d) => `${DAY_FULL[d]} ${form.weeklyTime}`);
+    }
+    if (isMonthly(freq)) {
+      return [form.weeklyTime];
+    }
+    return form.times;
   }
 
   async function save() {
     if (!form.name.trim()) { toast.error("Medication name is required"); return; }
-    if (form.times.length === 0) { toast.error("Select at least one time"); return; }
-    const med: Medication = { id: editing?.id || uuidv4(), ...form, log: editing?.log || {} };
+    const times = buildTimes();
+    if (!isWeekly(form.frequency) && !isMonthly(form.frequency) && times.length === 0) {
+      toast.error("Select at least one time"); return;
+    }
+    if (isWeekly(form.frequency) && form.weeklyDays.length === 0) {
+      toast.error("Select at least one day"); return;
+    }
+    const med: Medication = { id: editing?.id || uuidv4(), name: form.name, dosage: form.dosage, frequency: form.frequency, times, notes: form.notes, log: editing?.log || {} };
     await api.medications.save(med);
     if (!editing) api.activity.push({ type: "medication", label: `Added medication: ${med.name}`, at: new Date().toISOString() });
     setMeds(await api.medications.getAll());
@@ -59,7 +130,6 @@ export default function MedicationsPage() {
     toast.success("All medications cleared");
   }
 
-  // Optimistic UI — update state immediately, persist in background
   function toggleDose(med: Medication, time: string) {
     const todayLog = med.log[today] || {};
     const updated: Medication = { ...med, log: { ...med.log, [today]: { ...todayLog, [time]: !todayLog[time] } } };
@@ -74,9 +144,22 @@ export default function MedicationsPage() {
     }));
   }
 
+  function toggleDay(day: string) {
+    setForm((prev) => ({
+      ...prev,
+      weeklyDays: prev.weeklyDays.includes(day)
+        ? prev.weeklyDays.filter((d) => d !== day)
+        : [...prev.weeklyDays, day],
+    }));
+  }
+
   const allDoses = meds.flatMap((m) => m.times);
   const takenDoses = meds.flatMap((m) => m.times.filter((t) => m.log[today]?.[t]));
   const progress = allDoses.length > 0 ? Math.round((takenDoses.length / allDoses.length) * 100) : 0;
+
+  const weekly = isWeekly(form.frequency);
+  const monthly = isMonthly(form.frequency);
+  const asNeeded = form.frequency === "As needed";
 
   return (
     <>
@@ -128,16 +211,12 @@ export default function MedicationsPage() {
                       {med.notes && <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{med.notes}</p>}
                     </div>
                     <div className="flex gap-0.5 flex-shrink-0">
-                      <button
-                        onClick={() => openEdit(med)}
-                        className="p-1.5 text-gray-400 hover:text-teal-600 dark:hover:text-teal-400 transition-colors rounded-lg hover:bg-teal-50 dark:hover:bg-teal-900/30"
-                      >
+                      <button onClick={() => openEdit(med)}
+                        className="p-1.5 text-gray-400 hover:text-teal-600 dark:hover:text-teal-400 transition-colors rounded-lg hover:bg-teal-50 dark:hover:bg-teal-900/30">
                         <Pencil className="w-4 h-4" />
                       </button>
-                      <button
-                        onClick={() => deleteMed(med.id)}
-                        className="p-1.5 text-gray-400 hover:text-red-500 transition-colors rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
-                      >
+                      <button onClick={() => deleteMed(med.id)}
+                        className="p-1.5 text-gray-400 hover:text-red-500 transition-colors rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20">
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
@@ -147,15 +226,12 @@ export default function MedicationsPage() {
                       {med.times.map((time) => {
                         const taken = todayLog[time];
                         return (
-                          <button
-                            key={time}
-                            onClick={() => toggleDose(med, time)}
+                          <button key={time} onClick={() => toggleDose(med, time)}
                             className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border transition-all active:scale-95 select-none ${
                               taken
                                 ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700 text-green-700 dark:text-green-400"
                                 : "bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-teal-300 dark:hover:border-teal-600"
-                            }`}
-                          >
+                            }`}>
                             {taken ? <CheckSquare className="w-3.5 h-3.5" /> : <Square className="w-3.5 h-3.5" />}
                             {time}
                           </button>
@@ -176,41 +252,99 @@ export default function MedicationsPage() {
             <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
               {editing ? "Edit Medication" : "Add Medication"}
             </h3>
+
             <div>
               <label className="label">Medication name *</label>
               <input className="input" placeholder="e.g. Metformin" value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </div>
+
             <div>
               <label className="label">Dosage</label>
               <input className="input" placeholder="e.g. 500mg" value={form.dosage}
                 onChange={(e) => setForm({ ...form, dosage: e.target.value })} />
             </div>
+
             <div>
               <label className="label">Frequency</label>
               <select className="input" value={form.frequency}
-                onChange={(e) => setForm({ ...form, frequency: e.target.value })}>
+                onChange={(e) => setForm({ ...form, frequency: e.target.value, weeklyDays: [], times: ["Morning"] })}>
                 {FREQUENCIES.map((f) => <option key={f}>{f}</option>)}
               </select>
             </div>
-            <div>
-              <label className="label">Times of day</label>
-              <div className="flex flex-wrap gap-2">
-                {TIMES.map((t) => (
-                  <button key={t} type="button" onClick={() => toggleTime(t)}
-                    className={`px-3 py-2 rounded-xl text-sm border font-medium transition-colors active:scale-95 ${
-                      form.times.includes(t)
-                        ? "bg-teal-600 border-teal-600 text-white"
-                        : "bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-teal-400"
-                    }`}>{t}</button>
-                ))}
+
+            {/* Weekly: pick day(s) + one time of day */}
+            {weekly && (
+              <>
+                <div>
+                  <label className="label">Day(s) of the week</label>
+                  <div className="flex flex-wrap gap-2">
+                    {DAYS.map((d) => (
+                      <button key={d} type="button" onClick={() => toggleDay(d)}
+                        className={`px-3 py-2 rounded-xl text-sm border font-medium transition-colors active:scale-95 ${
+                          form.weeklyDays.includes(d)
+                            ? "bg-teal-600 border-teal-600 text-white"
+                            : "bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-teal-400"
+                        }`}>{d}</button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="label">Time of day</label>
+                  <div className="flex flex-wrap gap-2">
+                    {TIMES.map((t) => (
+                      <button key={t} type="button" onClick={() => setForm({ ...form, weeklyTime: t })}
+                        className={`px-3 py-2 rounded-xl text-sm border font-medium transition-colors active:scale-95 ${
+                          form.weeklyTime === t
+                            ? "bg-teal-600 border-teal-600 text-white"
+                            : "bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-teal-400"
+                        }`}>{t}</button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Monthly: just time of day */}
+            {monthly && (
+              <div>
+                <label className="label">Time of day</label>
+                <div className="flex flex-wrap gap-2">
+                  {TIMES.map((t) => (
+                    <button key={t} type="button" onClick={() => setForm({ ...form, weeklyTime: t })}
+                      className={`px-3 py-2 rounded-xl text-sm border font-medium transition-colors active:scale-95 ${
+                        form.weeklyTime === t
+                          ? "bg-teal-600 border-teal-600 text-white"
+                          : "bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-teal-400"
+                      }`}>{t}</button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* Daily: pick times of day */}
+            {!weekly && !monthly && !asNeeded && (
+              <div>
+                <label className="label">Times of day</label>
+                <div className="flex flex-wrap gap-2">
+                  {TIMES.map((t) => (
+                    <button key={t} type="button" onClick={() => toggleTime(t)}
+                      className={`px-3 py-2 rounded-xl text-sm border font-medium transition-colors active:scale-95 ${
+                        form.times.includes(t)
+                          ? "bg-teal-600 border-teal-600 text-white"
+                          : "bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-teal-400"
+                      }`}>{t}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div>
               <label className="label">Notes (optional)</label>
               <textarea className="input resize-none" rows={2} value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })} />
             </div>
+
             <div className="flex gap-3 pt-2">
               <button onClick={save} className="btn-primary flex-1">
                 {editing ? "Save Changes" : "Add Medication"}
