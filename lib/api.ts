@@ -1,47 +1,49 @@
-import type { Medication, Symptom, Appointment, MedicalRecord, UserProfile, ActivityEntry } from "@/lib/storage";
+import { storage } from "@/lib/storage";
+import type { Medication, Symptom, Appointment, MedicalRecord, ActivityEntry } from "@/lib/storage";
 
-async function req<T>(url: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(url, options);
-  if (!res.ok) throw new Error(`API error ${res.status}`);
-  return res.json();
+// All data is stored in localStorage per-person. No Supabase writes for medical data.
+function pid(): string {
+  return storage.persons.getActiveId();
 }
 
-function post(url: string, body: unknown) {
-  return req(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-}
+async function noop(): Promise<void> {}
 
 export const api = {
   profile: {
-    get: () => req<UserProfile | null>("/api/db/profile"),
-    save: (p: UserProfile) => post("/api/db/profile", p),
-    clear: () => req("/api/db/profile", { method: "DELETE" }),
+    // Legacy — AuthGate now uses PersonContext directly
+    get: async () => {
+      const persons = storage.persons.getAll();
+      return persons.length > 0 ? persons[0] : null;
+    },
+    save: noop,
+    clear: noop,
   },
   medications: {
-    getAll: () => req<Medication[]>("/api/db/medications"),
-    save: (m: Medication) => post("/api/db/medications", m),
-    delete: (id: string) => req(`/api/db/medications/${id}`, { method: "DELETE" }),
+    getAll: async (): Promise<Medication[]> => storage.medications.getAll(pid()),
+    save: async (m: Medication): Promise<void> => { storage.medications.save(m, pid()); },
+    delete: async (id: string): Promise<void> => { storage.medications.delete(id, pid()); },
+    clearAll: async (): Promise<void> => { storage.medications.clearAll(pid()); },
   },
   symptoms: {
-    getAll: () => req<Symptom[]>("/api/db/symptoms"),
-    save: (s: Symptom) => post("/api/db/symptoms", s),
-    delete: (id: string) => req(`/api/db/symptoms/${id}`, { method: "DELETE" }),
+    getAll: async (): Promise<Symptom[]> => storage.symptoms.getAll(pid()),
+    save: async (s: Symptom): Promise<void> => { storage.symptoms.save(s, pid()); },
+    delete: async (id: string): Promise<void> => { storage.symptoms.delete(id, pid()); },
+    clearAll: async (): Promise<void> => { storage.symptoms.clearAll(pid()); },
   },
   appointments: {
-    getAll: () => req<Appointment[]>("/api/db/appointments"),
-    save: (a: Appointment) => post("/api/db/appointments", a),
-    delete: (id: string) => req(`/api/db/appointments/${id}`, { method: "DELETE" }),
+    getAll: async (): Promise<Appointment[]> => storage.appointments.getAll(pid()),
+    save: async (a: Appointment): Promise<void> => { storage.appointments.save(a, pid()); },
+    delete: async (id: string): Promise<void> => { storage.appointments.delete(id, pid()); },
+    clearAll: async (): Promise<void> => { storage.appointments.clearAll(pid()); },
   },
   records: {
-    getAll: () => req<MedicalRecord[]>("/api/db/records"),
-    save: (r: MedicalRecord) => post("/api/db/records", r),
-    delete: (id: string) => req(`/api/db/records/${id}`, { method: "DELETE" }),
+    getAll: async (): Promise<MedicalRecord[]> => storage.records.getAll(pid()),
+    save: async (r: MedicalRecord): Promise<void> => { storage.records.save(r, pid()); },
+    delete: async (id: string): Promise<void> => { storage.records.delete(id, pid()); },
+    clearAll: async (): Promise<void> => { storage.records.clearAll(pid()); },
   },
   activity: {
-    getAll: () => req<ActivityEntry[]>("/api/db/activity"),
-    push: (entry: ActivityEntry) => post("/api/db/activity", entry),
+    getAll: async (): Promise<ActivityEntry[]> => storage.activity.getAll(pid()),
+    push: async (entry: ActivityEntry): Promise<void> => { storage.activity.push(entry, pid()); },
   },
 };

@@ -15,16 +15,39 @@ export async function POST(req: NextRequest) {
       messages: [
         {
           role: "system",
-          content:
-            "You are a medical report interpreter for family caregivers with no medical background. Explain this report in simple, clear English. Highlight anything concerning. Avoid all jargon. Use short paragraphs.",
+          content: `You are a medical report interpreter for family caregivers with no medical background.
+
+Analyse the report and return ONLY valid JSON in exactly this shape:
+{
+  "summary": "Plain-English overview of the report. 2-3 short paragraphs. Cover key findings, test results, diagnoses, and any concerns. No jargon.",
+  "dietary": "Any food restrictions, dietary advice, or nutritional instructions the doctor mentioned. If none are mentioned, return empty string.",
+  "other": "Any other important instructions that are not medications, appointments, or dietary — for example: bed rest, wound care, activity restrictions, follow-up tests, lifestyle changes. If none, return empty string."
+}
+
+Rules:
+- Return ONLY the JSON object, no extra text before or after.
+- If a section has nothing relevant, use empty string "".
+- Keep language simple and direct. Avoid em dashes and filler phrases.`,
         },
         { role: "user", content: text },
       ],
-      max_tokens: 1024,
+      max_tokens: 1200,
+      temperature: 0,
     });
 
+    const raw = completion.choices[0].message.content?.trim() || "{}";
+    let parsed: { summary?: string; dietary?: string; other?: string } = {};
+    try {
+      parsed = JSON.parse(raw.match(/\{[\s\S]*\}/)?.[0] || "{}");
+    } catch {
+      // fallback: treat the whole response as summary
+      parsed = { summary: raw, dietary: "", other: "" };
+    }
+
     return NextResponse.json({
-      summary: completion.choices[0].message.content,
+      summary: parsed.summary || "",
+      dietary: parsed.dietary || "",
+      other: parsed.other || "",
     });
   } catch {
     return NextResponse.json({ error: "AI request failed" }, { status: 500 });

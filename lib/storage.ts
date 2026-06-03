@@ -1,15 +1,18 @@
-export interface UserProfile {
-  name: string;
-  patientName: string;
-  relation: string;
-  createdAt: string;
+export type PersonColor = "teal" | "purple" | "blue" | "orange" | "rose";
+
+export interface Person {
+  id: string;
+  nickname: string;
+  color: PersonColor;
 }
 
 export interface MedicalRecord {
   id: string;
   name: string;
-  text: string;
+  text: string; // client memory only — never written to storage
   summary: string;
+  dietary: string;
+  other: string;
   uploadedAt: string;
 }
 
@@ -48,6 +51,27 @@ export interface ActivityEntry {
   at: string;
 }
 
+// Kept for legacy API compatibility — no longer written to Supabase
+export interface UserProfile {
+  name: string;
+  patientName: string;
+  relation: string;
+  createdAt: string;
+}
+
+export const PERSON_COLORS: PersonColor[] = ["teal", "purple", "blue", "orange", "rose"];
+
+export function personColorClasses(color: PersonColor) {
+  const map: Record<PersonColor, { bg: string; text: string; light: string; border: string; ring: string }> = {
+    teal:   { bg: "bg-teal-500",   text: "text-teal-600",   light: "bg-teal-50 dark:bg-teal-900/30",   border: "border-teal-200 dark:border-teal-700",   ring: "ring-teal-400"   },
+    purple: { bg: "bg-purple-500", text: "text-purple-600", light: "bg-purple-50 dark:bg-purple-900/30", border: "border-purple-200 dark:border-purple-700", ring: "ring-purple-400" },
+    blue:   { bg: "bg-blue-500",   text: "text-blue-600",   light: "bg-blue-50 dark:bg-blue-900/30",   border: "border-blue-200 dark:border-blue-700",   ring: "ring-blue-400"   },
+    orange: { bg: "bg-orange-500", text: "text-orange-600", light: "bg-orange-50 dark:bg-orange-900/30", border: "border-orange-200 dark:border-orange-700", ring: "ring-orange-400" },
+    rose:   { bg: "bg-rose-500",   text: "text-rose-600",   light: "bg-rose-50 dark:bg-rose-900/30",   border: "border-rose-200 dark:border-rose-700",   ring: "ring-rose-400"   },
+  };
+  return map[color] || map.teal;
+}
+
 function getList<T>(key: string): T[] {
   if (typeof window === "undefined") return [];
   try {
@@ -75,56 +99,80 @@ function upsert<T extends { id: string }>(key: string, item: T, prepend = false)
   setList(key, list);
 }
 
+function pk(base: string, personId: string) {
+  return `${base}__${personId}`;
+}
+
+const DATA_KEYS = ["medications", "symptoms", "appointments", "records", "activity"] as const;
+
 export const storage = {
-  records: {
-    getAll: () => getList<MedicalRecord>("records"),
-    save: (r: MedicalRecord) => upsert("records", r, true),
-    delete: (id: string) =>
-      setList("records", getList<MedicalRecord>("records").filter((r) => r.id !== id)),
-  },
-  medications: {
-    getAll: () => getList<Medication>("medications"),
-    save: (m: Medication) => upsert("medications", m),
-    delete: (id: string) =>
-      setList("medications", getList<Medication>("medications").filter((m) => m.id !== id)),
-  },
-  symptoms: {
-    getAll: () => getList<Symptom>("symptoms"),
-    save: (s: Symptom) => upsert("symptoms", s, true),
-    delete: (id: string) =>
-      setList("symptoms", getList<Symptom>("symptoms").filter((s) => s.id !== id)),
-  },
-  appointments: {
-    getAll: () => getList<Appointment>("appointments"),
-    save: (a: Appointment) => upsert("appointments", a),
-    delete: (id: string) =>
-      setList("appointments", getList<Appointment>("appointments").filter((a) => a.id !== id)),
-  },
-  activity: {
-    getAll: () => getList<ActivityEntry>("activity"),
-    push: (entry: ActivityEntry) => {
-      const list = getList<ActivityEntry>("activity");
-      list.unshift(entry);
-      setList("activity", list.slice(0, 20));
-    },
-  },
-  profile: {
-    get: (): UserProfile | null => {
-      if (typeof window === "undefined") return null;
-      try {
-        const raw = localStorage.getItem("userProfile");
-        return raw ? JSON.parse(raw) : null;
-      } catch {
-        return null;
+  persons: {
+    getAll: (): Person[] => getList<Person>("persons"),
+    save: (p: Person) => upsert("persons", p),
+    delete: (id: string) => {
+      setList("persons", getList<Person>("persons").filter((p) => p.id !== id));
+      if (typeof window !== "undefined") {
+        DATA_KEYS.forEach((k) => localStorage.removeItem(pk(k, id)));
       }
     },
-    save: (p: UserProfile) => {
-      if (typeof window === "undefined") return;
-      localStorage.setItem("userProfile", JSON.stringify(p));
+    getActiveId: (): string => {
+      if (typeof window === "undefined") return "";
+      return localStorage.getItem("activePerson") || "";
     },
-    clear: () => {
+    setActiveId: (id: string): void => {
       if (typeof window === "undefined") return;
-      localStorage.removeItem("userProfile");
+      localStorage.setItem("activePerson", id);
+    },
+  },
+  records: {
+    getAll: (personId: string) => getList<MedicalRecord>(pk("records", personId)),
+    save: (r: MedicalRecord, personId: string) => {
+      // Strip text before persisting — text is never written to storage
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { text: _t, ...rest } = r;
+      upsert(pk("records", personId), { ...rest, text: "" } as MedicalRecord, true);
+    },
+    delete: (id: string, personId: string) =>
+      setList(pk("records", personId), getList<MedicalRecord>(pk("records", personId)).filter((r) => r.id !== id)),
+    clearAll: (personId: string) => setList(pk("records", personId), []),
+  },
+  medications: {
+    getAll: (personId: string) => getList<Medication>(pk("medications", personId)),
+    save: (m: Medication, personId: string) => upsert(pk("medications", personId), m),
+    delete: (id: string, personId: string) =>
+      setList(pk("medications", personId), getList<Medication>(pk("medications", personId)).filter((m) => m.id !== id)),
+    clearAll: (personId: string) => setList(pk("medications", personId), []),
+  },
+  symptoms: {
+    getAll: (personId: string) => getList<Symptom>(pk("symptoms", personId)),
+    save: (s: Symptom, personId: string) => upsert(pk("symptoms", personId), s, true),
+    delete: (id: string, personId: string) =>
+      setList(pk("symptoms", personId), getList<Symptom>(pk("symptoms", personId)).filter((s) => s.id !== id)),
+    clearAll: (personId: string) => setList(pk("symptoms", personId), []),
+  },
+  appointments: {
+    getAll: (personId: string) => getList<Appointment>(pk("appointments", personId)),
+    save: (a: Appointment, personId: string) => upsert(pk("appointments", personId), a),
+    delete: (id: string, personId: string) =>
+      setList(pk("appointments", personId), getList<Appointment>(pk("appointments", personId)).filter((a) => a.id !== id)),
+    clearAll: (personId: string) => setList(pk("appointments", personId), []),
+  },
+  activity: {
+    getAll: (personId: string) => getList<ActivityEntry>(pk("activity", personId)),
+    push: (entry: ActivityEntry, personId: string) => {
+      const list = getList<ActivityEntry>(pk("activity", personId));
+      list.unshift(entry);
+      setList(pk("activity", personId), list.slice(0, 20));
+    },
+  },
+  theme: {
+    get: (): "light" | "dark" => {
+      if (typeof window === "undefined") return "light";
+      return (localStorage.getItem("theme") as "light" | "dark") || "light";
+    },
+    set: (t: "light" | "dark") => {
+      if (typeof window === "undefined") return;
+      localStorage.setItem("theme", t);
     },
   },
 };

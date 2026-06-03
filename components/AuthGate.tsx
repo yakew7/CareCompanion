@@ -3,51 +3,63 @@ import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Heart } from "lucide-react";
-import { api } from "@/lib/api";
-import type { UserProfile } from "@/lib/storage";
+import { usePersonContext } from "@/contexts/PersonContext";
+import { PersonColor, PERSON_COLORS, personColorClasses } from "@/lib/storage";
 import Sidebar from "@/components/Sidebar";
 import BottomNav from "@/components/BottomNav";
 
 const DEV_SKIP_AUTH = process.env.NEXT_PUBLIC_DEV_SKIP_AUTH === "true";
-const DEV_PROFILE: UserProfile = {
-  name: "Yash",
-  patientName: "Mum",
-  relation: "Child",
-  createdAt: new Date().toISOString(),
-};
 
-const RELATIONS = [
-  "I am the patient",
-  "Child",
-  "Spouse / Partner",
-  "Parent",
-  "Sibling",
-  "Grandchild",
-  "Caretaker",
-  "Other",
-];
+const COLOR_LABELS: Record<PersonColor, string> = {
+  teal: "Teal",
+  purple: "Purple",
+  blue: "Blue",
+  orange: "Orange",
+  rose: "Rose",
+};
 
 export default function AuthGate({ children }: { children: React.ReactNode }) {
   if (DEV_SKIP_AUTH) return <DevShell>{children}</DevShell>;
   return <AuthShell>{children}</AuthShell>;
 }
 
-function DevShell({ children }: { children: React.ReactNode }) {
+function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <>
-      <Sidebar profile={DEV_PROFILE} />
-      <div className="md:ml-64 min-h-screen pb-20 md:pb-0">{children}</div>
+      <Sidebar />
+      <div className="md:ml-64 min-h-screen pb-20 md:pb-0 bg-white dark:bg-gray-900">{children}</div>
       <BottomNav />
     </>
   );
+}
+
+function DevShell({ children }: { children: React.ReactNode }) {
+  const { persons, addPerson, personsLoading } = usePersonContext();
+
+  useEffect(() => {
+    if (!personsLoading && persons.length === 0) {
+      const p = addPerson("Demo", "teal");
+      import("@/lib/storage").then(({ storage }) => storage.persons.setActiveId(p.id));
+    }
+  }, [personsLoading, persons.length, addPerson]);
+
+  if (personsLoading || persons.length === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-gray-900">
+        <div className="w-8 h-8 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  return <AppShell>{children}</AppShell>;
 }
 
 function AuthShell({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession();
   const pathname = usePathname();
   const router = useRouter();
-  const [profile, setProfile] = useState<UserProfile | null | "loading">("loading");
-  const [form, setForm] = useState({ patientName: "", relation: "Child", customRelation: "" });
+  const { persons, addPerson, personsLoading, refreshPersons } = usePersonContext();
+  const [form, setForm] = useState<{ nickname: string; color: PersonColor }>({ nickname: "", color: "teal" });
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -57,38 +69,19 @@ function AuthShell({ children }: { children: React.ReactNode }) {
     if (status === "unauthenticated" && !isSignInPage) router.push("/signin");
   }, [status, isSignInPage, router]);
 
-  useEffect(() => {
-    if (session?.user) {
-      api.profile.get().then(setProfile).catch(() => setProfile(null));
-    }
-  }, [session]);
-
-  async function completeSetup() {
-    if (!form.patientName.trim() && form.relation !== "I am the patient") {
-      setError("Please enter the patient's name"); return;
-    }
-    if (form.relation === "Other" && !form.customRelation.trim()) {
-      setError("Please describe your relation"); return;
-    }
+  function handleCompleteSetup() {
+    if (!form.nickname.trim()) { setError("Enter a name or nickname"); return; }
     setSaving(true);
-    const p: UserProfile = {
-      name: session!.user!.name || "Caregiver",
-      patientName: form.relation === "I am the patient"
-        ? session!.user!.name || "Yourself"
-        : form.patientName.trim(),
-      relation: form.relation === "Other" ? form.customRelation.trim() : form.relation,
-      createdAt: new Date().toISOString(),
-    };
-    await api.profile.save(p);
-    setProfile(p);
+    addPerson(form.nickname.trim(), form.color);
+    refreshPersons();
     setSaving(false);
   }
 
   if (isSignInPage) return <>{children}</>;
 
-  if (status === "loading" || (status === "authenticated" && profile === "loading")) {
+  if (status === "loading" || (status === "authenticated" && personsLoading)) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-gray-900">
         <div className="w-8 h-8 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -96,60 +89,60 @@ function AuthShell({ children }: { children: React.ReactNode }) {
 
   if (status === "unauthenticated") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-gray-900">
         <div className="w-8 h-8 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
-  if (!profile) {
-    const isSelf = form.relation === "I am the patient";
+  if (status === "authenticated" && !personsLoading && persons.length === 0) {
+    const firstName = session?.user?.name?.split(" ")[0] || "there";
     return (
-      <div className="min-h-screen bg-gradient-to-br from-teal-50 to-white flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-teal-50 dark:from-teal-950 to-white dark:to-gray-900 flex items-center justify-center p-4">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
             <div className="flex justify-center mb-3">
               <Heart className="w-10 h-10 text-teal-600 fill-teal-600" />
             </div>
             <h1 className="text-3xl font-bold text-teal-600">CareCompanion</h1>
-            <p className="text-gray-500 mt-1 text-sm">Welcome, {session?.user?.name?.split(" ")[0]}!</p>
+            <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">Welcome, {firstName}!</p>
           </div>
-          <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 space-y-5">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 p-8 space-y-5">
             <div>
-              <h2 className="text-xl font-bold text-gray-900">One last thing</h2>
-              <p className="text-sm text-gray-500 mt-1">Tell us who you&apos;re caring for.</p>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Who are you tracking?</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Add your first person. You can add more later.</p>
             </div>
             <div>
-              <label className="label">Your relation to the patient</label>
-              <select className="input" value={form.relation}
-                onChange={(e) => { setForm({ ...form, relation: e.target.value, customRelation: "" }); setError(""); }}>
-                {RELATIONS.map((r) => <option key={r}>{r}</option>)}
-              </select>
+              <label className="label">Name or nickname</label>
+              <input
+                className="input"
+                placeholder="e.g. Mum, Dad, Myself"
+                value={form.nickname}
+                autoFocus
+                onChange={(e) => { setForm({ ...form, nickname: e.target.value }); setError(""); }}
+                onKeyDown={(e) => e.key === "Enter" && handleCompleteSetup()}
+              />
             </div>
-            {form.relation === "Other" && (
-              <div>
-                <label className="label">Describe your relation *</label>
-                <input className="input" placeholder="e.g. Family friend, Nurse, Guardian..."
-                  value={form.customRelation} autoFocus
-                  onChange={(e) => { setForm({ ...form, customRelation: e.target.value }); setError(""); }} />
+            <div>
+              <label className="label">Pick a colour</label>
+              <div className="flex gap-3 mt-1">
+                {PERSON_COLORS.map((c) => {
+                  const cls = personColorClasses(c);
+                  return (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setForm({ ...form, color: c })}
+                      title={COLOR_LABELS[c]}
+                      className={`w-9 h-9 rounded-full ${cls.bg} transition-transform ${form.color === c ? "ring-2 ring-offset-2 ring-gray-400 scale-110" : "hover:scale-105"}`}
+                    />
+                  );
+                })}
               </div>
-            )}
-            {!isSelf && (
-              <div>
-                <label className="label">Patient&apos;s name *</label>
-                <input className="input" placeholder="e.g. Radha Sharma" value={form.patientName}
-                  autoFocus={form.relation !== "Other"}
-                  onChange={(e) => { setForm({ ...form, patientName: e.target.value }); setError(""); }} />
-              </div>
-            )}
+            </div>
             {error && <p className="text-red-500 text-xs">{error}</p>}
-            {isSelf && (
-              <div className="bg-teal-50 rounded-xl px-4 py-3 text-sm text-teal-700">
-                We&apos;ll set up the dashboard to track your own health.
-              </div>
-            )}
-            <button onClick={completeSetup} disabled={saving} className="btn-primary w-full py-3 text-base disabled:opacity-60">
-              {saving ? "Saving..." : "Go to dashboard"}
+            <button onClick={handleCompleteSetup} disabled={saving} className="btn-primary w-full py-3 text-base disabled:opacity-60">
+              {saving ? "Saving..." : "Continue to dashboard"}
             </button>
           </div>
         </div>
@@ -157,11 +150,5 @@ function AuthShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  return (
-    <>
-      <Sidebar profile={profile as UserProfile} />
-      <div className="md:ml-64 min-h-screen pb-20 md:pb-0">{children}</div>
-      <BottomNav />
-    </>
-  );
+  return <AppShell>{children}</AppShell>;
 }
