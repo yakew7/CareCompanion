@@ -87,6 +87,8 @@ Return ONLY valid JSON:
       symptoms: json.symptoms || [],
       dietary: json.dietary || [],
       other: json.other || [],
+      vitals: json.vitals || [],
+      profile: json.profile || {},
     });
   } catch {
     return NextResponse.json({ medications: [], appointments: [], symptoms: [], dietary: [], other: [] });

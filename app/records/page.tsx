@@ -101,13 +101,6 @@ export default function RecordsPage() {
       await api.records.save(record);
       await api.activity.push({ type: "record", label: `Uploaded report: ${file.name}`, at: record.uploadedAt });
 
-      // Auto-save dietary and other notes extracted from the report
-      if (sumData.dietary?.trim()) {
-        await api.dietary.save({ id: uuidv4(), content: sumData.dietary.trim(), source: file.name, createdAt: record.uploadedAt });
-      }
-      if (sumData.other?.trim()) {
-        await api.other.save({ id: uuidv4(), content: sumData.other.trim(), source: file.name, createdAt: record.uploadedAt });
-      }
 
       setRecords(await api.records.getAll());
       openRecord(record);
