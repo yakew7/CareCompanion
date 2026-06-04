@@ -180,29 +180,38 @@ export default function DashboardPage() {
               <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Reminders</h3>
             </div>
 
+            {/* Always-visible .ics tip */}
+            <div className="flex items-start gap-2 mb-3 p-2.5 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800">
+              <span className="text-base leading-none mt-0.5">📅</span>
+              <p className="text-xs text-blue-700 dark:text-blue-300">
+                <strong>Reliable phone reminders:</strong> Go to{" "}
+                <Link href="/medications" className="underline underline-offset-2">Medications</Link> → tap{" "}
+                <strong>Reminders (.ics)</strong> → open the file on your phone. It imports recurring daily alerts into Apple Calendar or Google Calendar that fire even when this app is closed.
+              </p>
+            </div>
+
             {!notifSupported ? (
               <p className="text-xs text-gray-400 dark:text-gray-500">
-                Your browser doesn&apos;t support notifications. Use the .ics export on the Appointments page to add events to your calendar.
+                Your browser doesn&apos;t support web notifications. Use the .ics export above for native phone reminders.
               </p>
             ) : notifPermission === "denied" ? (
               <p className="text-xs text-gray-400 dark:text-gray-500">
-                Notifications are blocked. Re-enable them in your browser settings to receive medication and symptom reminders.
+                Web notifications are blocked in this browser. Use the .ics export above for native phone reminders, or re-enable notifications in browser settings.
               </p>
             ) : notifPermission !== "granted" ? (
               <div className="space-y-2">
-                <p className="text-sm text-gray-500 dark:text-gray-400">Get notified when it&apos;s time for medications or a daily symptom check-in.</p>
-                <p className="text-xs text-gray-400 dark:text-gray-500">Works while this tab is open. On Android Chrome you can install the app for background alerts.</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Optionally enable in-app alerts — these only fire while this tab is open.</p>
                 <button
                   onClick={handleEnableNotifications}
-                  className="btn-primary text-sm flex items-center gap-2"
+                  className="btn-secondary text-sm flex items-center gap-2"
                 >
-                  <Bell className="w-4 h-4" /> Enable Reminders
+                  <Bell className="w-4 h-4" /> Enable in-app alerts
                 </button>
               </div>
             ) : (
               <div className="space-y-3">
                 <label className="flex items-center justify-between cursor-pointer">
-                  <span className="text-sm text-gray-700 dark:text-gray-300">Medication reminders</span>
+                  <span className="text-sm text-gray-700 dark:text-gray-300">Medication alerts (tab open only)</span>
                   <button
                     role="switch"
                     aria-checked={notifSettings.medicationReminders}

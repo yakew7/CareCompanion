@@ -2,11 +2,12 @@
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { v4 as uuidv4 } from "uuid";
-import { Pencil, Trash2, CheckSquare, Square } from "lucide-react";
+import { Pencil, Trash2, CheckSquare, Square, Download } from "lucide-react";
 import TopBar from "@/components/TopBar";
 import { api } from "@/lib/api";
 import { usePersonContext } from "@/contexts/PersonContext";
 import type { Medication } from "@/lib/storage";
+import { downloadMedRemindersICS } from "@/lib/ics";
 
 const TIMES = ["Morning", "Afternoon", "Evening", "Night"];
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -173,7 +174,16 @@ export default function MedicationsPage() {
           <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Medications</h2>
           <div className="flex gap-2">
             {meds.length > 0 && (
-              <button onClick={clearAll} className="btn-danger text-xs px-3 py-2">Clear all</button>
+              <>
+                <button
+                  onClick={() => downloadMedRemindersICS(meds)}
+                  className="btn-secondary text-xs px-3 py-2 flex items-center gap-1.5"
+                  title="Export recurring reminders to Apple Calendar / Google Calendar"
+                >
+                  <Download className="w-3.5 h-3.5" /> Reminders (.ics)
+                </button>
+                <button onClick={clearAll} className="btn-danger text-xs px-3 py-2">Clear all</button>
+              </>
             )}
             <button onClick={openAdd} className="btn-primary">+ Add</button>
           </div>
