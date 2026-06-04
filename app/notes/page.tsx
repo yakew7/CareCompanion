@@ -7,6 +7,8 @@ import TopBar from "@/components/TopBar";
 import { api } from "@/lib/api";
 import { usePersonContext } from "@/contexts/PersonContext";
 import type { Note } from "@/lib/storage";
+
+function truncate(s: string, n = 40) { return s.length > n ? s.slice(0, n) + "…" : s; }
 import { formatDateIST } from "@/lib/time";
 
 type Tab = "dietary" | "other";
@@ -142,13 +144,17 @@ export default function NotesPage() {
   }
 
   async function deleteDietary(id: string) {
+    const note = dietary.find((n) => n.id === id);
     await api.dietary.delete(id);
+    if (note) api.activity.push({ type: "dietary", label: `Deleted dietary note: ${truncate(note.content)}`, at: new Date().toISOString(), deleted: true });
     setDietary(await api.dietary.getAll());
   }
 
   async function clearDietary() {
     if (!confirm("Clear all dietary notes for this person?")) return;
+    const count = dietary.length;
     await api.dietary.clearAll();
+    api.activity.push({ type: "dietary", label: `Cleared all dietary notes (${count} item${count !== 1 ? "s" : ""})`, at: new Date().toISOString(), deleted: true });
     setDietary([]);
     toast.success("Dietary notes cleared");
   }
@@ -161,13 +167,17 @@ export default function NotesPage() {
   }
 
   async function deleteOther(id: string) {
+    const note = other.find((n) => n.id === id);
     await api.other.delete(id);
+    if (note) api.activity.push({ type: "other", label: `Deleted note: ${truncate(note.content)}`, at: new Date().toISOString(), deleted: true });
     setOther(await api.other.getAll());
   }
 
   async function clearOther() {
     if (!confirm("Clear all other notes for this person?")) return;
+    const count = other.length;
     await api.other.clearAll();
+    api.activity.push({ type: "other", label: `Cleared all notes (${count} item${count !== 1 ? "s" : ""})`, at: new Date().toISOString(), deleted: true });
     setOther([]);
     toast.success("Notes cleared");
   }
