@@ -262,7 +262,7 @@ export default function DashboardPage() {
                   </div>
                 )}
                 <p className="text-xs text-gray-400 dark:text-gray-500 pt-1">
-                  Medication alerts fire at: Morning 8 am · Afternoon 1 pm · Evening 6 pm · Night 9 pm
+                  Alert times above also apply to the .ics calendar export.
                 </p>
               </div>
             )}
