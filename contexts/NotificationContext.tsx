@@ -5,12 +5,10 @@ import { api } from "@/lib/api";
 import { storage } from "@/lib/storage";
 import { usePersonContext } from "./PersonContext";
 
-const REMINDER_TIMES: Record<string, { h: number; m: number }> = {
-  Morning:   { h: 8,  m: 0 },
-  Afternoon: { h: 13, m: 0 },
-  Evening:   { h: 18, m: 0 },
-  Night:     { h: 21, m: 0 },
-};
+function parseTime(hhmm: string): { h: number; m: number } {
+  const [h, m] = hhmm.split(":").map(Number);
+  return { h: h || 0, m: m || 0 };
+}
 
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -74,10 +72,12 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
               // weekly: "Monday Morning"
               const [dayStr, timeOfDay] = parts;
               if (now.getDay() !== DAY_NAMES.indexOf(dayStr)) continue;
-              slot = REMINDER_TIMES[timeOfDay];
+              const custom = settings.reminderTimes[timeOfDay as keyof typeof settings.reminderTimes];
+              slot = custom ? parseTime(custom) : undefined;
             } else {
               // daily: "Morning", "Evening" etc.
-              slot = REMINDER_TIMES[timeEntry];
+              const custom = settings.reminderTimes[timeEntry as keyof typeof settings.reminderTimes];
+              slot = custom ? parseTime(custom) : undefined;
             }
 
             if (!slot) continue;

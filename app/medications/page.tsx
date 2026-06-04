@@ -8,6 +8,7 @@ import { api } from "@/lib/api";
 import { usePersonContext } from "@/contexts/PersonContext";
 import type { Medication } from "@/lib/storage";
 import { downloadMedRemindersICS } from "@/lib/ics";
+import { storage } from "@/lib/storage";
 
 const TIMES = ["Morning", "Afternoon", "Evening", "Night"];
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -176,7 +177,7 @@ export default function MedicationsPage() {
             {meds.length > 0 && (
               <>
                 <button
-                  onClick={() => downloadMedRemindersICS(meds)}
+                  onClick={() => downloadMedRemindersICS(meds, storage.notifications.get().reminderTimes)}
                   className="btn-secondary text-xs px-3 py-2 flex items-center gap-1.5"
                   title="Export recurring reminders to Apple Calendar / Google Calendar"
                 >

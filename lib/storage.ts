@@ -64,6 +64,12 @@ export interface NotificationSettings {
   medicationReminders: boolean;
   symptomReminder: boolean;
   symptomReminderTime: string; // "HH:MM" 24h
+  reminderTimes: {
+    Morning: string;
+    Afternoon: string;
+    Evening: string;
+    Night: string;
+  };
 }
 
 // Kept for legacy API compatibility
@@ -240,11 +246,15 @@ export const storage = {
       medicationReminders: true,
       symptomReminder: false,
       symptomReminderTime: "20:00",
+      reminderTimes: { Morning: "08:00", Afternoon: "13:00", Evening: "18:00", Night: "21:00" },
     }),
     get(): NotificationSettings {
       if (typeof window === "undefined") return this._default();
       try {
-        return JSON.parse(localStorage.getItem("notificationSettings") || "null") ?? this._default();
+        const stored = JSON.parse(localStorage.getItem("notificationSettings") || "null");
+        if (!stored) return this._default();
+        const def = this._default();
+        return { ...def, ...stored, reminderTimes: { ...def.reminderTimes, ...stored.reminderTimes } };
       } catch {
         return this._default();
       }

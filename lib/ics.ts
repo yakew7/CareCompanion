@@ -2,12 +2,14 @@ import type { Appointment, Medication } from "./storage";
 
 // ─── Medication reminder .ics ─────────────────────────────────────────────────
 
-const REMINDER_TIME_MAP: Record<string, { h: number; m: number }> = {
-  Morning:   { h: 8,  m: 0 },
-  Afternoon: { h: 13, m: 0 },
-  Evening:   { h: 18, m: 0 },
-  Night:     { h: 21, m: 0 },
+const DEFAULT_REMINDER_TIMES: Record<string, string> = {
+  Morning: "08:00", Afternoon: "13:00", Evening: "18:00", Night: "21:00",
 };
+
+function parseHHMM(hhmm: string): { h: number; m: number } {
+  const [h, m] = hhmm.split(":").map(Number);
+  return { h: h || 0, m: m || 0 };
+}
 
 const DAY_BYDAY: Record<string, string> = {
   Sunday: "SU", Monday: "MO", Tuesday: "TU", Wednesday: "WE",
@@ -33,23 +35,23 @@ function floatingDate(h: number, m: number): string {
   );
 }
 
-function medTimeToVEvent(med: Medication, timeEntry: string, uid: string): string | null {
+function medTimeToVEvent(med: Medication, timeEntry: string, uid: string, customTimes: Record<string, string>): string | null {
   const parts = timeEntry.trim().split(" ");
   let h: number, m: number, rrule: string;
 
   if (parts.length === 2) {
     // Weekly slot: "Monday Morning"
     const [dayName, timeOfDay] = parts;
-    const slot = REMINDER_TIME_MAP[timeOfDay];
     const byDay = DAY_BYDAY[dayName];
-    if (!slot || !byDay) return null;
-    h = slot.h; m = slot.m;
+    const raw = customTimes[timeOfDay] ?? DEFAULT_REMINDER_TIMES[timeOfDay];
+    if (!byDay || !raw) return null;
+    ({ h, m } = parseHHMM(raw));
     rrule = `RRULE:FREQ=WEEKLY;BYDAY=${byDay}`;
   } else {
     // Daily slot: "Morning", "Evening" etc.
-    const slot = REMINDER_TIME_MAP[timeEntry];
-    if (!slot) return null;
-    h = slot.h; m = slot.m;
+    const raw = customTimes[timeEntry] ?? DEFAULT_REMINDER_TIMES[timeEntry];
+    if (!raw) return null;
+    ({ h, m } = parseHHMM(raw));
     rrule = "RRULE:FREQ=DAILY";
   }
 
@@ -81,11 +83,12 @@ function medTimeToVEvent(med: Medication, timeEntry: string, uid: string): strin
   ].join("\r\n");
 }
 
-export function buildMedRemindersICS(medications: Medication[]): string {
+export function buildMedRemindersICS(medications: Medication[], customTimes: Record<string, string> = {}): string {
+  const times = { ...DEFAULT_REMINDER_TIMES, ...customTimes };
   const events: string[] = [];
   medications.forEach((med) => {
     med.times.forEach((timeEntry, i) => {
-      const event = medTimeToVEvent(med, timeEntry, `${med.id}_${i}`);
+      const event = medTimeToVEvent(med, timeEntry, `${med.id}_${i}`, times);
       if (event) events.push(event);
     });
   });
@@ -101,8 +104,8 @@ export function buildMedRemindersICS(medications: Medication[]): string {
   ].join("\r\n");
 }
 
-export function downloadMedRemindersICS(medications: Medication[]): void {
-  const content = buildMedRemindersICS(medications);
+export function downloadMedRemindersICS(medications: Medication[], customTimes: Record<string, string> = {}): void {
+  const content = buildMedRemindersICS(medications, customTimes);
   const blob = new Blob([content], { type: "text/calendar;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
