@@ -166,7 +166,19 @@ function pk(base: string, personId: string) {
   return `${base}__${personId}`;
 }
 
-const DATA_KEYS = ["medications", "symptoms", "appointments", "records", "activity", "dietary", "other"] as const;
+export type VitalType = "bp" | "glucose" | "weight" | "heart_rate" | "spo2" | "temperature";
+
+export interface VitalEntry {
+  id: string;
+  type: VitalType;
+  value: number;
+  value2?: number; // diastolic for BP
+  unit: string;
+  notes: string;
+  loggedAt: string;
+}
+
+const DATA_KEYS = ["medications", "symptoms", "appointments", "records", "activity", "dietary", "other", "vitals"] as const;
 
 export const storage = {
   persons: {
@@ -240,6 +252,13 @@ export const storage = {
     delete: (id: string, personId: string) =>
       setList(pk("other", personId), getList<Note>(pk("other", personId)).filter((n) => n.id !== id)),
     clearAll: (personId: string) => setList(pk("other", personId), []),
+  },
+  vitals: {
+    getAll: (personId: string) => getList<VitalEntry>(pk("vitals", personId)),
+    save: (v: VitalEntry, personId: string) => upsert(pk("vitals", personId), v, true),
+    delete: (id: string, personId: string) =>
+      setList(pk("vitals", personId), getList<VitalEntry>(pk("vitals", personId)).filter((v) => v.id !== id)),
+    clearAll: (personId: string) => setList(pk("vitals", personId), []),
   },
   notifications: {
     _default: (): NotificationSettings => ({

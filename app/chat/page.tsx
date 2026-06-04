@@ -25,6 +25,7 @@ function buildContext(data: {
   dietary: { content: string }[];
   other: { content: string }[];
   appointments: { doctor: string; specialty: string; status: string; postVisitNotes: string }[];
+  vitals: { type: string; value: number; value2?: number; unit: string; loggedAt: string }[];
 }): string {
   const lines: string[] = [`Patient: [anonymous]`];
 
@@ -62,6 +63,21 @@ function buildContext(data: {
     }
   }
 
+  if (data.vitals.length) {
+    const LABELS: Record<string, string> = { bp: "Blood Pressure", glucose: "Blood Glucose", weight: "Weight", heart_rate: "Heart Rate", spo2: "SpO₂", temperature: "Temperature" };
+    // Latest reading per type
+    const latest = new Map<string, (typeof data.vitals)[0]>();
+    [...data.vitals].sort((a, b) => new Date(b.loggedAt).getTime() - new Date(a.loggedAt).getTime())
+      .forEach((v) => { if (!latest.has(v.type)) latest.set(v.type, v); });
+    lines.push("\nRecent vitals (latest per type):");
+    latest.forEach((v) => {
+      const reading = v.value2 != null ? `${v.value}/${v.value2}` : `${v.value}`;
+      const daysAgo = Math.floor((Date.now() - new Date(v.loggedAt).getTime()) / 86400000);
+      const when = daysAgo === 0 ? "today" : `${daysAgo}d ago`;
+      lines.push(`- ${LABELS[v.type] ?? v.type}: ${reading} ${v.unit} (${when})`);
+    });
+  }
+
   return lines.join("\n");
 }
 
@@ -82,7 +98,8 @@ export default function ChatPage() {
       api.dietary.getAll(),
       api.other.getAll(),
       api.appointments.getAll(),
-    ]).then(([meds, symptoms, dietary, other, appts]) => {
+      api.vitals.getAll(),
+    ]).then(([meds, symptoms, dietary, other, appts, vitals]) => {
       setContext(buildContext({
         nickname: activePerson.nickname,
         medications: meds,
@@ -90,6 +107,7 @@ export default function ChatPage() {
         dietary,
         other,
         appointments: appts,
+        vitals,
       }));
     });
   }, [activePersonId, activePerson]);
