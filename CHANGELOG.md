@@ -8,6 +8,32 @@ All notable changes to CareCompanion are documented here.
 
 ---
 
+## [2.1.0] — 2026-06-04
+
+### Added
+- **Activity history feed** — Recent Activity on the dashboard now keeps deleted items in the feed with a strikethrough, red dot, and "Deleted" badge so nothing is silently lost
+- **Activity filter toggle** — "All" vs "Active only" toggle on the Recent Activity card
+- **Deletion logging** — every individual delete and clear-all action across medications, appointments, symptoms, records, dietary notes, and other notes is now logged as a deleted activity entry
+- **Reminders and Web Notifications** — opt-in browser notification system; medication reminders fire at mapped times (Morning 8 am, Afternoon 1 pm, Evening 6 pm, Night 9 pm); daily symptom check-in reminder with a configurable time; falls back to in-app toast if notifications are unavailable or denied
+- **PWA support** — service worker (`/sw.js`) and Web App Manifest (`/manifest.json`) added; app can be installed on Android Chrome for home-screen access and better notification support
+- **Calendar export (.ics)** — download any individual appointment or all appointments as a `.ics` file; compatible with Apple Calendar (iOS/macOS) and Google Calendar (Android)
+- **SECURITY.md** — full security policy: vulnerability reporting process, data handling breakdown, known limitations
+
+### Changed
+- Recent Activity display limit raised from 5 to 20 entries
+- Privacy footer on dashboard now shows a shield icon and explicitly states that patient name is never sent to any server
+- README updated: new features documented, Supabase setup clarified, SECURITY.md linked
+
+### Fixed
+- Health assistant chatbot was rendering markdown tables as raw pipe characters; fixed with a `NEVER use markdown tables` system prompt rule and custom `ReactMarkdown` table renderer as a fallback
+- Clear-all on medications, appointments, symptoms, records, dietary, and other notes was not logged in Recent Activity
+
+### Security
+- Patient nickname is no longer sent to Groq in the health chat context — replaced with `[anonymous]`
+- Deleted dead Supabase `user_profiles` route that stored `patient_name` — patient names were never meant to leave the device
+
+---
+
 ## [2.0.0] — 2026-06-03
 
 Major overhaul focused on multi-person support, privacy, and UI polish.
