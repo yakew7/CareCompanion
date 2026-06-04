@@ -22,6 +22,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ text: data.text.slice(0, 15000) });
   } catch (err) {
     console.error("PDF parse error:", err);
-    return NextResponse.json({ error: "Failed to parse PDF. Try saving as a .txt file." }, { status: 500 });
+    const msg = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: `Failed to parse PDF: ${msg}` }, { status: 500 });
   }
 }

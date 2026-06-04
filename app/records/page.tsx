@@ -77,8 +77,9 @@ export default function RecordsPage() {
         const formData = new FormData();
         formData.append("file", file);
         const res = await fetch("/api/parse-pdf", { method: "POST", body: formData });
-        if (!res.ok) throw new Error("Parse failed");
-        text = (await res.json()).text;
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || "PDF parse failed");
+        text = json.text;
       }
 
       toast.loading("Generating summary...", { id: "summary" });
@@ -170,8 +171,9 @@ export default function RecordsPage() {
       ].filter((i) => i.label.trim());
 
       if (items.length > 0) setExtractedItems(items);
-    } catch {
-      toast.error("Failed to process file. Try a .txt file.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(`Failed to process file: ${msg}`);
     } finally {
       setUploading(false);
     }
