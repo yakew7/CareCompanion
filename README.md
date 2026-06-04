@@ -15,11 +15,14 @@ Built for the **V1TROUS 2026** hackathon.
 **Medical reports**
 - Upload PDF or TXT reports and get a plain-English AI summary broken into three sections: Summary, Dietary, and Other Notes
 - Chat with the report to ask follow-up questions
-- Auto-extracts medications, appointments, and symptoms directly from report text
+- Auto-extracts medications, appointments, symptoms, vitals, and patient profile directly from report text
 
 **Medications**
 - Track daily, weekly (day-of-week), and monthly medications
 - One-tap dose logging with a daily progress bar
+- Optional course duration — auto-removes the medication after N days
+- Understands Indian prescription notation (1-0-1, 0-0-1, 1-1-1 etc.) when extracted from reports
+- Export recurring calendar reminders as `.ics` — imports into Apple Calendar or Google Calendar with native alerts
 
 **Symptoms**
 - Log symptoms with severity (1–5 scale)
@@ -32,6 +35,15 @@ Built for the **V1TROUS 2026** hackathon.
 **Notes**
 - Dedicated Dietary and Other sections for doctor instructions
 - Populated automatically from uploaded reports; also supports manual entries
+
+**Vitals tracking**
+- Three sections: Basic Info (age, height, gender, blood type), At-Home Readings, and Lab Results
+- Basic Info auto-calculates BMI from height and latest weight with a Normal / Overweight / Obese badge
+- At-Home Readings: Blood Pressure, Blood Glucose, Weight, Heart Rate, SpO₂, Temperature, Respiratory Rate
+- Lab Results: HbA1c, Total Cholesterol (with LDL/HDL/Triglycerides breakdown), Hemoglobin, Creatinine
+- Sparkline trend per vital, Normal/Watch/High status badge per reading
+- Auto-filled from uploaded reports — vitals and patient profile are extracted and inserted silently
+- Latest vitals passed to the AI health assistant for context-aware answers
 
 **Reminders and notifications**
 - Opt-in browser notifications for medication times (Morning 8 am, Afternoon 1 pm, Evening 6 pm, Night 9 pm) and a configurable daily symptom check-in
@@ -129,7 +141,7 @@ No medical data, patient names, or health records are written here.
 
 ## Data and privacy
 
-All health data — medications, symptoms, appointments, reports, notes — is stored exclusively in your browser's localStorage. It never leaves your device. Clearing your browser data will erase it.
+All health data — medications, symptoms, appointments, reports, notes, vitals, and basic profile — is stored exclusively in your browser's localStorage. It never leaves your device. Clearing your browser data will erase it.
 
 The only data sent to external services:
 - Report text and chat messages are sent to Groq for AI processing (never stored by the app)

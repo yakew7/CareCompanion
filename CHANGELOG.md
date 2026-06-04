@@ -8,6 +8,34 @@ All notable changes to CareCompanion are documented here.
 
 ---
 
+## [2.2.0] — 2026-06-04
+
+### Added
+- **Vitals tracking** — new `/vitals` page with three sections:
+  - *Basic Info*: age, height, gender, blood type; BMI auto-calculated from height + latest weight with Normal/Overweight/Obese badge
+  - *At-Home Readings*: Blood Pressure, Blood Glucose, Weight, Heart Rate, SpO₂, Temperature, Respiratory Rate
+  - *Lab Results*: HbA1c, Total Cholesterol (with LDL/HDL/Triglycerides breakdown fields), Hemoglobin, Creatinine
+- **Vitals auto-fill from reports** — extraction prompt now recognises vital signs and lab values in uploaded reports and inserts them silently; patient profile (age, height, gender, blood type) also auto-merged
+- **Vitals in AI context** — latest reading per vital type is now passed to the health assistant so it can reason about actual numbers (e.g. BP trend, HbA1c level)
+- **Sparklines** — each vital card shows a mini SVG trend line of the last 10 readings
+- **Status badges** — Normal / Watch / High per reading based on standard clinical ranges
+- **Medication course duration** — add a "Duration (days)" when logging a medication; auto-removes it after the course ends and logs it to Recent Activity
+- **1-0-1 prescription notation** — AI extraction now understands Indian dosage shorthand (1-0-1, 0-0-1, 1-1-1, 1-0-0-1 etc.) and maps it to the correct time slots
+- **Duration extraction** — "for 3 days", "× 5", "3/7" etc. extracted from reports and applied as expiry dates
+- **Medication `.ics` reminders** — export recurring daily/weekly calendar events with VALARM alerts to Apple Calendar or Google Calendar; time-of-day pickers appear inline at export time
+- **Vitals tab** added to bottom nav and desktop sidebar
+
+### Changed
+- Extraction prompt expanded to include vitals, lab values, and patient profile in addition to medications/appointments/symptoms
+- Reminders card removed from dashboard (was redundant); `.ics` tip folded into Quick Help
+- Medication reminder time pickers moved from dashboard to inline export flow on the Medications page
+
+### Fixed
+- Dietary and other note deletions were not logged in Recent Activity
+- Deletion of individual items only logged on per-item delete; `clearAll` now also logs with item count
+
+---
+
 ## [2.1.0] — 2026-06-04
 
 ### Added
