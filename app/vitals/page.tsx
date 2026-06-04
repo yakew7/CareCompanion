@@ -307,7 +307,8 @@ export default function VitalsPage() {
             <div className="card">
               <ul className="divide-y divide-gray-100 dark:divide-gray-700">
                 {history.map((entry) => {
-                  const def = ALL_DEFS.find((d) => d.type === entry.type)!;
+                  const def = ALL_DEFS.find((d) => d.type === entry.type);
+                  if (!def) return null;
                   const Icon = def.icon;
                   const status = def.type !== "weight" ? getStatus(entry.type, entry.value, entry.value2) : null;
                   return (

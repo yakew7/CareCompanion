@@ -8,7 +8,7 @@ const DEFAULT_REMINDER_TIMES: Record<string, string> = {
 
 function parseHHMM(hhmm: string): { h: number; m: number } {
   const [h, m] = hhmm.split(":").map(Number);
-  return { h: h || 0, m: m || 0 };
+  return { h: isNaN(h) ? 0 : h, m: isNaN(m) ? 0 : m };
 }
 
 const DAY_BYDAY: Record<string, string> = {
@@ -22,8 +22,7 @@ function addMinutes(h: number, m: number, mins: number): { h: number; m: number 
 }
 
 // Floating local time — no Z suffix so calendar uses the device timezone
-function floatingDate(h: number, m: number): string {
-  const d = new Date();
+function floatingDate(h: number, m: number, d = new Date()): string {
   return (
     d.getFullYear().toString() +
     pad(d.getMonth() + 1) +
@@ -56,7 +55,8 @@ function medTimeToVEvent(med: Medication, timeEntry: string, uid: string, custom
   }
 
   const end = addMinutes(h, m, 10);
-  const now = toICSDateTime(new Date().toISOString());
+  const today = new Date();
+  const now = toICSDateTime(today.toISOString());
   const label = `${med.name}${med.dosage ? ` (${med.dosage})` : ""}`;
   const descParts = [
     `Medication: ${med.name}`,
@@ -69,8 +69,8 @@ function medTimeToVEvent(med: Medication, timeEntry: string, uid: string, custom
     "BEGIN:VEVENT",
     `UID:${uid}@carecompanion`,
     `DTSTAMP:${now}`,
-    `DTSTART:${floatingDate(h, m)}`,
-    `DTEND:${floatingDate(end.h, end.m)}`,
+    `DTSTART:${floatingDate(h, m, today)}`,
+    `DTEND:${floatingDate(end.h, end.m, today)}`,
     rrule,
     `SUMMARY:${icsEscape(`Take ${label}`)}`,
     `DESCRIPTION:${icsEscape(descParts.join("\\n"))}`,

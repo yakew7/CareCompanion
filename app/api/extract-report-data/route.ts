@@ -5,7 +5,7 @@ import { getGroq, MODEL } from "@/lib/groq";
 export async function POST(req: NextRequest) {
   try {
     const { text } = await req.json();
-    if (!text?.trim()) return NextResponse.json({ medications: [], appointments: [], symptoms: [], dietary: [], other: [] });
+    if (!text?.trim()) return NextResponse.json({ medications: [], appointments: [], symptoms: [], dietary: [], other: [], vitals: [], profile: {} });
 
     const completion = await getGroq().chat.completions.create({
       model: MODEL,
@@ -91,6 +91,6 @@ Return ONLY valid JSON:
       profile: json.profile || {},
     });
   } catch {
-    return NextResponse.json({ medications: [], appointments: [], symptoms: [], dietary: [], other: [] });
+    return NextResponse.json({ medications: [], appointments: [], symptoms: [], dietary: [], other: [], vitals: [], profile: {} });
   }
 }

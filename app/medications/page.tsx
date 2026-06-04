@@ -165,7 +165,7 @@ export default function MedicationsPage() {
     const todayLog = med.log[today] || {};
     const updated: Medication = { ...med, log: { ...med.log, [today]: { ...todayLog, [time]: !todayLog[time] } } };
     setMeds((prev) => prev.map((m) => (m.id === med.id ? updated : m)));
-    api.medications.save(updated);
+    api.medications.save(updated).catch(() => toast.error("Failed to save dose"));
   }
 
   function toggleTime(time: string) {
