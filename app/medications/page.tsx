@@ -51,6 +51,8 @@ export default function MedicationsPage() {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Medication | null>(null);
   const [form, setForm] = useState(emptyForm());
+  const [showReminderExport, setShowReminderExport] = useState(false);
+  const [exportTimes, setExportTimes] = useState(() => storage.notifications.get().reminderTimes);
   const today = new Date().toISOString().split("T")[0];
 
   useEffect(() => {
@@ -200,9 +202,8 @@ export default function MedicationsPage() {
             {meds.length > 0 && (
               <>
                 <button
-                  onClick={() => downloadMedRemindersICS(meds, storage.notifications.get().reminderTimes)}
+                  onClick={() => setShowReminderExport((v) => !v)}
                   className="btn-secondary text-xs px-3 py-2 flex items-center gap-1.5"
-                  title="Export recurring reminders to Apple Calendar / Google Calendar"
                 >
                   <Download className="w-3.5 h-3.5" /> Reminders (.ics)
                 </button>
@@ -212,6 +213,36 @@ export default function MedicationsPage() {
             <button onClick={openAdd} className="btn-primary">+ Add</button>
           </div>
         </div>
+
+        {showReminderExport && (
+          <div className="card border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-900/10 space-y-3">
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">When are each of these times for you?</p>
+            <div className="grid grid-cols-2 gap-2">
+              {(["Morning", "Afternoon", "Evening", "Night"] as const).map((slot) => (
+                <label key={slot} className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-sm">
+                  <span className="text-gray-600 dark:text-gray-300 text-xs">{slot}</span>
+                  <input
+                    type="time"
+                    value={exportTimes[slot]}
+                    onChange={(e) => {
+                      const updated = { ...exportTimes, [slot]: e.target.value };
+                      setExportTimes(updated);
+                      storage.notifications.set({ ...storage.notifications.get(), reminderTimes: updated });
+                    }}
+                    className="input text-xs py-0.5 px-1.5 w-24"
+                  />
+                </label>
+              ))}
+            </div>
+            <button
+              onClick={() => { downloadMedRemindersICS(meds, exportTimes); setShowReminderExport(false); }}
+              className="btn-primary w-full flex items-center justify-center gap-2"
+            >
+              <Download className="w-4 h-4" /> Download & add to calendar
+            </button>
+            <p className="text-xs text-gray-400 dark:text-gray-500">Open the downloaded file on your phone to import into Apple Calendar or Google Calendar.</p>
+          </div>
+        )}
 
         <div className="card">
           <div className="flex justify-between items-center mb-2">

@@ -180,24 +180,6 @@ export default function DashboardPage() {
               <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Reminders</h3>
             </div>
 
-            {/* Reminder time pickers — always visible, affect both in-app alerts and .ics export */}
-            <div className="mb-3 space-y-2">
-              <p className="text-xs font-medium text-gray-500 dark:text-gray-400">When is each time of day for you?</p>
-              <div className="grid grid-cols-2 gap-2">
-                {(["Morning", "Afternoon", "Evening", "Night"] as const).map((slot) => (
-                  <label key={slot} className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-gray-50 dark:bg-gray-700/50 text-sm">
-                    <span className="text-gray-600 dark:text-gray-300 text-xs">{slot}</span>
-                    <input
-                      type="time"
-                      value={notifSettings.reminderTimes[slot]}
-                      onChange={(e) => updateNotif({ reminderTimes: { ...notifSettings.reminderTimes, [slot]: e.target.value } })}
-                      className="input text-xs py-0.5 px-1.5 w-24"
-                    />
-                  </label>
-                ))}
-              </div>
-            </div>
-
             {/* Always-visible .ics tip */}
             <div className="flex items-start gap-2 mb-3 p-2.5 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800">
               <span className="text-base leading-none mt-0.5">📅</span>
@@ -261,9 +243,6 @@ export default function DashboardPage() {
                     />
                   </div>
                 )}
-                <p className="text-xs text-gray-400 dark:text-gray-500 pt-1">
-                  Alert times above also apply to the .ics calendar export.
-                </p>
               </div>
             )}
           </div>
