@@ -1,8 +1,9 @@
 # CareCompanion
 
-A health tracking dashboard built for family caregivers. Upload medical reports, track medications, log symptoms, manage appointments, and store dietary and other notes — all in one place, with AI-powered summaries and pattern analysis.
+[![Version](https://img.shields.io/badge/version-1.0.0-blue)](CHANGELOG.md)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-Built for the **V1TROUS 2026** hackathon.
+A health tracking app built for family caregivers. Upload medical reports, track medications, log symptoms, manage appointments, and store dietary and other notes — all in one place, with AI-powered summaries and pattern analysis.
 
 ---
 
@@ -79,6 +80,7 @@ Built for the **V1TROUS 2026** hackathon.
 | Styling | Tailwind CSS |
 | Auth | NextAuth v4 (Google OAuth) |
 | AI | Groq API (`llama-3.3-70b-versatile`) |
+| PDF parsing | unpdf |
 | Storage | localStorage (client-only) |
 | Backend DB | Supabase (auth session only — no medical data) |
 | PWA | Service Worker + Web App Manifest |

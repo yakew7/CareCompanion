@@ -4,8 +4,8 @@
 
 | Version | Supported |
 |---|---|
-| 2.x (current) | ✅ |
-| 1.x | ❌ No longer maintained |
+| 1.0.0 (current) | ✅ |
+| Pre-release dev builds | ❌ Not supported |
 
 ---
 
