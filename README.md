@@ -33,6 +33,19 @@ Built for the **V1TROUS 2026** hackathon.
 - Dedicated Dietary and Other sections for doctor instructions
 - Populated automatically from uploaded reports; also supports manual entries
 
+**Reminders and notifications**
+- Opt-in browser notifications for medication times (Morning 8 am, Afternoon 1 pm, Evening 6 pm, Night 9 pm) and a configurable daily symptom check-in
+- Falls back to in-app toast alerts if notifications are not available
+- Works as a PWA — install on Android Chrome for background-style alerts
+
+**Calendar export**
+- Export any appointment or all appointments as a `.ics` file — opens in Apple Calendar, Google Calendar, and any standard calendar app on iOS and Android
+
+**Activity history**
+- Every add, delete, and clear-all action is logged in Recent Activity on the dashboard
+- Deleted items remain in the feed with a strikethrough and red "Deleted" badge
+- Filter toggle to show all activity or active items only
+
 **Dark mode**
 - Toggleable from the sidebar (desktop) or top bar (mobile), persisted across sessions
 
@@ -40,6 +53,8 @@ Built for the **V1TROUS 2026** hackathon.
 - All medical and personal data is stored in your browser's localStorage only
 - Nothing medical is written to any server or database
 - Report text is never stored; only the AI summary is kept
+- Patient name is never sent to Groq or any external service — identified as `[anonymous]` in all AI contexts
+- See [SECURITY.md](SECURITY.md) for the full data handling breakdown
 
 ---
 
@@ -54,6 +69,8 @@ Built for the **V1TROUS 2026** hackathon.
 | AI | Groq API (`llama-3.3-70b-versatile`) |
 | Storage | localStorage (client-only) |
 | Backend DB | Supabase (auth session only — no medical data) |
+| PWA | Service Worker + Web App Manifest |
+| Notifications | Web Notifications API |
 
 ---
 
@@ -97,7 +114,7 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ### Supabase setup
 
-The only table needed in Supabase is for user profiles (tracks whether onboarding is complete):
+The only table needed in Supabase is for auth session tracking:
 
 ```sql
 create table user_profiles (
@@ -106,7 +123,7 @@ create table user_profiles (
 );
 ```
 
-No medical data is written here.
+No medical data, patient names, or health records are written here.
 
 ---
 
@@ -115,8 +132,11 @@ No medical data is written here.
 All health data — medications, symptoms, appointments, reports, notes — is stored exclusively in your browser's localStorage. It never leaves your device. Clearing your browser data will erase it.
 
 The only data sent to external services:
-- Report text is sent to Groq for AI summarisation (never stored by the app)
+- Report text and chat messages are sent to Groq for AI processing (never stored by the app)
+- Patient name is **never** sent to Groq — the AI context identifies the patient as `[anonymous]` only
 - Your Google account identity is used for login via NextAuth
+
+See [SECURITY.md](SECURITY.md) for a full breakdown of what leaves your device and what doesn't.
 
 ---
 
@@ -133,6 +153,10 @@ Add all `.env.local` variables in the Vercel dashboard under **Settings > Enviro
 ## License
 
 MIT — see [LICENSE](LICENSE)
+
+## Security
+
+See [SECURITY.md](SECURITY.md) for the vulnerability reporting policy and full data handling breakdown.
 
 ## Contributing
 
