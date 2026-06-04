@@ -22,9 +22,25 @@ STRICT RULES:
 - Other: Other explicit instructions not covered above (e.g. "bed rest for 1 week", "avoid heavy lifting", "monitor blood pressure daily").
 - If something is NOT directly stated, do NOT include it.
 
+INDIAN PRESCRIPTION NOTATION — 1-0-1 style:
+These numbers mean tablets at Morning - Afternoon/Noon - Night (3 slots), or Morning - Afternoon - Evening - Night (4 slots).
+Map each position to the time name if the value is 1 (include it) or 0 (skip it):
+  3-slot:  1-0-1 → ["Morning","Night"]   |  1-1-1 → ["Morning","Afternoon","Night"]
+           1-0-0 → ["Morning"]           |  0-0-1 → ["Night"]
+           0-1-0 → ["Afternoon"]         |  1-1-0 → ["Morning","Afternoon"]
+           0-1-1 → ["Afternoon","Night"]
+  4-slot:  1-0-0-1 → ["Morning","Night"] |  1-1-1-1 → ["Morning","Afternoon","Evening","Night"]
+           1-0-1-0 → ["Morning","Evening"]| 1-0-1-1 → ["Morning","Evening","Night"]
+If the notation has numbers > 1 (e.g. "2-0-2"), that is the tablet count per dose — set dosage accordingly but still map times the same way.
+
+DURATION — extract if stated:
+  "for 3 days", "× 3", "x3 days", "3 days", "3/7" → durationDays: 3
+  "for 1 week" → durationDays: 7  |  "for 2 weeks" → durationDays: 14
+  If no duration mentioned, omit durationDays or use 0.
+
 Return ONLY valid JSON:
 {
-  "medications": [{ "name": "...", "dosage": "...", "frequency": "...", "times": [], "notes": "..." }],
+  "medications": [{ "name": "...", "dosage": "...", "frequency": "...", "times": [], "notes": "...", "durationDays": 0 }],
   "appointments": [{ "doctor": "...", "specialty": "...", "notes": "...", "daysFromNow": 30 }],
   "symptoms": [{ "symptom": "...", "severity": 3, "notes": "..." }],
   "dietary": [{ "advice": "exact dietary instruction from report" }],

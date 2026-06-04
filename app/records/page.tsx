@@ -120,7 +120,7 @@ export default function RecordsPage() {
       const items: ExtractedItem[] = [
         ...(extracted.medications || []).map((m: Record<string, unknown>) => ({
           id: uuidv4(), type: "medication" as const, selected: true,
-          label: `${m.name}${m.dosage ? ` — ${m.dosage}` : ""}${m.frequency ? ` (${m.frequency})` : ""}`,
+          label: `${m.name}${m.dosage ? ` — ${m.dosage}` : ""}${m.frequency ? ` (${m.frequency})` : ""}${m.durationDays ? ` · ${m.durationDays}d course` : ""}`,
           data: m,
         })),
         ...(extracted.appointments || []).map((a: Record<string, unknown>) => {
@@ -206,7 +206,8 @@ export default function RecordsPage() {
       for (const item of selected) {
         if (item.type === "medication") {
           const m = item.data;
-          await api.medications.save({ id: uuidv4(), name: m.name as string, dosage: (m.dosage as string) || "", frequency: (m.frequency as string) || "As needed", times: (m.times as string[]) || [], notes: (m.notes as string) || "", log: {} });
+          const durationDays = (m.durationDays as number) || 0;
+          await api.medications.save({ id: uuidv4(), name: m.name as string, dosage: (m.dosage as string) || "", frequency: (m.frequency as string) || "As needed", times: (m.times as string[]) || [], notes: (m.notes as string) || "", log: {}, expiresAt: durationDays > 0 ? new Date(Date.now() + durationDays * 86400000).toISOString() : undefined });
         } else if (item.type === "symptom") {
           const s = item.data;
           await api.symptoms.save({ id: uuidv4(), symptom: s.symptom as string, severity: (s.severity as number) || 3, notes: (s.notes as string) || "", loggedAt: new Date().toISOString() });

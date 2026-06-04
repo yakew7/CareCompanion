@@ -95,6 +95,15 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         }
       }
 
+      // Auto-expire medications
+      const allMeds = await api.medications.getAll();
+      const expired = allMeds.filter((m) => m.expiresAt && new Date(m.expiresAt) <= now);
+      for (const med of expired) {
+        await api.medications.delete(med.id);
+        await api.activity.push({ type: "medication", label: `Auto-removed: ${med.name} (course completed)`, at: now.toISOString(), deleted: true });
+        fire("Medication course complete", `${med.name} has been removed — course finished.`);
+      }
+
       if (settings.symptomReminder) {
         const [rH, rM] = settings.symptomReminderTime.split(":").map(Number);
         if (now.getHours() === rH && now.getMinutes() === rM) {

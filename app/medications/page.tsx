@@ -41,6 +41,7 @@ const emptyForm = () => ({
   weeklyDays: [] as string[],
   weeklyTime: "Morning",
   notes: "",
+  durationDays: "" as string,
 });
 
 export default function MedicationsPage() {
@@ -55,7 +56,21 @@ export default function MedicationsPage() {
   useEffect(() => {
     if (!activePersonId) return;
     setLoading(true);
-    api.medications.getAll().then((data) => { setMeds(data); setLoading(false); });
+    api.medications.getAll().then(async (data) => {
+      const now = new Date();
+      const expired = data.filter((m) => m.expiresAt && new Date(m.expiresAt) <= now);
+      for (const med of expired) {
+        await api.medications.delete(med.id);
+        api.activity.push({ type: "medication", label: `Auto-removed: ${med.name} (course completed)`, at: new Date().toISOString(), deleted: true });
+      }
+      if (expired.length > 0) {
+        toast(`${expired.length} medication${expired.length !== 1 ? "s" : ""} auto-removed after completing course`, { icon: "✅" });
+        setMeds(await api.medications.getAll());
+      } else {
+        setMeds(data);
+      }
+      setLoading(false);
+    });
   }, [activePersonId]);
 
   function openAdd() { setEditing(null); setForm(emptyForm()); setShowModal(true); }
@@ -82,9 +97,13 @@ export default function MedicationsPage() {
       weeklyTime = med.times[0] || "Morning";
     }
 
+    const remainingDays = med.expiresAt
+      ? Math.max(0, Math.ceil((new Date(med.expiresAt).getTime() - Date.now()) / 86400000))
+      : 0;
     setForm({
       name: med.name, dosage: med.dosage, frequency: med.frequency,
       times, weeklyDays, weeklyTime, notes: med.notes,
+      durationDays: remainingDays > 0 ? String(remainingDays) : "",
     });
     setShowModal(true);
   }
@@ -110,7 +129,11 @@ export default function MedicationsPage() {
     if (isWeekly(form.frequency) && form.weeklyDays.length === 0) {
       toast.error("Select at least one day"); return;
     }
-    const med: Medication = { id: editing?.id || uuidv4(), name: form.name, dosage: form.dosage, frequency: form.frequency, times, notes: form.notes, log: editing?.log || {} };
+    const days = parseInt(form.durationDays);
+    const expiresAt = form.durationDays !== "" && days > 0
+      ? new Date(Date.now() + days * 86400000).toISOString()
+      : form.durationDays === "" ? editing?.expiresAt : undefined;
+    const med: Medication = { id: editing?.id || uuidv4(), name: form.name, dosage: form.dosage, frequency: form.frequency, times, notes: form.notes, log: editing?.log || {}, expiresAt };
     await api.medications.save(med);
     if (!editing) api.activity.push({ type: "medication", label: `Added medication: ${med.name}`, at: new Date().toISOString() });
     setMeds(await api.medications.getAll());
@@ -222,6 +245,12 @@ export default function MedicationsPage() {
                         <h3 className="font-semibold text-gray-900 dark:text-gray-100">{med.name}</h3>
                         {med.dosage && <span className="badge-gray">{med.dosage}</span>}
                         {med.frequency && <span className="badge-purple">{med.frequency}</span>}
+                        {med.expiresAt && (() => {
+                          const daysLeft = Math.ceil((new Date(med.expiresAt).getTime() - Date.now()) / 86400000);
+                          return daysLeft <= 1
+                            ? <span className="text-xs px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-medium">{daysLeft <= 0 ? "Expired" : "Last day"}</span>
+                            : <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 font-medium">{daysLeft}d left</span>;
+                        })()}
                       </div>
                       {med.notes && <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{med.notes}</p>}
                     </div>
@@ -353,6 +382,23 @@ export default function MedicationsPage() {
                 </div>
               </div>
             )}
+
+            <div>
+              <label className="label">Course duration (days) — optional</label>
+              <input
+                className="input"
+                type="number"
+                min="0"
+                placeholder="e.g. 5 (leave blank if ongoing)"
+                value={form.durationDays}
+                onChange={(e) => setForm({ ...form, durationDays: e.target.value })}
+              />
+              {form.durationDays && parseInt(form.durationDays) > 0 && (
+                <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                  Auto-removes on {new Date(Date.now() + parseInt(form.durationDays) * 86400000).toLocaleDateString("en-IN")}
+                </p>
+              )}
+            </div>
 
             <div>
               <label className="label">Notes (optional)</label>

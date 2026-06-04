@@ -24,6 +24,7 @@ export interface Medication {
   times: string[];
   notes: string;
   log: Record<string, Record<string, boolean>>;
+  expiresAt?: string; // ISO date — auto-deleted after this date
 }
 
 export interface Symptom {
