@@ -190,7 +190,16 @@ export default function ChatPage() {
                       <span className="whitespace-pre-wrap">{msg.content}</span>
                     ) : (
                       <div className="prose prose-sm max-w-none prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-li:my-0.5 prose-strong:font-semibold dark:prose-invert">
-                        <ReactMarkdown>{msg.content}</ReactMarkdown>
+                        <ReactMarkdown components={{
+                          table: ({ children }) => (
+                            <div className="overflow-x-auto my-2">
+                              <table className="w-full text-xs border-collapse">{children}</table>
+                            </div>
+                          ),
+                          thead: ({ children }) => <thead className="bg-gray-100 dark:bg-gray-700">{children}</thead>,
+                          th: ({ children }) => <th className="border border-gray-300 dark:border-gray-600 px-2 py-1 text-left font-semibold">{children}</th>,
+                          td: ({ children }) => <td className="border border-gray-300 dark:border-gray-600 px-2 py-1">{children}</td>,
+                        }}>{msg.content}</ReactMarkdown>
                       </div>
                     )
                   ) : (
