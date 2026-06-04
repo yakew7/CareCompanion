@@ -33,6 +33,26 @@ Map each position to the time name if the value is 1 (include it) or 0 (skip it)
            1-0-1-0 → ["Morning","Evening"]| 1-0-1-1 → ["Morning","Evening","Night"]
 If the notation has numbers > 1 (e.g. "2-0-2"), that is the tablet count per dose — set dosage accordingly but still map times the same way.
 
+PATIENT PROFILE — extract if mentioned in the report:
+- Age in years (integer)
+- Height in cm (convert from feet/inches if needed, e.g. 5'7" ≈ 170 cm)
+- Gender: "male", "female", or "other"
+- Blood type if stated (e.g. "B+", "O−")
+Only include fields that are EXPLICITLY stated. Omit the rest.
+
+VITAL SIGNS & LAB VALUES — extract any of the following if EXPLICITLY present with a numeric value:
+- Blood Pressure → type "bp", value=systolic (number), value2=diastolic (number), unit="mmHg"
+- Blood Glucose / Blood Sugar → type "glucose", unit="mg/dL" (convert from mmol/L if needed: ×18)
+- SpO₂ / Oxygen Saturation → type "spo2", unit="%"
+- Heart Rate / Pulse → type "heart_rate", unit="bpm"
+- Temperature → type "temperature", unit="°C" (convert from °F: (F−32)×5/9)
+- Respiratory Rate → type "respiratory_rate", unit="breaths/min"
+- HbA1c / Glycated Haemoglobin → type "hba1c", unit="%"
+- Total Cholesterol → type "cholesterol", unit="mg/dL", notes="LDL: X mg/dL · HDL: Y mg/dL · TG: Z mg/dL" (include breakdown if present)
+- Haemoglobin → type "hemoglobin", unit="g/dL"
+- Creatinine → type "creatinine", unit="mg/dL"
+Do NOT invent values. Only include what is explicitly stated with a number.
+
 DURATION — extract if stated:
   "for 3 days", "× 3", "x3 days", "3 days", "3/7" → durationDays: 3
   "for 1 week" → durationDays: 7  |  "for 2 weeks" → durationDays: 14
@@ -44,7 +64,9 @@ Return ONLY valid JSON:
   "appointments": [{ "doctor": "...", "specialty": "...", "notes": "...", "daysFromNow": 30 }],
   "symptoms": [{ "symptom": "...", "severity": 3, "notes": "..." }],
   "dietary": [{ "advice": "exact dietary instruction from report" }],
-  "other": [{ "note": "exact other instruction from report" }]
+  "other": [{ "note": "exact other instruction from report" }],
+  "vitals": [{ "type": "bp", "value": 120, "value2": 80, "unit": "mmHg", "notes": "" }],
+  "profile": { "age": null, "heightCm": null, "gender": null, "bloodType": null }
 }`,
         },
         {

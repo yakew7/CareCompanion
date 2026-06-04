@@ -166,7 +166,16 @@ function pk(base: string, personId: string) {
   return `${base}__${personId}`;
 }
 
-export type VitalType = "bp" | "glucose" | "weight" | "heart_rate" | "spo2" | "temperature";
+export type VitalType =
+  | "bp" | "glucose" | "weight" | "heart_rate" | "spo2" | "temperature" | "respiratory_rate"
+  | "hba1c" | "cholesterol" | "hemoglobin" | "creatinine";
+
+export interface HealthProfile {
+  age?: number;
+  heightCm?: number;
+  gender?: "male" | "female" | "other";
+  bloodType?: string;
+}
 
 export interface VitalEntry {
   id: string;
@@ -178,7 +187,7 @@ export interface VitalEntry {
   loggedAt: string;
 }
 
-const DATA_KEYS = ["medications", "symptoms", "appointments", "records", "activity", "dietary", "other", "vitals"] as const;
+const DATA_KEYS = ["medications", "symptoms", "appointments", "records", "activity", "dietary", "other", "vitals", "healthProfile"] as const;
 
 export const storage = {
   persons: {
@@ -259,6 +268,17 @@ export const storage = {
     delete: (id: string, personId: string) =>
       setList(pk("vitals", personId), getList<VitalEntry>(pk("vitals", personId)).filter((v) => v.id !== id)),
     clearAll: (personId: string) => setList(pk("vitals", personId), []),
+  },
+  healthProfile: {
+    get: (personId: string): HealthProfile => {
+      if (typeof window === "undefined") return {};
+      try { return JSON.parse(localStorage.getItem(pk("healthProfile", personId)) || "{}"); }
+      catch { return {}; }
+    },
+    set: (profile: HealthProfile, personId: string): void => {
+      if (typeof window === "undefined") return;
+      localStorage.setItem(pk("healthProfile", personId), JSON.stringify(profile));
+    },
   },
   notifications: {
     _default: (): NotificationSettings => ({

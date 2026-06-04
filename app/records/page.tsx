@@ -117,6 +117,26 @@ export default function RecordsPage() {
         body: JSON.stringify({ text }),
       }).then((r) => r.json());
 
+      // Auto-insert vitals from report (no confirmation needed — objective numbers)
+      const extractedVitals: Array<{ type: string; value: number; value2?: number; unit: string; notes?: string }> = extracted.vitals || [];
+      let vitalCount = 0;
+      for (const v of extractedVitals) {
+        if (v.type && typeof v.value === "number" && !isNaN(v.value)) {
+          await api.vitals.save({ id: uuidv4(), type: v.type as import("@/lib/storage").VitalType, value: v.value, value2: v.value2, unit: v.unit || "", notes: v.notes || "From report", loggedAt: new Date().toISOString() });
+          vitalCount++;
+        }
+      }
+      // Auto-update health profile from report
+      const extractedProfile = extracted.profile || {};
+      const currentProfile = await api.healthProfile.get();
+      const mergedProfile = { ...currentProfile };
+      if (extractedProfile.age) mergedProfile.age = extractedProfile.age;
+      if (extractedProfile.heightCm) mergedProfile.heightCm = extractedProfile.heightCm;
+      if (extractedProfile.gender) mergedProfile.gender = extractedProfile.gender;
+      if (extractedProfile.bloodType) mergedProfile.bloodType = extractedProfile.bloodType;
+      if (JSON.stringify(mergedProfile) !== JSON.stringify(currentProfile)) await api.healthProfile.set(mergedProfile);
+      if (vitalCount > 0) toast.success(`${vitalCount} vital reading${vitalCount !== 1 ? "s" : ""} auto-filled from report`);
+
       const items: ExtractedItem[] = [
         ...(extracted.medications || []).map((m: Record<string, unknown>) => ({
           id: uuidv4(), type: "medication" as const, selected: true,
