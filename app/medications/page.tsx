@@ -118,7 +118,9 @@ export default function MedicationsPage() {
 
   async function deleteMed(id: string) {
     if (!confirm("Remove this medication?")) return;
+    const med = meds.find((m) => m.id === id);
     await api.medications.delete(id);
+    if (med) api.activity.push({ type: "medication", label: `Deleted medication: ${med.name}`, at: new Date().toISOString(), deleted: true });
     setMeds(await api.medications.getAll());
     toast.success("Medication removed");
   }

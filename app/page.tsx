@@ -20,6 +20,7 @@ export default function DashboardPage() {
   const { activePersonId } = usePersonContext();
   const [stats, setStats] = useState<Stats>({ medications: 0, symptomsThisWeek: 0, upcomingAppointments: 0, records: 0 });
   const [activity, setActivity] = useState<ActivityEntry[]>([]);
+  const [activityFilter, setActivityFilter] = useState<"all" | "active">("all");
   const [hour] = useState(new Date().getHours());
 
   useEffect(() => {
@@ -40,7 +41,7 @@ export default function DashboardPage() {
         upcomingAppointments: appts.filter((a) => a.status === "upcoming" && new Date(a.datetime) >= now).length,
         records: records.length,
       });
-      setActivity(acts.slice(0, 5));
+      setActivity(acts.slice(0, 20));
     });
   }, [activePersonId]);
 
@@ -98,22 +99,47 @@ export default function DashboardPage() {
         </div>
 
         <div className="card">
-          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Recent Activity</h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Recent Activity</h3>
+            <div className="flex gap-1 text-xs">
+              <button
+                onClick={() => setActivityFilter("all")}
+                className={`px-2 py-0.5 rounded-full transition-colors ${activityFilter === "all" ? "bg-teal-100 dark:bg-teal-900/50 text-teal-700 dark:text-teal-300 font-medium" : "text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"}`}
+              >All</button>
+              <button
+                onClick={() => setActivityFilter("active")}
+                className={`px-2 py-0.5 rounded-full transition-colors ${activityFilter === "active" ? "bg-teal-100 dark:bg-teal-900/50 text-teal-700 dark:text-teal-300 font-medium" : "text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"}`}
+              >Active only</button>
+            </div>
+          </div>
           {activity.length === 0 ? (
             <p className="text-sm text-gray-400 dark:text-gray-500 py-4 text-center">No activity yet. Start by uploading a report or logging a symptom.</p>
-          ) : (
-            <ul className="divide-y divide-gray-100 dark:divide-gray-700">
-              {activity.map((entry, i) => (
-                <li key={i} className="py-2.5 flex items-center gap-3 text-sm">
-                  <span className="w-1.5 h-1.5 rounded-full bg-teal-400 flex-shrink-0" />
-                  <span className="text-gray-700 dark:text-gray-300 flex-1">{entry.label}</span>
-                  <span className="text-gray-400 dark:text-gray-500 text-xs">
-                    {new Date(entry.at).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
+          ) : (() => {
+            const filtered = activityFilter === "active" ? activity.filter((e) => !e.deleted) : activity;
+            if (filtered.length === 0) return (
+              <p className="text-sm text-gray-400 dark:text-gray-500 py-4 text-center">No active entries. Switch to &quot;All&quot; to see deleted items.</p>
+            );
+            return (
+              <ul className="divide-y divide-gray-100 dark:divide-gray-700">
+                {filtered.map((entry, i) => (
+                  <li key={i} className={`py-2.5 flex items-center gap-3 text-sm ${entry.deleted ? "opacity-60" : ""}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${entry.deleted ? "bg-red-400" : "bg-teal-400"}`} />
+                    <span className={`flex-1 ${entry.deleted ? "line-through text-gray-400 dark:text-gray-500" : "text-gray-700 dark:text-gray-300"}`}>
+                      {entry.label}
+                    </span>
+                    {entry.deleted && (
+                      <span className="text-xs px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-medium flex-shrink-0">
+                        Deleted
+                      </span>
+                    )}
+                    <span className="text-gray-400 dark:text-gray-500 text-xs flex-shrink-0">
+                      {new Date(entry.at).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            );
+          })()}
         </div>
 
         <div className="card">

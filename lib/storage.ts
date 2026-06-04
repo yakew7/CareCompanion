@@ -49,6 +49,7 @@ export interface ActivityEntry {
   type: string;
   label: string;
   at: string;
+  deleted?: boolean;
 }
 
 export interface Note {

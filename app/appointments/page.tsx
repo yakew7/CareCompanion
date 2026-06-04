@@ -63,7 +63,9 @@ export default function AppointmentsPage() {
 
   async function deleteAppt(id: string) {
     if (!confirm("Remove this appointment?")) return;
+    const appt = appointments.find((a) => a.id === id);
     await api.appointments.delete(id);
+    if (appt) api.activity.push({ type: "appointment", label: `Deleted appointment: ${appt.doctor}`, at: new Date().toISOString(), deleted: true });
     setAppointments(await api.appointments.getAll());
     toast.success("Appointment removed");
   }

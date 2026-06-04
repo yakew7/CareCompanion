@@ -232,7 +232,9 @@ export default function RecordsPage() {
 
   async function deleteRecord(id: string) {
     if (!confirm("Delete this report?")) return;
+    const record = records.find((r) => r.id === id);
     await api.records.delete(id);
+    if (record) api.activity.push({ type: "record", label: `Deleted report: ${record.name}`, at: new Date().toISOString(), deleted: true });
     setRecords(await api.records.getAll());
     if (activeRecord?.id === id) { setActiveRecord(null); setMessages([]); setMobileView("list"); }
     toast.success("Report deleted");

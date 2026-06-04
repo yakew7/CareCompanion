@@ -78,7 +78,9 @@ export default function SymptomsPage() {
   }
 
   async function deleteSymptom(id: string) {
+    const sym = symptoms.find((s) => s.id === id);
     await api.symptoms.delete(id);
+    if (sym) api.activity.push({ type: "symptom", label: `Deleted symptom: ${sym.symptom}`, at: new Date().toISOString(), deleted: true });
     setSymptoms(await api.symptoms.getAll());
     toast.success("Entry deleted");
   }
