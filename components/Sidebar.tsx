@@ -6,7 +6,7 @@ import Image from "next/image";
 import { useState } from "react";
 import {
   LayoutDashboard, FileText, Pill, Activity, Calendar,
-  Heart, LogOut, Sun, Moon, Plus, X, Check, NotebookPen,
+  Heart, LogOut, Sun, Moon, Plus, X, Check, NotebookPen, MessageCircleHeart,
 } from "lucide-react";
 import { usePersonContext } from "@/contexts/PersonContext";
 import { PRESET_COLORS, personColorHex, getNextPersonColor } from "@/lib/storage";
@@ -19,6 +19,7 @@ const nav = [
   { href: "/symptoms", label: "Symptoms", icon: Activity },
   { href: "/appointments", label: "Appointments", icon: Calendar },
   { href: "/notes", label: "Notes", icon: NotebookPen },
+  { href: "/chat", label: "Ask", icon: MessageCircleHeart },
 ];
 
 export default function Sidebar() {

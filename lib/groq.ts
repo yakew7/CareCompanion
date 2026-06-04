@@ -1,7 +1,8 @@
 import "server-only";
 import Groq from "groq-sdk";
 
-export const MODEL = "llama-3.3-70b-versatile";
+export const MODEL = "llama-3.3-70b-versatile";            // summaries, extraction, analysis
+export const MODEL_HEALTH_CHAT = "openai/gpt-oss-120b"; // health assistant chatbot
 
 let _groq: Groq | null = null;
 
