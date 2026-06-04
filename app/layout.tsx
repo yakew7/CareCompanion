@@ -4,6 +4,7 @@ import "./globals.css";
 import AuthGate from "@/components/AuthGate";
 import NextAuthProvider from "@/components/NextAuthProvider";
 import { PersonProvider } from "@/contexts/PersonContext";
+import { NotificationProvider } from "@/contexts/NotificationContext";
 import { Toaster } from "react-hot-toast";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -21,17 +22,26 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#0D9488" />
         {/* Apply dark class before first paint to avoid flash */}
         <script
           dangerouslySetInnerHTML={{
             __html: `try{var t=localStorage.getItem('theme');if(t==='dark')document.documentElement.classList.add('dark');}catch(e){}`,
           }}
         />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');`,
+          }}
+        />
       </head>
       <body className={`${inter.className} bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100`}>
         <NextAuthProvider>
           <PersonProvider>
-            <AuthGate>{children}</AuthGate>
+            <NotificationProvider>
+              <AuthGate>{children}</AuthGate>
+            </NotificationProvider>
           </PersonProvider>
           <Toaster
             position="top-right"

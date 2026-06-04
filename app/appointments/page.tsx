@@ -2,7 +2,8 @@
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { v4 as uuidv4 } from "uuid";
-import { Pencil, Trash2, CalendarDays, MapPin, Sparkles } from "lucide-react";
+import { Pencil, Trash2, CalendarDays, MapPin, Sparkles, Download } from "lucide-react";
+import { downloadICS } from "@/lib/ics";
 import TopBar from "@/components/TopBar";
 import { api } from "@/lib/api";
 import { usePersonContext } from "@/contexts/PersonContext";
@@ -160,6 +161,13 @@ export default function AppointmentsPage() {
           </div>
           <div className="flex gap-0.5 flex-shrink-0">
             <button
+              onClick={() => downloadICS([appt], `${appt.doctor.replace(/\s+/g, "_")}.ics`)}
+              title="Add to calendar"
+              className="p-1.5 text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20"
+            >
+              <Download className="w-4 h-4" />
+            </button>
+            <button
               onClick={() => openEdit(appt)}
               className="p-1.5 text-gray-400 hover:text-teal-600 dark:hover:text-teal-400 transition-colors rounded-lg hover:bg-teal-50 dark:hover:bg-teal-900/30"
             >
@@ -204,7 +212,15 @@ export default function AppointmentsPage() {
           <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Appointments</h2>
           <div className="flex gap-2">
             {appointments.length > 0 && (
-              <button onClick={clearAll} className="btn-danger text-xs px-3 py-2">Clear all</button>
+              <>
+                <button
+                  onClick={() => downloadICS(appointments, "all_appointments.ics")}
+                  className="btn-secondary text-xs px-3 py-2 flex items-center gap-1.5"
+                >
+                  <Download className="w-3.5 h-3.5" /> Export .ics
+                </button>
+                <button onClick={clearAll} className="btn-danger text-xs px-3 py-2">Clear all</button>
+              </>
             )}
             <button onClick={openAdd} className="btn-primary">+ Add</button>
           </div>

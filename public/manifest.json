@@ -1,0 +1,13 @@
+{
+  "name": "CareCompanion",
+  "short_name": "CareCompanion",
+  "description": "Dashboard for family caregivers managing health",
+  "theme_color": "#0D9488",
+  "background_color": "#ffffff",
+  "display": "standalone",
+  "start_url": "/",
+  "scope": "/",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

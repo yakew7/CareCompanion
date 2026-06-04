@@ -59,6 +59,13 @@ export interface Note {
   createdAt: string;
 }
 
+export interface NotificationSettings {
+  enabled: boolean;
+  medicationReminders: boolean;
+  symptomReminder: boolean;
+  symptomReminderTime: string; // "HH:MM" 24h
+}
+
 // Kept for legacy API compatibility
 export interface UserProfile {
   name: string;
@@ -226,6 +233,26 @@ export const storage = {
     delete: (id: string, personId: string) =>
       setList(pk("other", personId), getList<Note>(pk("other", personId)).filter((n) => n.id !== id)),
     clearAll: (personId: string) => setList(pk("other", personId), []),
+  },
+  notifications: {
+    _default: (): NotificationSettings => ({
+      enabled: false,
+      medicationReminders: true,
+      symptomReminder: false,
+      symptomReminderTime: "20:00",
+    }),
+    get(): NotificationSettings {
+      if (typeof window === "undefined") return this._default();
+      try {
+        return JSON.parse(localStorage.getItem("notificationSettings") || "null") ?? this._default();
+      } catch {
+        return this._default();
+      }
+    },
+    set(s: NotificationSettings): void {
+      if (typeof window === "undefined") return;
+      localStorage.setItem("notificationSettings", JSON.stringify(s));
+    },
   },
   theme: {
     get: (): "light" | "dark" => {

@@ -26,7 +26,7 @@ function buildContext(data: {
   other: { content: string }[];
   appointments: { doctor: string; specialty: string; status: string; postVisitNotes: string }[];
 }): string {
-  const lines: string[] = [`Patient nickname: ${data.nickname}`];
+  const lines: string[] = [`Patient: [anonymous]`];
 
   if (data.medications.length) {
     lines.push("\nCurrent medications:");
