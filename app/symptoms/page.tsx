@@ -87,7 +87,9 @@ export default function SymptomsPage() {
 
   async function clearAll() {
     if (!confirm("Remove all symptom entries for this person? This cannot be undone.")) return;
+    const count = symptoms.length;
     await api.symptoms.clearAll();
+    api.activity.push({ type: "symptom", label: `Cleared all symptoms (${count} item${count !== 1 ? "s" : ""})`, at: new Date().toISOString(), deleted: true });
     setSymptoms([]);
     toast.success("All symptoms cleared");
   }

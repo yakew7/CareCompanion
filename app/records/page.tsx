@@ -242,7 +242,9 @@ export default function RecordsPage() {
 
   async function clearAllRecords() {
     if (!confirm("Delete all reports for this person? This cannot be undone.")) return;
+    const count = records.length;
     await api.records.clearAll();
+    api.activity.push({ type: "record", label: `Cleared all reports (${count} item${count !== 1 ? "s" : ""})`, at: new Date().toISOString(), deleted: true });
     setRecords([]);
     setActiveRecord(null);
     setMessages([]);

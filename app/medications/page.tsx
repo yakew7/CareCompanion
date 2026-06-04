@@ -127,7 +127,9 @@ export default function MedicationsPage() {
 
   async function clearAll() {
     if (!confirm("Remove all medications for this person? This cannot be undone.")) return;
+    const count = meds.length;
     await api.medications.clearAll();
+    api.activity.push({ type: "medication", label: `Cleared all medications (${count} item${count !== 1 ? "s" : ""})`, at: new Date().toISOString(), deleted: true });
     setMeds([]);
     toast.success("All medications cleared");
   }

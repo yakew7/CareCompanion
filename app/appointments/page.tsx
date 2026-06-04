@@ -72,7 +72,9 @@ export default function AppointmentsPage() {
 
   async function clearAll() {
     if (!confirm("Remove all appointments for this person? This cannot be undone.")) return;
+    const count = appointments.length;
     await api.appointments.clearAll();
+    api.activity.push({ type: "appointment", label: `Cleared all appointments (${count} item${count !== 1 ? "s" : ""})`, at: new Date().toISOString(), deleted: true });
     setAppointments([]);
     toast.success("All appointments cleared");
   }
