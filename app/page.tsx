@@ -2,13 +2,11 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { Pill, Activity, Calendar, FileText, Upload, Thermometer, ClipboardList, Bell, BellOff, BellRing, ShieldCheck } from "lucide-react";
+import { Pill, Activity, Calendar, FileText, Upload, Thermometer, ClipboardList, ShieldCheck } from "lucide-react";
 import TopBar from "@/components/TopBar";
 import { api } from "@/lib/api";
 import { usePersonContext } from "@/contexts/PersonContext";
-import { useNotifications } from "@/contexts/NotificationContext";
-import { storage } from "@/lib/storage";
-import type { ActivityEntry, NotificationSettings } from "@/lib/storage";
+import type { ActivityEntry } from "@/lib/storage";
 
 interface Stats {
   medications: number;
@@ -24,17 +22,6 @@ export default function DashboardPage() {
   const [activity, setActivity] = useState<ActivityEntry[]>([]);
   const [activityFilter, setActivityFilter] = useState<"all" | "active">("all");
   const [hour] = useState(new Date().getHours());
-  const [notifSettings, setNotifSettings] = useState<NotificationSettings | null>(null);
-  const [notifSupported, setNotifSupported] = useState(false);
-  const [notifPermission, setNotifPermission] = useState<NotificationPermission>("default");
-  const { requestPermission } = useNotifications();
-
-  useEffect(() => {
-    setNotifSettings(storage.notifications.get());
-    const supported = typeof window !== "undefined" && "Notification" in window;
-    setNotifSupported(supported);
-    if (supported) setNotifPermission(Notification.permission);
-  }, []);
 
   useEffect(() => {
     if (!activePersonId) return;
@@ -57,19 +44,6 @@ export default function DashboardPage() {
       setActivity(acts.slice(0, 20));
     });
   }, [activePersonId]);
-
-  function updateNotif(patch: Partial<NotificationSettings>) {
-    if (!notifSettings) return;
-    const updated = { ...notifSettings, ...patch };
-    storage.notifications.set(updated);
-    setNotifSettings(updated);
-  }
-
-  async function handleEnableNotifications() {
-    const granted = await requestPermission();
-    setNotifPermission(granted ? "granted" : "denied");
-    updateNotif({ enabled: granted });
-  }
 
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   const firstName = session?.user?.name?.split(" ")[0] || "there";
@@ -168,86 +142,6 @@ export default function DashboardPage() {
           })()}
         </div>
 
-        {/* Reminders card */}
-        {notifSettings && (
-          <div className="card">
-            <div className="flex items-center gap-2 mb-3">
-              {notifPermission === "granted" && notifSettings.enabled
-                ? <BellRing className="w-4 h-4 text-teal-500 flex-shrink-0" />
-                : notifPermission === "denied"
-                ? <BellOff className="w-4 h-4 text-red-400 flex-shrink-0" />
-                : <Bell className="w-4 h-4 text-gray-400 flex-shrink-0" />}
-              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Reminders</h3>
-            </div>
-
-            {/* Always-visible .ics tip */}
-            <div className="flex items-start gap-2 mb-3 p-2.5 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800">
-              <span className="text-base leading-none mt-0.5">📅</span>
-              <p className="text-xs text-blue-700 dark:text-blue-300">
-                <strong>Reliable phone reminders:</strong> Go to{" "}
-                <Link href="/medications" className="underline underline-offset-2">Medications</Link> → tap{" "}
-                <strong>Reminders (.ics)</strong> → open the file on your phone. It imports recurring daily alerts into Apple Calendar or Google Calendar that fire even when this app is closed.
-              </p>
-            </div>
-
-            {!notifSupported ? (
-              <p className="text-xs text-gray-400 dark:text-gray-500">
-                Your browser doesn&apos;t support web notifications. Use the .ics export above for native phone reminders.
-              </p>
-            ) : notifPermission === "denied" ? (
-              <p className="text-xs text-gray-400 dark:text-gray-500">
-                Web notifications are blocked in this browser. Use the .ics export above for native phone reminders, or re-enable notifications in browser settings.
-              </p>
-            ) : notifPermission !== "granted" ? (
-              <div className="space-y-2">
-                <p className="text-xs text-gray-500 dark:text-gray-400">Optionally enable in-app alerts — these only fire while this tab is open.</p>
-                <button
-                  onClick={handleEnableNotifications}
-                  className="btn-secondary text-sm flex items-center gap-2"
-                >
-                  <Bell className="w-4 h-4" /> Enable in-app alerts
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <label className="flex items-center justify-between cursor-pointer">
-                  <span className="text-sm text-gray-700 dark:text-gray-300">Medication alerts (tab open only)</span>
-                  <button
-                    role="switch"
-                    aria-checked={notifSettings.medicationReminders}
-                    onClick={() => updateNotif({ medicationReminders: !notifSettings.medicationReminders })}
-                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${notifSettings.medicationReminders ? "bg-teal-500" : "bg-gray-300 dark:bg-gray-600"}`}
-                  >
-                    <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${notifSettings.medicationReminders ? "translate-x-4" : "translate-x-1"}`} />
-                  </button>
-                </label>
-                <label className="flex items-center justify-between cursor-pointer">
-                  <span className="text-sm text-gray-700 dark:text-gray-300">Daily symptom check-in</span>
-                  <button
-                    role="switch"
-                    aria-checked={notifSettings.symptomReminder}
-                    onClick={() => updateNotif({ symptomReminder: !notifSettings.symptomReminder })}
-                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${notifSettings.symptomReminder ? "bg-teal-500" : "bg-gray-300 dark:bg-gray-600"}`}
-                  >
-                    <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${notifSettings.symptomReminder ? "translate-x-4" : "translate-x-1"}`} />
-                  </button>
-                </label>
-                {notifSettings.symptomReminder && (
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs text-gray-500 dark:text-gray-400">Remind me at</span>
-                    <input
-                      type="time"
-                      value={notifSettings.symptomReminderTime}
-                      onChange={(e) => updateNotif({ symptomReminderTime: e.target.value })}
-                      className="input text-xs py-1 px-2 w-28"
-                    />
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
         <div className="card">
           <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Quick Help</h3>
           <div className="grid grid-cols-1 gap-2 text-sm text-gray-500 dark:text-gray-400">
@@ -259,13 +153,17 @@ export default function DashboardPage() {
               <Activity className="w-4 h-4 mt-0.5 text-purple-500 flex-shrink-0" />
               <span>Log symptoms regularly and use AI Analysis to spot patterns over time.</span>
             </div>
+            <div className="flex items-start gap-2">
+              <Pill className="w-4 h-4 mt-0.5 text-teal-500 flex-shrink-0" />
+              <span>For medication reminders on your phone: go to <Link href="/medications" className="underline underline-offset-2 text-teal-600 dark:text-teal-400">Meds</Link> → tap <strong>Reminders (.ics)</strong> → open the file to import into Apple or Google Calendar.</span>
+            </div>
           </div>
         </div>
 
         <div className="flex items-start gap-2 px-1 pb-2">
           <ShieldCheck className="w-3.5 h-3.5 text-teal-400 flex-shrink-0 mt-0.5" />
           <p className="text-xs text-gray-400 dark:text-gray-500">
-            Your data is stored only on this device. Patient name is never sent to any server. AI summaries are informational — always consult a qualified healthcare professional.
+            Your data is stored only on this device. Patient name is never sent to any server. AI summaries are informational. Always consult a qualified healthcare professional.
           </p>
         </div>
       </main>
