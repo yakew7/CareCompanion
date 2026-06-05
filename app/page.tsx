@@ -112,15 +112,25 @@ export default function DashboardPage() {
         <div className="card">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Recent Activity</h3>
-            <div className="flex gap-1 text-xs">
-              <button
-                onClick={() => setActivityFilter("all")}
-                className={`px-2 py-0.5 rounded-full transition-colors ${activityFilter === "all" ? "bg-teal-100 dark:bg-teal-900/50 text-teal-700 dark:text-teal-300 font-medium" : "text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"}`}
-              >All</button>
-              <button
-                onClick={() => setActivityFilter("active")}
-                className={`px-2 py-0.5 rounded-full transition-colors ${activityFilter === "active" ? "bg-teal-100 dark:bg-teal-900/50 text-teal-700 dark:text-teal-300 font-medium" : "text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"}`}
-              >Active only</button>
+            <div className="flex items-center gap-2">
+              <div className="flex gap-1 text-xs">
+                <button
+                  onClick={() => setActivityFilter("all")}
+                  className={`px-2 py-0.5 rounded-full transition-colors ${activityFilter === "all" ? "bg-teal-100 dark:bg-teal-900/50 text-teal-700 dark:text-teal-300 font-medium" : "text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"}`}
+                >All</button>
+                <button
+                  onClick={() => setActivityFilter("active")}
+                  className={`px-2 py-0.5 rounded-full transition-colors ${activityFilter === "active" ? "bg-teal-100 dark:bg-teal-900/50 text-teal-700 dark:text-teal-300 font-medium" : "text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"}`}
+                >Active only</button>
+              </div>
+              {activity.length > 0 && (
+                <button
+                  onClick={async () => { await api.activity.clearAll(); setActivity([]); }}
+                  className="text-xs text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+                >
+                  Clear
+                </button>
+              )}
             </div>
           </div>
           {activity.length === 0 ? (

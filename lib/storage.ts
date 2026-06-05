@@ -283,6 +283,7 @@ export const storage = {
       list.unshift(entry);
       setList(pk("activity", personId), list.slice(0, 20));
     },
+    clearAll: (personId: string) => setList(pk("activity", personId), []),
   },
   dietary: {
     getAll: (personId: string) => getList<Note>(pk("dietary", personId)),

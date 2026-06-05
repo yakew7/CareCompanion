@@ -45,6 +45,7 @@ export const api = {
   activity: {
     getAll: async (): Promise<ActivityEntry[]> => storage.activity.getAll(pid()),
     push: async (entry: ActivityEntry): Promise<void> => { storage.activity.push(entry, pid()); },
+    clearAll: async (): Promise<void> => { storage.activity.clearAll(pid()); },
   },
   dietary: {
     getAll: async (): Promise<Note[]> => storage.dietary.getAll(pid()),
