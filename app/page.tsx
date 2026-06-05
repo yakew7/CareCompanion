@@ -6,7 +6,7 @@ import { Pill, Activity, Calendar, FileText, Upload, Thermometer, ClipboardList,
 import TopBar from "@/components/TopBar";
 import { api } from "@/lib/api";
 import { usePersonContext } from "@/contexts/PersonContext";
-import type { ActivityEntry } from "@/lib/storage";
+import type { ActivityEntry, VitalEntry, VitalType } from "@/lib/storage";
 
 interface Stats {
   medications: number;
@@ -16,12 +16,32 @@ interface Stats {
   records: number;
 }
 
+function DashSparkline({ values }: { values: number[] }) {
+  const nonZero = values.filter((v) => v > 0);
+  if (nonZero.length < 2) return null;
+  const max = 5; // severity max
+  const W = 56, H = 14, P = 1;
+  const pts = values.map((v, i) => [
+    P + (i / (values.length - 1)) * (W - P * 2),
+    P + (1 - v / max) * (H - P * 2),
+  ]);
+  const d = pts.map(([x, y], i) => `${i === 0 ? "M" : "L"} ${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
+  return (
+    <svg width={W} height={H} className="mt-1.5 opacity-60">
+      <path d={d} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export default function DashboardPage() {
   const { data: session } = useSession();
   const { activePersonId } = usePersonContext();
   const [stats, setStats] = useState<Stats>({ medications: 0, symptomsThisWeek: 0, maxSymptomSeverityThisWeek: 0, upcomingAppointments: 0, records: 0 });
   const [activity, setActivity] = useState<ActivityEntry[]>([]);
   const [activityFilter, setActivityFilter] = useState<"all" | "active">("all");
+  const [medAdherence, setMedAdherence] = useState<number | null>(null);
+  const [symptomSparkline, setSymptomSparkline] = useState<number[]>([]);
+  const [flaggedVitals, setFlaggedVitals] = useState<{ label: string; reading: string; status: "warning" | "danger" }[]>([]);
   const [hour] = useState(new Date().getHours());
 
   useEffect(() => {
@@ -32,11 +52,12 @@ export default function DashboardPage() {
       api.appointments.getAll(),
       api.records.getAll(),
       api.activity.getAll(),
-    ]).then(([meds, symptoms, appts, records, acts]) => {
-      const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 7);
+      api.vitals.getAll(),
+    ]).then(([meds, symptoms, appts, records, acts, vitals]) => {
       const now = new Date();
+      const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
       const recentSymptoms = symptoms.filter((s) => new Date(s.loggedAt) >= weekAgo);
+
       setStats({
         medications: meds.length,
         symptomsThisWeek: recentSymptoms.length,
@@ -45,6 +66,59 @@ export default function DashboardPage() {
         records: records.length,
       });
       setActivity(acts.slice(0, 20));
+
+      // 7-day symptom sparkline — max severity per day
+      const sparkDays = Array.from({ length: 7 }, (_, i) => {
+        const d = new Date(); d.setDate(d.getDate() - (6 - i));
+        return d.toISOString().split("T")[0];
+      });
+      setSymptomSparkline(sparkDays.map((day) => {
+        const daySymptoms = symptoms.filter((s) => s.loggedAt.startsWith(day));
+        return daySymptoms.length ? Math.max(...daySymptoms.map((s) => s.severity)) : 0;
+      }));
+
+      // Medication adherence over past 7 days
+      if (meds.length > 0) {
+        let expected = 0, taken = 0;
+        sparkDays.forEach((day) => {
+          meds.forEach((med) => {
+            if (med.times.length === 0) return;
+            expected += med.times.length;
+            taken += med.times.filter((t) => med.log[day]?.[t]).length;
+          });
+        });
+        setMedAdherence(expected > 0 ? Math.round((taken / expected) * 100) : null);
+      }
+
+      // Flagged vitals (Watch or High, latest reading per type)
+      const VITAL_LABELS: Partial<Record<VitalType, string>> = {
+        bp: "Blood Pressure", glucose: "Blood Glucose", heart_rate: "Heart Rate",
+        spo2: "SpO₂", temperature: "Temperature", hba1c: "HbA1c",
+      };
+      function vitalStatus(type: VitalType, value: number, value2?: number): "normal" | "warning" | "danger" {
+        switch (type) {
+          case "bp":          return value <= 120 && (value2 ?? 0) <= 80 ? "normal" : value <= 140 && (value2 ?? 0) <= 90 ? "warning" : "danger";
+          case "glucose":     return value >= 70 && value <= 140 ? "normal" : value <= 200 ? "warning" : "danger";
+          case "spo2":        return value >= 95 ? "normal" : value >= 90 ? "warning" : "danger";
+          case "heart_rate":  return value >= 60 && value <= 100 ? "normal" : value >= 40 && value <= 120 ? "warning" : "danger";
+          case "temperature": return value >= 36.1 && value <= 37.2 ? "normal" : value <= 38.0 ? "warning" : "danger";
+          case "hba1c":       return value < 5.7 ? "normal" : value < 6.5 ? "warning" : "danger";
+          default: return "normal";
+        }
+      }
+      const latestByType = new Map<VitalType, VitalEntry>();
+      [...vitals].sort((a, b) => new Date(b.loggedAt).getTime() - new Date(a.loggedAt).getTime())
+        .forEach((v) => { if (!latestByType.has(v.type)) latestByType.set(v.type, v); });
+      const flagged: typeof flaggedVitals = [];
+      latestByType.forEach((v, type) => {
+        if (!(type in VITAL_LABELS)) return;
+        const s = vitalStatus(type, v.value, v.value2);
+        if (s !== "normal") {
+          const reading = v.value2 != null ? `${v.value}/${v.value2} ${v.unit}` : `${v.value} ${v.unit}`;
+          flagged.push({ label: VITAL_LABELS[type]!, reading, status: s });
+        }
+      });
+      setFlaggedVitals(flagged);
     });
   }, [activePersonId]);
 
@@ -87,9 +161,32 @@ export default function DashboardPage() {
                 <span className="text-3xl sm:text-4xl font-bold">{card.value}</span>
               </div>
               <p className="text-xs sm:text-sm font-medium mt-2">{card.label}</p>
+              {/* Passive data overlays */}
+              {card.label === "Medications tracked" && medAdherence !== null && (
+                <p className="text-xs mt-1 opacity-70">{medAdherence}% doses taken this week</p>
+              )}
+              {card.label === "Symptoms this week" && symptomSparkline.some((v) => v > 0) && (
+                <DashSparkline values={symptomSparkline} />
+              )}
             </Link>
           ))}
         </div>
+
+        {/* Flagged vitals banner */}
+        {flaggedVitals.length > 0 && (
+          <Link href="/vitals" className="flex flex-wrap gap-2 card border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/10 hover:shadow-md transition-shadow cursor-pointer">
+            <p className="text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400 w-full mb-1">Vitals needing attention</p>
+            {flaggedVitals.map((v) => (
+              <span key={v.label} className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                v.status === "danger"
+                  ? "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400"
+                  : "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400"
+              }`}>
+                {v.label}: {v.reading}
+              </span>
+            ))}
+          </Link>
+        )}
 
         <div className="card">
           <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Quick Actions</h3>
@@ -176,7 +273,7 @@ export default function DashboardPage() {
             </div>
             <div className="flex items-start gap-2">
               <Pill className="w-4 h-4 mt-0.5 text-teal-500 flex-shrink-0" />
-              <span>For medication reminders on your phone: go to <Link href="/medications" className="underline underline-offset-2 text-teal-600 dark:text-teal-400">Meds</Link> → tap <strong>Reminders (.ics)</strong> → open the file to import into Apple or Google Calendar.</span>
+              <span>Track medications and log a dose with one tap. Set up calendar reminders from the <Link href="/medications" className="underline underline-offset-2 text-teal-600 dark:text-teal-400">Medications</Link> page.</span>
             </div>
           </div>
         </div>

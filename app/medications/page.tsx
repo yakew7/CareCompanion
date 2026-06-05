@@ -240,6 +240,9 @@ export default function MedicationsPage() {
 
         {showReminderExport && (
           <div className="card border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-900/10 space-y-3">
+            <p className="text-xs text-gray-400 dark:text-gray-500">
+              This exports a recurring calendar file (.ics). Open it to add medication alerts to Apple Calendar or Google Calendar.
+            </p>
             <p className="text-sm font-medium text-gray-700 dark:text-gray-300">When are each of these times for you?</p>
             <div className="grid grid-cols-2 gap-2">
               {(["Morning", "Afternoon", "Evening", "Night"] as const).map((slot) => (
@@ -270,8 +273,8 @@ export default function MedicationsPage() {
 
         <div className="card">
           <div className="flex justify-between items-center mb-2">
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Today&apos;s doses</span>
-            <span className="text-sm text-gray-500 dark:text-gray-400">{takenDoses.length} of {allDoses.length} taken</span>
+            <span className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">Today&apos;s Doses</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400">{takenDoses.length} of {allDoses.length} taken</span>
           </div>
           <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
             <div className="bg-teal-500 h-2 rounded-full transition-all duration-300" style={{ width: `${progress}%` }} />

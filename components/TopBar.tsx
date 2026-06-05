@@ -73,8 +73,11 @@ export default function TopBar({ reportName }: { reportName?: string }) {
           onClick={toggle}
           className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors"
           title={dark ? "Switch to light mode" : "Switch to dark mode"}
+          aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
         >
-          {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          <span className="block transition-transform duration-300 ease-in-out">
+            {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </span>
         </button>
 
         {/* Person switcher — mobile only */}
