@@ -46,7 +46,21 @@ export default function TopBar({ reportName }: { reportName?: string }) {
 
   return (
     <header className="h-14 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 flex items-center px-4 justify-between sticky top-0 z-20">
-      <h1 className="text-base font-semibold text-gray-900 dark:text-gray-100 truncate">{title}</h1>
+      {activePerson && activeHex ? (
+        <div className="flex items-center gap-2 min-w-0">
+          <span
+            style={{ backgroundColor: activeHex }}
+            className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+          >
+            {activePerson.nickname[0]?.toUpperCase()}
+          </span>
+          <span className="text-base font-semibold text-gray-900 dark:text-gray-100 truncate">
+            {activePerson.nickname}
+          </span>
+        </div>
+      ) : (
+        <span className="text-base font-semibold text-gray-900 dark:text-gray-100">{title}</span>
+      )}
 
       <div className="flex items-center gap-1.5 flex-shrink-0">
         {reportName && (

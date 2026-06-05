@@ -232,31 +232,35 @@ export default function AppointmentsPage() {
           </div>
         ) : (
           <>
-            <div>
-              <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
-                Upcoming ({upcoming.length})
-              </h3>
-              {upcoming.length === 0 ? (
-                <div className="card text-center py-8 text-gray-400 dark:text-gray-500">
-                  <p className="text-sm">No upcoming appointments</p>
-                </div>
-              ) : (
-                <div className="space-y-3">{upcoming.map((a) => <AppCard key={a.id} appt={a} />)}</div>
-              )}
-            </div>
-            {past.length > 0 && (
-              <div>
-                <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
-                  Past and Cancelled ({past.length})
-                </h3>
-                <div className="space-y-3">{past.map((a) => <AppCard key={a.id} appt={a} />)}</div>
-              </div>
-            )}
-            {appointments.length === 0 && (
+            {appointments.length === 0 ? (
               <div className="card text-center py-10 text-gray-400 dark:text-gray-500">
                 <CalendarDays className="w-10 h-10 mx-auto mb-3 opacity-40" />
                 <p className="font-medium">No appointments yet</p>
+                <p className="text-sm mt-1">Tap + Add to schedule your first appointment.</p>
               </div>
+            ) : (
+              <>
+                <div>
+                  <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
+                    Upcoming ({upcoming.length})
+                  </h3>
+                  {upcoming.length === 0 ? (
+                    <div className="card text-center py-8 text-gray-400 dark:text-gray-500">
+                      <p className="text-sm">No upcoming appointments</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">{upcoming.map((a) => <AppCard key={a.id} appt={a} />)}</div>
+                  )}
+                </div>
+                {past.length > 0 && (
+                  <div>
+                    <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
+                      Past and Cancelled ({past.length})
+                    </h3>
+                    <div className="space-y-3">{past.map((a) => <AppCard key={a.id} appt={a} />)}</div>
+                  </div>
+                )}
+              </>
             )}
           </>
         )}
