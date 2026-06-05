@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { Pill, Activity, Calendar, FileText, Upload, Thermometer, ClipboardList, ShieldCheck } from "lucide-react";
+import { Pill, Activity, Calendar, FileText, Upload, Thermometer, ClipboardList, ShieldCheck, ChevronRight } from "lucide-react";
 import TopBar from "@/components/TopBar";
 import { api } from "@/lib/api";
 import { usePersonContext } from "@/contexts/PersonContext";
@@ -43,6 +43,10 @@ export default function DashboardPage() {
   const [symptomSparkline, setSymptomSparkline] = useState<number[]>([]);
   const [flaggedVitals, setFlaggedVitals] = useState<{ label: string; reading: string; status: "warning" | "danger" }[]>([]);
   const [hour] = useState(new Date().getHours());
+  const [onboardingDismissed, setOnboardingDismissed] = useState(() => {
+    if (typeof window !== "undefined") return localStorage.getItem("onboarding_dismissed") === "1";
+    return false;
+  });
 
   useEffect(() => {
     if (!activePersonId) return;
@@ -125,6 +129,18 @@ export default function DashboardPage() {
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   const firstName = session?.user?.name?.split(" ")[0] || "there";
 
+  const isFirstUse = !onboardingDismissed
+    && stats.medications === 0
+    && stats.records === 0
+    && stats.symptomsThisWeek === 0
+    && stats.upcomingAppointments === 0
+    && activity.length === 0;
+
+  function dismissOnboarding() {
+    localStorage.setItem("onboarding_dismissed", "1");
+    setOnboardingDismissed(true);
+  }
+
   const neutral = "bg-gray-50 dark:bg-gray-800/60 text-gray-700 dark:text-gray-300 border-gray-100 dark:border-gray-700";
   const orange  = "bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 border-orange-100 dark:border-orange-800";
   const red     = "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-100 dark:border-red-800";
@@ -148,6 +164,57 @@ export default function DashboardPage() {
           <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">{greeting}, {firstName}</h2>
           <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">Here is a summary of your care dashboard.</p>
         </div>
+
+        {isFirstUse && (
+          <div className="card border border-teal-200 dark:border-teal-800 bg-teal-50/60 dark:bg-teal-900/10 space-y-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm font-bold text-teal-800 dark:text-teal-200">Welcome to CareCompanion</p>
+                <p className="text-xs text-teal-700 dark:text-teal-300 mt-0.5">Get started in 3 simple steps</p>
+              </div>
+              <button onClick={dismissOnboarding} className="text-teal-400 hover:text-teal-600 dark:hover:text-teal-300 text-lg leading-none flex-shrink-0">×</button>
+            </div>
+            <div className="space-y-3">
+              {[
+                {
+                  step: "1",
+                  title: "Add the person you're caring for",
+                  desc: "Tap the person icon in the top bar to create a profile.",
+                  href: null,
+                  color: "bg-teal-500",
+                },
+                {
+                  step: "2",
+                  title: "Upload a report or add a medication",
+                  desc: "Upload any PDF report to auto-extract data, or manually add medications.",
+                  href: "/records",
+                  color: "bg-purple-500",
+                },
+                {
+                  step: "3",
+                  title: "Track vitals and symptoms",
+                  desc: "Log daily readings and spot patterns with AI analysis.",
+                  href: "/vitals",
+                  color: "bg-emerald-500",
+                },
+              ].map(({ step, title, desc, href, color }) => (
+                <Link
+                  key={step}
+                  href={href ?? "#"}
+                  onClick={href ? dismissOnboarding : (e) => e.preventDefault()}
+                  className="flex items-start gap-3 p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 hover:border-teal-300 dark:hover:border-teal-600 transition-colors group"
+                >
+                  <span className={`w-6 h-6 rounded-full ${color} text-white text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5`}>{step}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">{title}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{desc}</p>
+                  </div>
+                  {href && <ChevronRight className="w-4 h-4 text-gray-300 dark:text-gray-600 group-hover:text-teal-500 transition-colors flex-shrink-0 mt-1" />}
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-3 sm:gap-4">
           {summaryCards.map((card) => (

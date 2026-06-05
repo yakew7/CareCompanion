@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { v4 as uuidv4 } from "uuid";
-import { Pencil, Trash2, CheckSquare, Square, Download, MoreVertical } from "lucide-react";
+import { Pencil, Trash2, CheckSquare, Square, Download, MoreVertical, AlertTriangle } from "lucide-react";
 import TopBar from "@/components/TopBar";
 import { api } from "@/lib/api";
 import { usePersonContext } from "@/contexts/PersonContext";
@@ -140,18 +140,70 @@ export default function MedicationsPage() {
     const med: Medication = { id: editing?.id || uuidv4(), name: form.name, dosage: form.dosage, frequency: form.frequency, times, notes: form.notes, log: editing?.log || {}, expiresAt };
     await api.medications.save(med);
     if (!editing) api.activity.push({ type: "medication", label: `Added medication: ${med.name}`, at: new Date().toISOString() });
-    setMeds(await api.medications.getAll());
+    const refreshed = await api.medications.getAll();
+    setMeds(refreshed);
     setShowModal(false);
     toast.success(editing ? "Medication updated" : "Medication added");
+
+    // Interaction check for new medications only
+    if (!editing && refreshed.length > 1) {
+      const existingNames = refreshed
+        .filter((m) => m.id !== med.id)
+        .map((m) => `${m.name}${m.dosage ? ` ${m.dosage}` : ""}`);
+      try {
+        const res = await fetch("/api/check-interactions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ newMed: `${med.name}${med.dosage ? ` ${med.dosage}` : ""}`, existingMeds: existingNames }),
+        });
+        const data = await res.json() as { hasInteraction: boolean; message: string };
+        if (data.hasInteraction && data.message) {
+          toast.custom(
+            (t) => (
+              <div className={`flex items-start gap-3 bg-amber-50 border border-amber-200 dark:bg-amber-900/30 dark:border-amber-700 px-4 py-3 rounded-xl shadow-lg max-w-sm transition-all ${t.visible ? "opacity-100" : "opacity-0"}`}>
+                <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-500" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">Possible interaction flagged</p>
+                  <p className="text-xs text-amber-700 dark:text-amber-300 mt-0.5">{data.message}</p>
+                  <p className="text-xs text-amber-500 dark:text-amber-400 mt-1">Check with your doctor or pharmacist.</p>
+                </div>
+                <button onClick={() => toast.dismiss(t.id)} className="text-amber-400 hover:text-amber-600 dark:hover:text-amber-300 ml-1 flex-shrink-0 text-lg leading-none">×</button>
+              </div>
+            ),
+            { duration: 12000 }
+          );
+        }
+      } catch { /* non-critical */ }
+    }
   }
 
-  async function deleteMed(id: string) {
-    if (!confirm("Remove this medication?")) return;
+  function deleteMed(id: string) {
     const med = meds.find((m) => m.id === id);
-    await api.medications.delete(id);
-    if (med) api.activity.push({ type: "medication", label: `Deleted medication: ${med.name}`, at: new Date().toISOString(), deleted: true });
-    setMeds(await api.medications.getAll());
-    toast.success("Medication removed");
+    if (!med) return;
+    const prevMeds = [...meds];
+    setMeds((prev) => prev.filter((m) => m.id !== id));
+    let undone = false;
+    const tid = `undo-med-${id}`;
+    toast.custom(
+      (t) => (
+        <div className={`flex items-center gap-3 bg-gray-900 text-white pl-4 pr-3 py-3 rounded-xl shadow-lg max-w-xs transition-all ${t.visible ? "opacity-100" : "opacity-0"}`}>
+          <span className="text-sm flex-1">Medication removed</span>
+          <button
+            onClick={() => { undone = true; toast.dismiss(tid); setMeds(prevMeds); }}
+            className="font-semibold text-teal-300 hover:text-white px-2 py-1 rounded-lg hover:bg-white/10 transition-colors text-sm"
+          >
+            Undo
+          </button>
+        </div>
+      ),
+      { id: tid, duration: 5000 }
+    );
+    setTimeout(async () => {
+      if (!undone) {
+        await api.medications.delete(id);
+        api.activity.push({ type: "medication", label: `Deleted medication: ${med.name}`, at: new Date().toISOString(), deleted: true });
+      }
+    }, 5100);
   }
 
   async function clearAll() {

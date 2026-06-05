@@ -64,13 +64,33 @@ export default function AppointmentsPage() {
     toast.success(editing ? "Appointment updated" : "Appointment added");
   }
 
-  async function deleteAppt(id: string) {
-    if (!confirm("Remove this appointment?")) return;
+  function deleteAppt(id: string) {
     const appt = appointments.find((a) => a.id === id);
-    await api.appointments.delete(id);
-    if (appt) api.activity.push({ type: "appointment", label: `Deleted appointment: ${appt.doctor}`, at: new Date().toISOString(), deleted: true });
-    setAppointments(await api.appointments.getAll());
-    toast.success("Appointment removed");
+    if (!appt) return;
+    const prevAppts = [...appointments];
+    setAppointments((prev) => prev.filter((a) => a.id !== id));
+    let undone = false;
+    const tid = `undo-appt-${id}`;
+    toast.custom(
+      (t) => (
+        <div className={`flex items-center gap-3 bg-gray-900 text-white pl-4 pr-3 py-3 rounded-xl shadow-lg max-w-xs transition-all ${t.visible ? "opacity-100" : "opacity-0"}`}>
+          <span className="text-sm flex-1">Appointment removed</span>
+          <button
+            onClick={() => { undone = true; toast.dismiss(tid); setAppointments(prevAppts); }}
+            className="font-semibold text-teal-300 hover:text-white px-2 py-1 rounded-lg hover:bg-white/10 transition-colors text-sm"
+          >
+            Undo
+          </button>
+        </div>
+      ),
+      { id: tid, duration: 5000 }
+    );
+    setTimeout(async () => {
+      if (!undone) {
+        await api.appointments.delete(id);
+        api.activity.push({ type: "appointment", label: `Deleted appointment: ${appt.doctor}`, at: new Date().toISOString(), deleted: true });
+      }
+    }, 5100);
   }
 
   async function clearAll() {

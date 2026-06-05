@@ -85,12 +85,33 @@ export default function SymptomsPage() {
     toast.success("Symptom logged");
   }
 
-  async function deleteSymptom(id: string) {
+  function deleteSymptom(id: string) {
     const sym = symptoms.find((s) => s.id === id);
-    await api.symptoms.delete(id);
-    if (sym) api.activity.push({ type: "symptom", label: `Deleted symptom: ${sym.symptom}`, at: new Date().toISOString(), deleted: true });
-    setSymptoms(await api.symptoms.getAll());
-    toast.success("Entry deleted");
+    if (!sym) return;
+    const prevSymptoms = [...symptoms];
+    setSymptoms((prev) => prev.filter((s) => s.id !== id));
+    let undone = false;
+    const tid = `undo-sym-${id}`;
+    toast.custom(
+      (t) => (
+        <div className={`flex items-center gap-3 bg-gray-900 text-white pl-4 pr-3 py-3 rounded-xl shadow-lg max-w-xs transition-all ${t.visible ? "opacity-100" : "opacity-0"}`}>
+          <span className="text-sm flex-1">Symptom deleted</span>
+          <button
+            onClick={() => { undone = true; toast.dismiss(tid); setSymptoms(prevSymptoms); }}
+            className="font-semibold text-teal-300 hover:text-white px-2 py-1 rounded-lg hover:bg-white/10 transition-colors text-sm"
+          >
+            Undo
+          </button>
+        </div>
+      ),
+      { id: tid, duration: 5000 }
+    );
+    setTimeout(async () => {
+      if (!undone) {
+        await api.symptoms.delete(id);
+        api.activity.push({ type: "symptom", label: `Deleted symptom: ${sym.symptom}`, at: new Date().toISOString(), deleted: true });
+      }
+    }, 5100);
   }
 
   async function clearAll() {

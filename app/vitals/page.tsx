@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 import toast from "react-hot-toast";
-import { HeartPulse, Droplets, Scale, Heart, Gauge, Thermometer, Wind, TrendingUp, Plus, Trash2, Pencil, Check, X, ChevronDown, ChevronUp, Zap } from "lucide-react";
+import { HeartPulse, Droplets, Scale, Heart, Gauge, Thermometer, Wind, TrendingUp, Plus, Trash2, Pencil, Check, X, ChevronDown, ChevronUp, Zap, BarChart2 } from "lucide-react";
 import TopBar from "@/components/TopBar";
 import { api } from "@/lib/api";
 import { usePersonContext } from "@/contexts/PersonContext";
@@ -88,6 +88,19 @@ const BMI_STATUS = (bmi: number) =>
 
 const BLOOD_TYPES = ["A+", "A−", "B+", "B−", "AB+", "AB−", "O+", "O−"];
 
+// Numeric normal ranges for trend chart bands [low, high]
+const NUMERIC_RANGES: Partial<Record<VitalType, [number, number]>> = {
+  bp:               [90, 120],   // systolic
+  glucose:          [70, 140],
+  heart_rate:       [60, 100],
+  temperature:      [36.1, 37.2],
+  spo2:             [95, 100],
+  respiratory_rate: [12, 20],
+  hba1c:            [0, 5.7],
+  cholesterol:      [0, 200],
+  pain:             [1, 3],
+};
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function VitalsPage() {
@@ -98,6 +111,7 @@ export default function VitalsPage() {
   const [editingProfile, setEditingProfile] = useState(false);
   const [loading, setLoading] = useState(true);
   const [logType, setLogType] = useState<VitalType | null>(null);
+  const [trendType, setTrendType] = useState<VitalType | null>(null);
   const [form, setForm] = useState({ value: "", value2: "", notes: "" });
   const [cholForm, setCholForm] = useState({ total: "", ldl: "", hdl: "", tg: "" });
 
@@ -150,14 +164,34 @@ export default function VitalsPage() {
     toast.success(`${def.label} logged`);
   }
 
-  async function deleteEntry(id: string) {
+  function deleteEntry(id: string) {
     const entry = entries.find((e) => e.id === id);
-    await api.vitals.delete(id);
-    if (entry) {
-      const def = ALL_DEFS.find((d) => d.type === entry.type);
-      api.activity.push({ type: "vital", label: `Deleted ${def?.label ?? "vital"}: ${formatValue(entry)}`, at: new Date().toISOString(), deleted: true });
-    }
-    setEntries(await api.vitals.getAll());
+    if (!entry) return;
+    const prevEntries = [...entries];
+    setEntries((prev) => prev.filter((e) => e.id !== id));
+    let undone = false;
+    const tid = `undo-vital-${id}`;
+    const def = ALL_DEFS.find((d) => d.type === entry.type);
+    toast.custom(
+      (t) => (
+        <div className={`flex items-center gap-3 bg-gray-900 text-white pl-4 pr-3 py-3 rounded-xl shadow-lg max-w-xs transition-all ${t.visible ? "opacity-100" : "opacity-0"}`}>
+          <span className="text-sm flex-1">Reading deleted</span>
+          <button
+            onClick={() => { undone = true; toast.dismiss(tid); setEntries(prevEntries); }}
+            className="font-semibold text-teal-300 hover:text-white px-2 py-1 rounded-lg hover:bg-white/10 transition-colors text-sm"
+          >
+            Undo
+          </button>
+        </div>
+      ),
+      { id: tid, duration: 5000 }
+    );
+    setTimeout(async () => {
+      if (!undone) {
+        await api.vitals.delete(id);
+        api.activity.push({ type: "vital", label: `Deleted ${def?.label ?? "vital"}: ${formatValue(entry)}`, at: new Date().toISOString(), deleted: true });
+      }
+    }, 5100);
   }
 
   const byType = (type: VitalType) =>
@@ -190,9 +224,16 @@ export default function VitalsPage() {
             <Icon className={`flex-shrink-0 text-teal-500 ${featured ? "w-4 h-4" : "w-3.5 h-3.5"}`} />
             <span className={`font-medium text-gray-500 dark:text-gray-400 truncate ${featured ? "text-sm" : "text-xs"}`}>{def.label}</span>
           </div>
-          <button onClick={() => openLog(def.type)} className="p-1 rounded-lg text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/30 transition-colors flex-shrink-0">
-            <Plus className="w-3.5 h-3.5" />
-          </button>
+          <div className="flex items-center gap-0.5 flex-shrink-0">
+            {list.length >= 2 && (
+              <button onClick={() => setTrendType(def.type)} className="p-1 rounded-lg text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-teal-600 dark:hover:text-teal-400 transition-colors">
+                <BarChart2 className="w-3 h-3" />
+              </button>
+            )}
+            <button onClick={() => openLog(def.type)} className="p-1 rounded-lg text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/30 transition-colors">
+              <Plus className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
         {latest ? (
           <>
@@ -203,9 +244,17 @@ export default function VitalsPage() {
               <Sparkline values={spark} />
               {status && <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${STATUS_STYLE[status]}`}>{STATUS_LABEL[status]}</span>}
             </div>
+            {"normalRange" in def && def.normalRange && (
+              <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5 leading-tight">Normal: {def.normalRange}</p>
+            )}
           </>
         ) : (
-          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">No readings yet</p>
+          <>
+            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">No readings yet</p>
+            {"normalRange" in def && def.normalRange && (
+              <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-tight">Normal: {def.normalRange}</p>
+            )}
+          </>
         )}
       </div>
     );
@@ -375,6 +424,157 @@ export default function VitalsPage() {
           </section>
         )}
       </main>
+
+      {/* ── Trend Modal ──────────────────────────────────────────────────── */}
+      {trendType && (() => {
+        const def = ALL_DEFS.find((d) => d.type === trendType)!;
+        const TrendModal = () => {
+          const [range, setRange] = useState<30 | 60 | 90>(30);
+          const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - range);
+          const data = entries
+            .filter((e) => e.type === trendType && new Date(e.loggedAt) >= cutoff)
+            .sort((a, b) => new Date(a.loggedAt).getTime() - new Date(b.loggedAt).getTime());
+
+          const W = 420, H = 180;
+          const pad = { t: 12, r: 12, b: 32, l: 44 };
+          const cW = W - pad.l - pad.r, cH = H - pad.t - pad.b;
+
+          const vals1 = data.map((e) => e.value);
+          const vals2 = def.hasDual ? data.map((e) => e.value2 ?? e.value) : [];
+          const allVals = [...vals1, ...vals2];
+          const vMin = allVals.length ? Math.min(...allVals) : 0;
+          const vMax = allVals.length ? Math.max(...allVals) : 1;
+          const pad5 = (vMax - vMin) * 0.12 || 1;
+          const lo = vMin - pad5, hi = vMax + pad5;
+
+          const times = data.map((e) => new Date(e.loggedAt).getTime());
+          const tMin = times.length ? Math.min(...times) : 0;
+          const tMax = times.length ? Math.max(...times) : 1;
+
+          function xOf(t: number) { return tMin === tMax ? cW / 2 : ((t - tMin) / (tMax - tMin)) * cW; }
+          function yOf(v: number) { return cH - ((v - lo) / (hi - lo)) * cH; }
+
+          const line1 = data.map((e, i) => `${i === 0 ? "M" : "L"} ${xOf(new Date(e.loggedAt).getTime()).toFixed(1)} ${yOf(e.value).toFixed(1)}`).join(" ");
+          const line2 = def.hasDual ? data.map((e, i) => `${i === 0 ? "M" : "L"} ${xOf(new Date(e.loggedAt).getTime()).toFixed(1)} ${yOf(e.value2 ?? e.value).toFixed(1)}`).join(" ") : "";
+
+          // Normal range band
+          const nr = NUMERIC_RANGES[trendType as VitalType];
+          const bandTop = nr ? Math.max(0, yOf(nr[1])) : null;
+          const bandBot = nr ? Math.min(cH, yOf(nr[0])) : null;
+
+          // X-axis tick labels — up to 5 evenly spaced
+          const tickCount = Math.min(data.length, 5);
+          const tickIdxs = tickCount <= 1 ? [0] : Array.from({ length: tickCount }, (_, i) => Math.round((i / (tickCount - 1)) * (data.length - 1)));
+          const xTicks = tickIdxs.map((idx) => ({
+            x: xOf(new Date(data[idx].loggedAt).getTime()),
+            label: new Date(data[idx].loggedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" }),
+          }));
+
+          // Y-axis ticks
+          const yTickVals = [lo, (lo + hi) / 2, hi];
+          const avg1 = vals1.length ? vals1.reduce((a, b) => a + b, 0) / vals1.length : 0;
+          const minVal = vals1.length ? Math.min(...vals1) : 0;
+          const maxVal = vals1.length ? Math.max(...vals1) : 0;
+
+          const dot1Color = (e: VitalEntry) => {
+            if (def.type === "weight") return "#0D9488";
+            const s = getStatus(def.type, e.value, e.value2);
+            return s === "normal" ? "#0D9488" : s === "warning" ? "#F59E0B" : "#EF4444";
+          };
+
+          return (
+            <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setTrendType(null)}>
+              <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-lg p-5 space-y-4" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <def.icon className="w-5 h-5 text-teal-500" />
+                    <h3 className="font-semibold text-gray-900 dark:text-gray-100">{def.label} — Trend</h3>
+                  </div>
+                  <button onClick={() => setTrendType(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="flex gap-2">
+                  {([30, 60, 90] as const).map((r) => (
+                    <button key={r} onClick={() => setRange(r)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors ${range === r ? "bg-teal-600 border-teal-600 text-white" : "border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-teal-400"}`}>
+                      {r}d
+                    </button>
+                  ))}
+                  <span className="ml-auto text-xs text-gray-400 dark:text-gray-500 self-center">{data.length} reading{data.length !== 1 ? "s" : ""}</span>
+                </div>
+
+                {data.length < 2 ? (
+                  <p className="text-sm text-gray-400 dark:text-gray-500 py-8 text-center">Not enough data for this period — add more readings to see a trend.</p>
+                ) : (
+                  <>
+                    <div className="overflow-x-auto -mx-1">
+                      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="w-full h-auto">
+                        <g transform={`translate(${pad.l},${pad.t})`}>
+                          {/* Grid */}
+                          {[0, 0.25, 0.5, 0.75, 1].map((f) => (
+                            <line key={f} x1={0} y1={f * cH} x2={cW} y2={f * cH} stroke="currentColor" strokeOpacity={0.08} strokeWidth={1} className="text-gray-500 dark:text-gray-300" />
+                          ))}
+                          {/* Normal range band */}
+                          {bandTop !== null && bandBot !== null && bandTop < bandBot && (
+                            <rect x={0} y={bandTop} width={cW} height={bandBot - bandTop} fill="#0D9488" fillOpacity={0.08} />
+                          )}
+                          {/* Lines */}
+                          <path d={line1} fill="none" stroke="#0D9488" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+                          {def.hasDual && line2 && (
+                            <path d={line2} fill="none" stroke="#6366F1" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+                          )}
+                          {/* Dots */}
+                          {data.map((e, i) => (
+                            <circle key={i} cx={xOf(new Date(e.loggedAt).getTime())} cy={yOf(e.value)} r={3} fill={dot1Color(e)} />
+                          ))}
+                          {def.hasDual && data.map((e, i) => (
+                            <circle key={`d2-${i}`} cx={xOf(new Date(e.loggedAt).getTime())} cy={yOf(e.value2 ?? e.value)} r={3} fill="#6366F1" />
+                          ))}
+                          {/* Y-axis labels */}
+                          {yTickVals.map((v, i) => (
+                            <text key={i} x={-6} y={yOf(v) + 4} textAnchor="end" fontSize={9} fill="currentColor" className="text-gray-400 dark:text-gray-500">
+                              {v.toFixed(v < 10 ? 1 : 0)}
+                            </text>
+                          ))}
+                          {/* X-axis labels */}
+                          {xTicks.map((tick, i) => (
+                            <text key={i} x={tick.x} y={cH + 20} textAnchor="middle" fontSize={9} fill="currentColor" className="text-gray-400 dark:text-gray-500">
+                              {tick.label}
+                            </text>
+                          ))}
+                        </g>
+                      </svg>
+                    </div>
+                    {/* Legend for BP */}
+                    {def.hasDual && (
+                      <div className="flex gap-4 text-xs">
+                        <span className="flex items-center gap-1.5"><span className="w-3 h-0.5 bg-teal-500 inline-block rounded" />Systolic</span>
+                        <span className="flex items-center gap-1.5"><span className="w-3 h-0.5 bg-indigo-500 inline-block rounded" />Diastolic</span>
+                      </div>
+                    )}
+                    {/* Stats row */}
+                    <div className="grid grid-cols-3 gap-3 pt-3 border-t border-gray-100 dark:border-gray-700 text-center">
+                      {[
+                        { label: "Min", value: minVal.toFixed(minVal < 10 ? 1 : 0) },
+                        { label: "Avg", value: avg1.toFixed(avg1 < 10 ? 1 : 0) },
+                        { label: "Max", value: maxVal.toFixed(maxVal < 10 ? 1 : 0) },
+                      ].map(({ label, value }) => (
+                        <div key={label}>
+                          <p className="text-xs text-gray-400 dark:text-gray-500">{label}</p>
+                          <p className="text-base font-bold text-gray-900 dark:text-gray-100">{value} <span className="text-xs font-normal text-gray-400">{def.unit}</span></p>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          );
+        };
+        return <TrendModal key={trendType} />;
+      })()}
 
       {/* ── Log Modal ────────────────────────────────────────────────────── */}
       {logDef && (
