@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 import toast from "react-hot-toast";
-import { HeartPulse, Droplets, Scale, Heart, Gauge, Thermometer, Wind, TrendingUp, Plus, Trash2, Pencil, Check, X, ChevronDown, ChevronUp } from "lucide-react";
+import { HeartPulse, Droplets, Scale, Heart, Gauge, Thermometer, Wind, TrendingUp, Plus, Trash2, Pencil, Check, X, ChevronDown, ChevronUp, Zap } from "lucide-react";
 import TopBar from "@/components/TopBar";
 import { api } from "@/lib/api";
 import { usePersonContext } from "@/contexts/PersonContext";
@@ -18,6 +18,7 @@ const HOME_VITALS = [
   { type: "temperature"      as VitalType, label: "Temperature",       unit: "°C",          icon: Thermometer, hasDual: false, normalRange: "36.1–37.2 °C",         priority: "regular"    as const },
   { type: "spo2"             as VitalType, label: "Oxygen (SpO₂)",     unit: "%",           icon: Gauge,       hasDual: false, normalRange: "≥ 95%",                priority: "secondary"  as const },
   { type: "respiratory_rate" as VitalType, label: "Respiratory Rate",  unit: "breaths/min", icon: Wind,        hasDual: false, normalRange: "12–20 breaths/min",    priority: "secondary"  as const },
+  { type: "pain"             as VitalType, label: "Pain Level",        unit: "/10",         icon: Zap,         hasDual: false, normalRange: "1–3 mild · 4–6 moderate · 7–10 severe", priority: "secondary" as const },
 ];
 
 const LAB_VITALS = [
@@ -43,6 +44,7 @@ function getStatus(type: VitalType, value: number, value2?: number): "normal" | 
     case "cholesterol": return value < 200 ? "normal" : value < 240 ? "warning" : "danger";
     case "hemoglobin":  return value >= 12 && value <= 17.5 ? "normal" : "warning";
     case "creatinine":  return value >= 0.6 && value <= 1.3 ? "normal" : "warning";
+    case "pain":        return value <= 3 ? "normal" : value <= 6 ? "warning" : "danger";
     default: return "normal";
   }
 }
@@ -134,6 +136,7 @@ export default function VitalsPage() {
     } else {
       value = parseFloat(form.value);
       if (isNaN(value)) { toast.error("Enter a valid number"); return; }
+      if (logType === "pain" && (value < 1 || value > 10)) { toast.error("Pain level must be between 1 and 10"); return; }
       if (def.hasDual && isNaN(parseFloat(form.value2))) { toast.error("Enter both values"); return; }
       value2 = def.hasDual ? parseFloat(form.value2) : undefined;
       notes = form.notes;
@@ -395,6 +398,13 @@ export default function VitalsPage() {
                   <div><label className="label">HDL</label><input className="input" type="number" placeholder="e.g. 55" value={cholForm.hdl} onChange={(e) => setCholForm({ ...cholForm, hdl: e.target.value })} /></div>
                   <div><label className="label">TG</label><input className="input" type="number" placeholder="e.g. 150" value={cholForm.tg} onChange={(e) => setCholForm({ ...cholForm, tg: e.target.value })} /></div>
                 </div>
+              </div>
+            ) : logType === "pain" ? (
+              <div>
+                <label className="label">Pain Level (1–10)</label>
+                <input className="input" type="number" min="1" max="10" step="1" placeholder="e.g. 4"
+                  value={form.value} onChange={(e) => setForm({ ...form, value: e.target.value })} autoFocus />
+                <p className="text-xs text-gray-400 mt-1">1–3 mild · 4–6 moderate · 7–10 severe</p>
               </div>
             ) : logDef.hasDual ? (
               <div className="flex gap-3">

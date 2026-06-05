@@ -168,7 +168,7 @@ function pk(base: string, personId: string) {
 
 export type VitalType =
   | "bp" | "glucose" | "weight" | "heart_rate" | "spo2" | "temperature" | "respiratory_rate"
-  | "hba1c" | "cholesterol" | "hemoglobin" | "creatinine";
+  | "hba1c" | "cholesterol" | "hemoglobin" | "creatinine" | "pain";
 
 export interface HealthProfile {
   age?: number;
