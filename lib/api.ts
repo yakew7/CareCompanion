@@ -1,5 +1,5 @@
 import { storage } from "@/lib/storage";
-import type { Medication, Symptom, Appointment, MedicalRecord, ActivityEntry, Note, VitalEntry, HealthProfile } from "@/lib/storage";
+import type { Medication, Symptom, Appointment, MedicalRecord, ActivityEntry, Note, VitalEntry, HealthProfile, CustomVitalRange, VitalType } from "@/lib/storage";
 
 // All data is stored in localStorage per-person. No Supabase writes for medical data.
 function pid(): string {
@@ -68,5 +68,9 @@ export const api = {
   healthProfile: {
     get: async (): Promise<HealthProfile> => storage.healthProfile.get(pid()),
     set: async (p: HealthProfile): Promise<void> => { storage.healthProfile.set(p, pid()); },
+  },
+  customVitalRanges: {
+    get: async (): Promise<Partial<Record<VitalType, CustomVitalRange>>> => storage.customVitalRanges.get(pid()),
+    set: async (ranges: Partial<Record<VitalType, CustomVitalRange>>): Promise<void> => { storage.customVitalRanges.set(ranges, pid()); },
   },
 };

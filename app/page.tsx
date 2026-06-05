@@ -3,11 +3,47 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { Pill, Activity, Calendar, FileText, Upload, Thermometer, ClipboardList, ShieldCheck, ChevronRight, Printer, X } from "lucide-react";
-import type { Medication, VitalEntry, Appointment, Symptom } from "@/lib/storage";
+import type { Medication, VitalEntry, Appointment, Symptom, CustomVitalRange } from "@/lib/storage";
+import { storage } from "@/lib/storage";
 import TopBar from "@/components/TopBar";
 import { api } from "@/lib/api";
 import { usePersonContext } from "@/contexts/PersonContext";
 import type { ActivityEntry, VitalType } from "@/lib/storage";
+import { getAppTimezone } from "@/lib/time";
+
+const ACTIVITY_FILTERS = [
+  { value: "all",        label: "All"      },
+  { value: "active",     label: "Active"   },
+  { value: "medication", label: "Meds"     },
+  { value: "vital",      label: "Vitals"   },
+  { value: "record",     label: "Reports"  },
+  { value: "symptom",    label: "Symptoms" },
+] as const;
+type ActivityFilterType = typeof ACTIVITY_FILTERS[number]["value"];
+
+function vitalStatus(
+  type: VitalType,
+  value: number,
+  value2?: number,
+  custom?: CustomVitalRange,
+): "normal" | "warning" | "danger" {
+  if (custom?.low !== undefined && custom?.high !== undefined) {
+    const inRange = value >= custom.low && value <= custom.high;
+    if (type === "bp" && value2 !== undefined && custom.low2 !== undefined && custom.high2 !== undefined) {
+      return inRange && value2 >= custom.low2 && value2 <= custom.high2 ? "normal" : "warning";
+    }
+    return inRange ? "normal" : "warning";
+  }
+  switch (type) {
+    case "bp":          return value <= 120 && (value2 ?? 0) <= 80 ? "normal" : value <= 140 && (value2 ?? 0) <= 90 ? "warning" : "danger";
+    case "glucose":     return value >= 70 && value <= 140 ? "normal" : value <= 200 ? "warning" : "danger";
+    case "spo2":        return value >= 95 ? "normal" : value >= 90 ? "warning" : "danger";
+    case "heart_rate":  return value >= 60 && value <= 100 ? "normal" : value >= 40 && value <= 120 ? "warning" : "danger";
+    case "temperature": return value >= 36.1 && value <= 37.2 ? "normal" : value <= 38.0 ? "warning" : "danger";
+    case "hba1c":       return value < 5.7 ? "normal" : value < 6.5 ? "warning" : "danger";
+    default: return "normal";
+  }
+}
 
 interface Stats {
   medications: number;
@@ -39,7 +75,7 @@ export default function DashboardPage() {
   const { activePersonId } = usePersonContext();
   const [stats, setStats] = useState<Stats>({ medications: 0, symptomsThisWeek: 0, maxSymptomSeverityThisWeek: 0, upcomingAppointments: 0, records: 0 });
   const [activity, setActivity] = useState<ActivityEntry[]>([]);
-  const [activityFilter, setActivityFilter] = useState<"all" | "active">("all");
+  const [activityFilter, setActivityFilter] = useState<ActivityFilterType>("all");
   const [medAdherence, setMedAdherence] = useState<number | null>(null);
   const [symptomSparkline, setSymptomSparkline] = useState<number[]>([]);
   const [flaggedVitals, setFlaggedVitals] = useState<{ label: string; reading: string; status: "warning" | "danger" }[]>([]);
@@ -114,24 +150,14 @@ export default function DashboardPage() {
         bp: "Blood Pressure", glucose: "Blood Glucose", heart_rate: "Heart Rate",
         spo2: "SpO₂", temperature: "Temperature", hba1c: "HbA1c",
       };
-      function vitalStatus(type: VitalType, value: number, value2?: number): "normal" | "warning" | "danger" {
-        switch (type) {
-          case "bp":          return value <= 120 && (value2 ?? 0) <= 80 ? "normal" : value <= 140 && (value2 ?? 0) <= 90 ? "warning" : "danger";
-          case "glucose":     return value >= 70 && value <= 140 ? "normal" : value <= 200 ? "warning" : "danger";
-          case "spo2":        return value >= 95 ? "normal" : value >= 90 ? "warning" : "danger";
-          case "heart_rate":  return value >= 60 && value <= 100 ? "normal" : value >= 40 && value <= 120 ? "warning" : "danger";
-          case "temperature": return value >= 36.1 && value <= 37.2 ? "normal" : value <= 38.0 ? "warning" : "danger";
-          case "hba1c":       return value < 5.7 ? "normal" : value < 6.5 ? "warning" : "danger";
-          default: return "normal";
-        }
-      }
+      const customRanges = storage.customVitalRanges.get(activePersonId);
       const latestByType = new Map<VitalType, VitalEntry>();
       [...vitals].sort((a, b) => new Date(b.loggedAt).getTime() - new Date(a.loggedAt).getTime())
         .forEach((v) => { if (!latestByType.has(v.type)) latestByType.set(v.type, v); });
       const flagged: typeof flaggedVitals = [];
       latestByType.forEach((v, type) => {
         if (!(type in VITAL_LABELS)) return;
-        const s = vitalStatus(type, v.value, v.value2);
+        const s = vitalStatus(type, v.value, v.value2, customRanges[type]);
         if (s !== "normal") {
           const reading = v.value2 != null ? `${v.value}/${v.value2} ${v.unit}` : `${v.value} ${v.unit}`;
           flagged.push({ label: VITAL_LABELS[type]!, reading, status: s });
@@ -313,35 +339,43 @@ export default function DashboardPage() {
         </div>
 
         <div className="card">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between mb-2">
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Recent Activity</h3>
-            <div className="flex items-center gap-2">
-              <div className="flex gap-1 text-xs">
-                <button
-                  onClick={() => setActivityFilter("all")}
-                  className={`px-2 py-0.5 rounded-full transition-colors ${activityFilter === "all" ? "bg-teal-100 dark:bg-teal-900/50 text-teal-700 dark:text-teal-300 font-medium" : "text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"}`}
-                >All</button>
-                <button
-                  onClick={() => setActivityFilter("active")}
-                  className={`px-2 py-0.5 rounded-full transition-colors ${activityFilter === "active" ? "bg-teal-100 dark:bg-teal-900/50 text-teal-700 dark:text-teal-300 font-medium" : "text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"}`}
-                >Active only</button>
-              </div>
-              {activity.length > 0 && (
-                <button
-                  onClick={async () => { await api.activity.clearAll(); setActivity([]); }}
-                  className="text-xs text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 transition-colors"
-                >
-                  Clear
-                </button>
-              )}
-            </div>
+            {activity.length > 0 && (
+              <button
+                onClick={async () => { await api.activity.clearAll(); setActivity([]); }}
+                className="text-xs text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+              >Clear</button>
+            )}
+          </div>
+          <div className="flex gap-1 overflow-x-auto pb-1 mb-3 text-xs -mx-1 px-1">
+            {ACTIVITY_FILTERS.map((f) => (
+              <button
+                key={f.value}
+                onClick={() => setActivityFilter(f.value)}
+                className={`px-2.5 py-0.5 rounded-full whitespace-nowrap flex-shrink-0 transition-colors ${
+                  activityFilter === f.value
+                    ? "bg-teal-100 dark:bg-teal-900/50 text-teal-700 dark:text-teal-300 font-medium"
+                    : "text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
+                }`}
+              >{f.label}</button>
+            ))}
           </div>
           {activity.length === 0 ? (
             <p className="text-sm text-gray-400 dark:text-gray-500 py-4 text-center">No activity yet. Start by uploading a report or logging a symptom.</p>
           ) : (() => {
-            const filtered = activityFilter === "active" ? activity.filter((e) => !e.deleted) : activity;
+            const filtered = (() => {
+              switch (activityFilter) {
+                case "active":     return activity.filter((e) => !e.deleted);
+                case "medication": return activity.filter((e) => e.type === "medication");
+                case "vital":      return activity.filter((e) => e.type === "vital");
+                case "record":     return activity.filter((e) => e.type === "record");
+                case "symptom":    return activity.filter((e) => e.type === "symptom");
+                default:           return activity;
+              }
+            })();
             if (filtered.length === 0) return (
-              <p className="text-sm text-gray-400 dark:text-gray-500 py-4 text-center">No active entries. Switch to &quot;All&quot; to see deleted items.</p>
+              <p className="text-sm text-gray-400 dark:text-gray-500 py-4 text-center">No entries for this filter. Try &quot;All&quot; to see everything.</p>
             );
             return (
               <ul className="divide-y divide-gray-100 dark:divide-gray-700">
@@ -357,7 +391,7 @@ export default function DashboardPage() {
                       </span>
                     )}
                     <span className="text-gray-400 dark:text-gray-500 text-xs flex-shrink-0">
-                      {new Date(entry.at).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })}
+                      {new Date(entry.at).toLocaleDateString("en-IN", { timeZone: getAppTimezone() })}
                     </span>
                   </li>
                 ))}

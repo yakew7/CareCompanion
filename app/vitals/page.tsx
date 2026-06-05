@@ -2,11 +2,12 @@
 import { useEffect, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 import toast from "react-hot-toast";
-import { HeartPulse, Droplets, Scale, Heart, Gauge, Thermometer, Wind, TrendingUp, Plus, Trash2, Pencil, Check, X, ChevronDown, ChevronUp, Zap, BarChart2 } from "lucide-react";
+import { HeartPulse, Droplets, Scale, Heart, Gauge, Thermometer, Wind, TrendingUp, Plus, Trash2, Pencil, Check, X, ChevronDown, ChevronUp, Zap, BarChart2, SlidersHorizontal } from "lucide-react";
 import TopBar from "@/components/TopBar";
 import { api } from "@/lib/api";
+import { storage } from "@/lib/storage";
 import { usePersonContext } from "@/contexts/PersonContext";
-import type { VitalEntry, VitalType, HealthProfile } from "@/lib/storage";
+import type { VitalEntry, VitalType, HealthProfile, CustomVitalRange } from "@/lib/storage";
 
 // ─── Vital definitions ────────────────────────────────────────────────────────
 
@@ -32,7 +33,14 @@ const ALL_DEFS = [...HOME_VITALS, ...LAB_VITALS];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function getStatus(type: VitalType, value: number, value2?: number): "normal" | "warning" | "danger" {
+function getStatus(type: VitalType, value: number, value2?: number, custom?: CustomVitalRange): "normal" | "warning" | "danger" {
+  if (custom?.low !== undefined && custom?.high !== undefined) {
+    const inRange = value >= custom.low && value <= custom.high;
+    if (type === "bp" && value2 !== undefined && custom.low2 !== undefined && custom.high2 !== undefined) {
+      return inRange && value2 >= custom.low2 && value2 <= custom.high2 ? "normal" : "warning";
+    }
+    return inRange ? "normal" : "warning";
+  }
   switch (type) {
     case "bp":          return value <= 120 && (value2 ?? 0) <= 80 ? "normal" : value <= 140 && (value2 ?? 0) <= 90 ? "warning" : "danger";
     case "glucose":     return value >= 70 && value <= 140 ? "normal" : value <= 200 ? "warning" : "danger";
@@ -138,12 +146,16 @@ export default function VitalsPage() {
   const [trendType, setTrendType] = useState<VitalType | null>(null);
   const [form, setForm] = useState({ value: "", value2: "", notes: "" });
   const [cholForm, setCholForm] = useState({ total: "", ldl: "", hdl: "", tg: "" });
+  const [customRanges, setCustomRanges] = useState<Partial<Record<VitalType, CustomVitalRange>>>({});
+  const [customRangeType, setCustomRangeType] = useState<VitalType | null>(null);
+  const [customRangeForm, setCustomRangeForm] = useState({ low: "", high: "", low2: "", high2: "" });
 
   useEffect(() => {
     if (!activePersonId) return;
     Promise.all([api.vitals.getAll(), api.healthProfile.get()]).then(([v, p]) => {
       setEntries(v); setProfile(p); setLoading(false);
     });
+    setCustomRanges(storage.customVitalRanges.get(activePersonId));
   }, [activePersonId]);
 
   function openEditProfile() { setProfileDraft({ ...profile }); setEditingProfile(true); }
@@ -153,6 +165,46 @@ export default function VitalsPage() {
     setProfile(profileDraft);
     setEditingProfile(false);
     toast.success("Basic info saved");
+  }
+
+  function openCustomRange(type: VitalType) {
+    const existing = customRanges[type];
+    setCustomRangeForm({
+      low: existing?.low?.toString() ?? "",
+      high: existing?.high?.toString() ?? "",
+      low2: existing?.low2?.toString() ?? "",
+      high2: existing?.high2?.toString() ?? "",
+    });
+    setCustomRangeType(type);
+  }
+
+  function saveCustomRange() {
+    if (!customRangeType) return;
+    const low = parseFloat(customRangeForm.low);
+    const high = parseFloat(customRangeForm.high);
+    if (isNaN(low) || isNaN(high)) { toast.error("Enter valid low and high values"); return; }
+    if (low >= high) { toast.error("Low must be less than high"); return; }
+    const range: CustomVitalRange = { low, high };
+    if (customRangeType === "bp") {
+      const low2 = parseFloat(customRangeForm.low2);
+      const high2 = parseFloat(customRangeForm.high2);
+      if (!isNaN(low2) && !isNaN(high2) && low2 < high2) { range.low2 = low2; range.high2 = high2; }
+    }
+    const updated = { ...customRanges, [customRangeType]: range };
+    storage.customVitalRanges.set(updated, activePersonId);
+    setCustomRanges(updated);
+    setCustomRangeType(null);
+    toast.success("Doctor's target saved");
+  }
+
+  function clearCustomRange() {
+    if (!customRangeType) return;
+    const updated = { ...customRanges };
+    delete updated[customRangeType];
+    storage.customVitalRanges.set(updated, activePersonId);
+    setCustomRanges(updated);
+    setCustomRangeType(null);
+    toast.success("Custom range cleared");
   }
 
   function openLog(type: VitalType) {
@@ -241,7 +293,7 @@ export default function VitalsPage() {
         const latest = byType(type)[0];
         if (!latest) return null;
         const def = ALL_DEFS.find((d) => d.type === type);
-        const status = type !== "weight" ? getStatus(type, latest.value, latest.value2) : null;
+        const status = type !== "weight" ? getStatus(type, latest.value, latest.value2, customRanges[type]) : null;
         return `${def?.label ?? type}: ${formatValue(latest)}${status ? ` — ${STATUS_LABEL[status]}` : ""}`;
       })
       .filter((x): x is string => Boolean(x))
@@ -252,9 +304,11 @@ export default function VitalsPage() {
     const list = byType(def.type);
     const latest = list[0];
     const spark = list.slice(0, 10).reverse().map((e) => e.value);
-    const status = latest && def.type !== "weight" ? getStatus(def.type, latest.value, latest.value2) : null;
+    const custom = customRanges[def.type];
+    const status = latest && def.type !== "weight" ? getStatus(def.type, latest.value, latest.value2, custom) : null;
     const Icon = def.icon;
     const borderClass = status && latest ? `border-l-4 ${STATUS_BORDER[status]}` : "";
+    const hasCustomRange = custom?.low !== undefined && custom?.high !== undefined;
     return (
       <div className={`card flex flex-col gap-1 ${borderClass}`}>
         <div className="flex items-center justify-between">
@@ -263,6 +317,15 @@ export default function VitalsPage() {
             <span className={`font-medium text-gray-500 dark:text-gray-400 truncate ${featured ? "text-sm" : "text-xs"}`}>{def.label}</span>
           </div>
           <div className="flex items-center gap-0.5 flex-shrink-0">
+            {def.type !== "weight" && (
+              <button
+                onClick={() => openCustomRange(def.type)}
+                title="Set doctor's target range"
+                className={`p-1 rounded-lg transition-colors ${hasCustomRange ? "text-teal-600 dark:text-teal-400" : "text-gray-300 dark:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-teal-600 dark:hover:text-teal-400"}`}
+              >
+                <SlidersHorizontal className="w-3 h-3" />
+              </button>
+            )}
             {list.length >= 2 && (
               <button onClick={() => setTrendType(def.type)} className="p-1 rounded-lg text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-teal-600 dark:hover:text-teal-400 transition-colors">
                 <BarChart2 className="w-3 h-3" />
@@ -282,15 +345,33 @@ export default function VitalsPage() {
               <Sparkline values={spark} />
               {status && <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${STATUS_STYLE[status]}`}>{STATUS_LABEL[status]}</span>}
             </div>
-            {"normalRange" in def && def.normalRange && (
-              <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5 leading-tight">Normal: {def.normalRange}</p>
+            {hasCustomRange ? (
+              <p className="text-[10px] text-teal-600 dark:text-teal-400 mt-0.5 leading-tight font-medium">
+                {"Doctor's target: "}
+                {custom!.low}–{custom!.high}
+                {def.type === "bp" && custom!.low2 !== undefined ? ` / ${custom!.low2}–${custom!.high2}` : ""}
+                {" "}{def.unit}
+              </p>
+            ) : (
+              "normalRange" in def && def.normalRange && (
+                <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5 leading-tight">Normal: {def.normalRange}</p>
+              )
             )}
           </>
         ) : (
           <>
             <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">No readings yet</p>
-            {"normalRange" in def && def.normalRange && (
-              <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-tight">Normal: {def.normalRange}</p>
+            {hasCustomRange ? (
+              <p className="text-[10px] text-teal-600 dark:text-teal-400 leading-tight font-medium">
+                {"Doctor's target: "}
+                {custom!.low}–{custom!.high}
+                {def.type === "bp" && custom!.low2 !== undefined ? ` / ${custom!.low2}–${custom!.high2}` : ""}
+                {" "}{def.unit}
+              </p>
+            ) : (
+              "normalRange" in def && def.normalRange && (
+                <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-tight">Normal: {def.normalRange}</p>
+              )
             )}
           </>
         )}
@@ -443,7 +524,7 @@ export default function VitalsPage() {
                   const def = ALL_DEFS.find((d) => d.type === entry.type);
                   if (!def) return null;
                   const Icon = def.icon;
-                  const status = def.type !== "weight" ? getStatus(entry.type, entry.value, entry.value2) : null;
+                  const status = def.type !== "weight" ? getStatus(entry.type, entry.value, entry.value2, customRanges[entry.type]) : null;
                   return (
                     <li key={entry.id} className="py-2.5 flex items-center gap-3 text-sm">
                       <Icon className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
@@ -498,8 +579,11 @@ export default function VitalsPage() {
           const line1 = data.map((e, i) => `${i === 0 ? "M" : "L"} ${xOf(new Date(e.loggedAt).getTime()).toFixed(1)} ${yOf(e.value).toFixed(1)}`).join(" ");
           const line2 = def.hasDual ? data.map((e, i) => `${i === 0 ? "M" : "L"} ${xOf(new Date(e.loggedAt).getTime()).toFixed(1)} ${yOf(e.value2 ?? e.value).toFixed(1)}`).join(" ") : "";
 
-          // Normal range band
-          const nr = NUMERIC_RANGES[trendType as VitalType];
+          // Normal range band — use doctor's custom range if set
+          const customNr = customRanges[trendType as VitalType];
+          const nr = (customNr?.low !== undefined && customNr?.high !== undefined)
+            ? [customNr.low, customNr.high] as [number, number]
+            : NUMERIC_RANGES[trendType as VitalType];
           const bandTop = nr ? Math.max(0, yOf(nr[1])) : null;
           const bandBot = nr ? Math.min(cH, yOf(nr[0])) : null;
 
@@ -519,7 +603,7 @@ export default function VitalsPage() {
 
           const dot1Color = (e: VitalEntry) => {
             if (def.type === "weight") return "#0D9488";
-            const s = getStatus(def.type, e.value, e.value2);
+            const s = getStatus(def.type, e.value, e.value2, customRanges[def.type]);
             return s === "normal" ? "#0D9488" : s === "warning" ? "#F59E0B" : "#EF4444";
           };
 
@@ -615,6 +699,67 @@ export default function VitalsPage() {
           );
         };
         return <TrendModal key={trendType} />;
+      })()}
+
+      {/* ── Custom Range Modal ──────────────────────────────────────────── */}
+      {customRangeType && (() => {
+        const def = ALL_DEFS.find((d) => d.type === customRangeType)!;
+        const hasExisting = customRanges[customRangeType] !== undefined;
+        return (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4" onClick={() => setCustomRangeType(null)}>
+            <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-sm p-5 space-y-4" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center gap-2">
+                <SlidersHorizontal className="w-5 h-5 text-teal-500" />
+                <h3 className="font-semibold text-gray-900 dark:text-gray-100">Doctor&apos;s Target — {def.label}</h3>
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Set a custom normal range as instructed by your doctor. Overrides the standard range for status badges and trend chart.</p>
+
+              {customRangeType === "bp" ? (
+                <div className="space-y-3">
+                  <div>
+                    <label className="label">Systolic range ({def.unit})</label>
+                    <div className="flex gap-2 items-center">
+                      <input className="input flex-1" type="number" placeholder="Low (e.g. 90)"
+                        value={customRangeForm.low} onChange={(e) => setCustomRangeForm({ ...customRangeForm, low: e.target.value })} />
+                      <span className="text-gray-400">–</span>
+                      <input className="input flex-1" type="number" placeholder="High (e.g. 130)"
+                        value={customRangeForm.high} onChange={(e) => setCustomRangeForm({ ...customRangeForm, high: e.target.value })} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="label">Diastolic range ({def.unit}) <span className="text-gray-400 font-normal">(optional)</span></label>
+                    <div className="flex gap-2 items-center">
+                      <input className="input flex-1" type="number" placeholder="Low (e.g. 60)"
+                        value={customRangeForm.low2} onChange={(e) => setCustomRangeForm({ ...customRangeForm, low2: e.target.value })} />
+                      <span className="text-gray-400">–</span>
+                      <input className="input flex-1" type="number" placeholder="High (e.g. 85)"
+                        value={customRangeForm.high2} onChange={(e) => setCustomRangeForm({ ...customRangeForm, high2: e.target.value })} />
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <label className="label">Target range ({def.unit})</label>
+                  <div className="flex gap-2 items-center">
+                    <input className="input flex-1" type="number" step="0.1" placeholder="Low"
+                      value={customRangeForm.low} onChange={(e) => setCustomRangeForm({ ...customRangeForm, low: e.target.value })} autoFocus />
+                    <span className="text-gray-400">–</span>
+                    <input className="input flex-1" type="number" step="0.1" placeholder="High"
+                      value={customRangeForm.high} onChange={(e) => setCustomRangeForm({ ...customRangeForm, high: e.target.value })} />
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-2 pt-1">
+                <button onClick={saveCustomRange} className="btn-primary flex-1">Save Target</button>
+                {hasExisting && (
+                  <button onClick={clearCustomRange} className="btn-secondary">Clear</button>
+                )}
+                <button onClick={() => setCustomRangeType(null)} className="btn-secondary">Cancel</button>
+              </div>
+            </div>
+          </div>
+        );
       })()}
 
       {/* ── Log Modal ────────────────────────────────────────────────────── */}

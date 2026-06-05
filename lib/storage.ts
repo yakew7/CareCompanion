@@ -177,6 +177,13 @@ export interface HealthProfile {
   bloodType?: string;
 }
 
+export interface CustomVitalRange {
+  low?: number;
+  high?: number;
+  low2?: number;  // second value (diastolic for BP)
+  high2?: number;
+}
+
 export interface VitalEntry {
   id: string;
   type: VitalType;
@@ -348,6 +355,27 @@ export const storage = {
     set: (t: "light" | "dark") => {
       if (typeof window === "undefined") return;
       localStorage.setItem("theme", t);
+    },
+  },
+  timezone: {
+    get: (): string => {
+      if (typeof window === "undefined") return "Asia/Kolkata";
+      return localStorage.getItem("cc_timezone") || "Asia/Kolkata";
+    },
+    set: (tz: string): void => {
+      if (typeof window === "undefined") return;
+      localStorage.setItem("cc_timezone", tz);
+    },
+  },
+  customVitalRanges: {
+    get: (personId: string): Partial<Record<VitalType, CustomVitalRange>> => {
+      if (typeof window === "undefined") return {};
+      try { return JSON.parse(localStorage.getItem(pk("customVitalRanges", personId)) || "{}"); }
+      catch { return {}; }
+    },
+    set: (ranges: Partial<Record<VitalType, CustomVitalRange>>, personId: string): void => {
+      if (typeof window === "undefined") return;
+      localStorage.setItem(pk("customVitalRanges", personId), JSON.stringify(ranges));
     },
   },
 };

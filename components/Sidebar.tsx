@@ -7,7 +7,7 @@ import { useState } from "react";
 import {
   LayoutDashboard, FileText, Pill, Activity, Calendar,
   Heart, LogOut, Sun, Moon, Plus, X, Check, NotebookPen, MessageCircleHeart, HeartPulse,
-  Download, Upload,
+  Download, Upload, Globe,
 } from "lucide-react";
 import { exportAllData, importBackup } from "@/lib/backup";
 import toast from "react-hot-toast";
@@ -35,6 +35,10 @@ export default function Sidebar() {
   const [addForm, setAddForm] = useState<{ nickname: string; color: string }>({ nickname: "", color: "purple" });
   const [addError, setAddError] = useState("");
   const [removeConfirmId, setRemoveConfirmId] = useState<string | null>(null);
+  const [timezone, setTimezone] = useState(() => {
+    if (typeof window !== "undefined") return localStorage.getItem("cc_timezone") || "Asia/Kolkata";
+    return "Asia/Kolkata";
+  });
 
   async function handleSignOut() {
     if (confirm("Sign out?")) {
@@ -167,7 +171,7 @@ export default function Sidebar() {
         )}
       </div>
 
-      {/* Bottom: dark mode + account + sign out */}
+      {/* Bottom: dark mode + timezone + account + sign out */}
       <div className="p-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
         <button
           onClick={toggle}
@@ -176,6 +180,35 @@ export default function Sidebar() {
           {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           {dark ? "Light mode" : "Dark mode"}
         </button>
+
+        <div className="px-3 py-1">
+          <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 mb-1">
+            <Globe className="w-3.5 h-3.5 flex-shrink-0" />
+            <span>Timezone</span>
+          </div>
+          <select
+            value={timezone}
+            onChange={(e) => {
+              const tz = e.target.value;
+              setTimezone(tz);
+              localStorage.setItem("cc_timezone", tz);
+              toast.success("Timezone updated");
+            }}
+            className="input text-xs py-1 w-full"
+          >
+            <option value="Asia/Kolkata">IST — India (+5:30)</option>
+            <option value="Asia/Dubai">GST — Gulf (+4)</option>
+            <option value="Asia/Singapore">SGT — Singapore (+8)</option>
+            <option value="Asia/Tokyo">JST — Japan (+9)</option>
+            <option value="Australia/Sydney">AEST — Sydney (+10/11)</option>
+            <option value="Europe/London">GMT/BST — London</option>
+            <option value="Europe/Paris">CET — Europe (+1)</option>
+            <option value="America/New_York">ET — New York</option>
+            <option value="America/Chicago">CT — Chicago</option>
+            <option value="America/Los_Angeles">PT — Los Angeles</option>
+            <option value="Pacific/Auckland">NZST — Auckland (+12)</option>
+          </select>
+        </div>
 
         <button
           onClick={() => { exportAllData(); toast.success("Backup downloaded"); }}

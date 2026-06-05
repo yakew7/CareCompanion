@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { v4 as uuidv4 } from "uuid";
 import ReactMarkdown from "react-markdown";
-import { Upload, FileText, Trash2, Pill, Calendar, Thermometer, Salad, StickyNote, Shield, MessageSquare, ArrowLeft } from "lucide-react";
+import { Upload, FileText, Trash2, Pill, Calendar, Thermometer, Salad, StickyNote, Shield, MessageSquare, ArrowLeft, RefreshCw } from "lucide-react";
 import TopBar from "@/components/TopBar";
 import { api } from "@/lib/api";
 import { usePersonContext } from "@/contexts/PersonContext";
@@ -52,6 +52,8 @@ export default function RecordsPage() {
   const [addingItems, setAddingItems] = useState(false);
   const [mobileView, setMobileView] = useState<"list" | "chat">("list");
   const fileRef = useRef<HTMLInputElement>(null);
+  const reExtractFileRef = useRef<HTMLInputElement>(null);
+  const [reExtractRecordId, setReExtractRecordId] = useState<string | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -172,6 +174,95 @@ export default function RecordsPage() {
       toast.error(`Failed to process file: ${msg}`);
     } finally {
       setUploading(false);
+    }
+  }
+
+  function triggerReExtract(record: MedicalRecord) {
+    setReExtractRecordId(record.id);
+    reExtractFileRef.current?.click();
+  }
+
+  async function reExtractFromFile(file: File) {
+    const record = records.find((r) => r.id === reExtractRecordId);
+    if (!record) return;
+    if (!file.name.endsWith(".pdf") && !file.name.endsWith(".txt")) {
+      toast.error("Only PDF and TXT files are supported");
+      setReExtractRecordId(null);
+      return;
+    }
+    if (file.size > 4 * 1024 * 1024) {
+      toast.error("File too large — maximum upload size is 4 MB");
+      setReExtractRecordId(null);
+      return;
+    }
+    setUploading(true);
+    try {
+      let text = "";
+      if (file.name.endsWith(".txt")) {
+        text = await file.text();
+      } else {
+        const formData = new FormData();
+        formData.append("file", file);
+        const res = await fetch("/api/parse-pdf", { method: "POST", body: formData });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || "PDF parse failed");
+        text = json.text;
+      }
+
+      // Update active record with the text for chat context
+      setActiveRecord({ ...record, text });
+
+      toast.loading("Re-extracting data...", { id: "reextract" });
+      const extracted = await fetch("/api/extract-report-data", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      }).then((r) => r.json());
+      toast.dismiss("reextract");
+
+      const items: ExtractedItem[] = [
+        ...(extracted.medications || []).map((m: Record<string, unknown>) => ({
+          id: uuidv4(), type: "medication" as const, selected: true,
+          label: `${m.name}${m.dosage ? ` — ${m.dosage}` : ""}${m.frequency ? ` (${m.frequency})` : ""}${m.durationDays ? ` · ${m.durationDays}d course` : ""}`,
+          data: m,
+        })),
+        ...(extracted.appointments || []).map((a: Record<string, unknown>) => {
+          const days = (a.daysFromNow as number) || 30;
+          const date = new Date(Date.now() + days * 86400000).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+          return {
+            id: uuidv4(), type: "appointment" as const, selected: true,
+            label: `${a.doctor || "Doctor"}${a.specialty ? ` (${a.specialty})` : ""} — ${a.notes} — ${date}`,
+            data: a,
+          };
+        }),
+        ...(extracted.symptoms || []).map((s: Record<string, unknown>) => ({
+          id: uuidv4(), type: "symptom" as const, selected: true,
+          label: `${s.symptom} — severity ${s.severity}/5${s.notes ? ` (${s.notes})` : ""}`,
+          data: s,
+        })),
+        ...(extracted.dietary || []).map((d: Record<string, unknown>) => ({
+          id: uuidv4(), type: "dietary" as const, selected: true,
+          label: (d.advice as string) || "",
+          data: d,
+        })),
+        ...(extracted.other || []).map((o: Record<string, unknown>) => ({
+          id: uuidv4(), type: "other" as const, selected: true,
+          label: (o.note as string) || "",
+          data: o,
+        })),
+      ].filter((i) => i.label.trim());
+
+      if (items.length > 0) {
+        setExtractedItems(items);
+        toast.success("Re-extraction complete — review items below");
+      } else {
+        toast("No items found in this report");
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(`Re-extraction failed: ${msg}`);
+    } finally {
+      setUploading(false);
+      setReExtractRecordId(null);
     }
   }
 
@@ -317,6 +408,8 @@ export default function RecordsPage() {
             >
               <input ref={fileRef} type="file" accept=".pdf,.txt" className="hidden"
                 onChange={(e) => { const f = e.target.files?.[0]; if (f) processFile(f); e.target.value = ""; }} />
+              <input ref={reExtractFileRef} type="file" accept=".pdf,.txt" className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) reExtractFromFile(f); e.target.value = ""; }} />
               {uploading ? (
                 <div className="flex flex-col items-center gap-2">
                   <div className="w-6 h-6 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
@@ -368,6 +461,13 @@ export default function RecordsPage() {
                           <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{formatDateIST(r.uploadedAt)}</p>
                         </div>
                       </div>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); triggerReExtract(r); }}
+                        title="Re-extract data from this report"
+                        className="p-1 text-gray-300 dark:text-gray-600 hover:text-teal-500 dark:hover:text-teal-400 transition-colors flex-shrink-0"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" />
+                      </button>
                       <button onClick={(e) => { e.stopPropagation(); deleteRecord(r.id); }}
                         className="p-1 text-gray-300 dark:text-gray-600 hover:text-red-400 transition-colors flex-shrink-0">
                         <Trash2 className="w-3.5 h-3.5" />
