@@ -9,14 +9,57 @@ import { usePersonContext } from "@/contexts/PersonContext";
 
 interface Message { role: "user" | "assistant"; content: string; }
 
-const STARTERS = [
-  "How can I help manage high blood pressure through diet?",
-  "What are the side effects of Metformin I should watch for?",
-  "Why might someone feel tired and short of breath?",
-  "What foods should someone with diabetes avoid?",
-  "How much water should an elderly person drink daily?",
+const FALLBACK_STARTERS = [
   "When should I take someone to the emergency room?",
+  "How much water should an elderly person drink daily?",
+  "What are general warning signs I should watch for?",
 ];
+
+function buildStarters(data: {
+  name: string;
+  medications: { name: string }[];
+  symptoms: { symptom: string; severity: number; loggedAt: string }[];
+  vitals: { type: string; value: number; value2?: number; unit: string; loggedAt: string }[];
+}): string[] {
+  const prompts: string[] = [];
+  const { name } = data;
+
+  // Medication-based
+  if (data.medications.length > 0) {
+    prompts.push(`What food or drug interactions should I know about for ${data.medications[0].name}?`);
+  }
+  if (data.medications.length > 1) {
+    prompts.push(`Are there any interactions between ${data.medications[0].name} and ${data.medications[1].name}?`);
+  }
+
+  // Recent high-severity symptom
+  const weekAgo = Date.now() - 7 * 86_400_000;
+  const recentHighSeverity = data.symptoms
+    .filter((s) => new Date(s.loggedAt).getTime() >= weekAgo && s.severity >= 3)
+    .sort((a, b) => b.severity - a.severity)[0];
+  if (recentHighSeverity) {
+    prompts.push(`${name} had ${recentHighSeverity.symptom} (severity ${recentHighSeverity.severity}/5) recently — what could cause this?`);
+  }
+
+  // Vital-based
+  const latestByType = new Map<string, typeof data.vitals[0]>();
+  [...data.vitals]
+    .sort((a, b) => new Date(b.loggedAt).getTime() - new Date(a.loggedAt).getTime())
+    .forEach((v) => { if (!latestByType.has(v.type)) latestByType.set(v.type, v); });
+
+  const hba1c = latestByType.get("hba1c");
+  if (hba1c) prompts.push(`${name}'s HbA1c was ${hba1c.value}% — what does that mean and how can diet help?`);
+
+  const bp = latestByType.get("bp");
+  if (bp && bp.value > 130) prompts.push(`Blood pressure was ${bp.value}/${bp.value2} mmHg — what lifestyle changes might help?`);
+
+  const glucose = latestByType.get("glucose");
+  if (glucose) prompts.push(`${name}'s blood glucose was ${glucose.value} mg/dL — is that within a normal range?`);
+
+  // Pad with fallbacks if fewer than 3 data-driven prompts
+  const combined = [...prompts, ...FALLBACK_STARTERS];
+  return combined.slice(0, 5);
+}
 
 function buildContext(data: {
   nickname: string;
@@ -87,6 +130,7 @@ export default function ChatPage() {
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [context, setContext] = useState("");
+  const [starters, setStarters] = useState<string[]>(FALLBACK_STARTERS);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -107,6 +151,12 @@ export default function ChatPage() {
         dietary,
         other,
         appointments: appts,
+        vitals,
+      }));
+      setStarters(buildStarters({
+        name: activePerson.nickname,
+        medications: meds,
+        symptoms,
         vitals,
       }));
     });
@@ -184,7 +234,7 @@ export default function ChatPage() {
                 </p>
               </div>
               <div className="w-full max-w-sm space-y-2">
-                {STARTERS.map((s) => (
+                {starters.map((s) => (
                   <button
                     key={s}
                     onClick={() => send(s)}

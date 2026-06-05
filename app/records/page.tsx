@@ -274,7 +274,7 @@ export default function RecordsPage() {
 
       <div className="flex overflow-hidden" style={{ height: "calc(100vh - 3.5rem)" }}>
         {/* Reports list panel */}
-        <div className={`${mobileView === "list" ? "flex" : "hidden"} md:flex flex-col w-full md:w-[40%] flex-shrink-0 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 overflow-y-auto`}>
+        <div className={`${mobileView === "list" ? "flex" : "hidden"} md:flex flex-col w-full md:w-[25%] flex-shrink-0 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 overflow-y-auto`}>
           {/* Upload zone */}
           <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
             <div
@@ -362,10 +362,14 @@ export default function RecordsPage() {
           </div>
 
           {!activeRecord ? (
-            <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
-              <MessageSquare className="w-12 h-12 text-gray-300 dark:text-gray-600 mb-4" />
-              <h3 className="text-base font-semibold text-gray-700 dark:text-gray-300">No report loaded</h3>
-              <p className="text-gray-400 dark:text-gray-500 text-sm mt-1">Upload or select a report to view its summary</p>
+            <div className="flex-1 flex flex-col items-center justify-center text-center p-8 max-w-md mx-auto">
+              <div className="w-14 h-14 rounded-2xl bg-teal-50 dark:bg-teal-900/30 flex items-center justify-center mb-4">
+                <MessageSquare className="w-7 h-7 text-teal-500" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Upload a report to get started</h3>
+              <p className="text-gray-400 dark:text-gray-500 text-sm mt-2 leading-relaxed">
+                Upload a PDF or TXT medical report and get a plain-English summary of medications, appointments, and key findings — then ask follow-up questions in plain language.
+              </p>
             </div>
           ) : (
             <>

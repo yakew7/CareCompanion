@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 import toast from "react-hot-toast";
-import { HeartPulse, Droplets, Scale, Heart, Gauge, Thermometer, Wind, TrendingUp, Plus, Trash2, Pencil, Check, X } from "lucide-react";
+import { HeartPulse, Droplets, Scale, Heart, Gauge, Thermometer, Wind, TrendingUp, Plus, Trash2, Pencil, Check, X, ChevronDown, ChevronUp } from "lucide-react";
 import TopBar from "@/components/TopBar";
 import { api } from "@/lib/api";
 import { usePersonContext } from "@/contexts/PersonContext";
@@ -11,13 +11,13 @@ import type { VitalEntry, VitalType, HealthProfile } from "@/lib/storage";
 // ─── Vital definitions ────────────────────────────────────────────────────────
 
 const HOME_VITALS = [
-  { type: "bp"               as VitalType, label: "Blood Pressure",    unit: "mmHg",       icon: HeartPulse,  hasDual: true,  normalRange: "90–120 / 60–80 mmHg" },
-  { type: "glucose"          as VitalType, label: "Blood Glucose",     unit: "mg/dL",      icon: Droplets,    hasDual: false, normalRange: "70–140 mg/dL" },
-  { type: "weight"           as VitalType, label: "Weight",            unit: "kg",         icon: Scale,       hasDual: false, normalRange: null },
-  { type: "heart_rate"       as VitalType, label: "Heart Rate",        unit: "bpm",        icon: Heart,       hasDual: false, normalRange: "60–100 bpm" },
-  { type: "spo2"             as VitalType, label: "Oxygen (SpO₂)",     unit: "%",          icon: Gauge,       hasDual: false, normalRange: "≥ 95%" },
-  { type: "temperature"      as VitalType, label: "Temperature",       unit: "°C",         icon: Thermometer, hasDual: false, normalRange: "36.1–37.2 °C" },
-  { type: "respiratory_rate" as VitalType, label: "Respiratory Rate",  unit: "breaths/min",icon: Wind,        hasDual: false, normalRange: "12–20 breaths/min" },
+  { type: "bp"               as VitalType, label: "Blood Pressure",    unit: "mmHg",        icon: HeartPulse,  hasDual: true,  normalRange: "90–120 / 60–80 mmHg", priority: "featured"   as const },
+  { type: "glucose"          as VitalType, label: "Blood Glucose",     unit: "mg/dL",       icon: Droplets,    hasDual: false, normalRange: "70–140 mg/dL",         priority: "featured"   as const },
+  { type: "weight"           as VitalType, label: "Weight",            unit: "kg",          icon: Scale,       hasDual: false, normalRange: null,                   priority: "regular"    as const },
+  { type: "heart_rate"       as VitalType, label: "Heart Rate",        unit: "bpm",         icon: Heart,       hasDual: false, normalRange: "60–100 bpm",           priority: "regular"    as const },
+  { type: "temperature"      as VitalType, label: "Temperature",       unit: "°C",          icon: Thermometer, hasDual: false, normalRange: "36.1–37.2 °C",         priority: "regular"    as const },
+  { type: "spo2"             as VitalType, label: "Oxygen (SpO₂)",     unit: "%",           icon: Gauge,       hasDual: false, normalRange: "≥ 95%",                priority: "secondary"  as const },
+  { type: "respiratory_rate" as VitalType, label: "Respiratory Rate",  unit: "breaths/min", icon: Wind,        hasDual: false, normalRange: "12–20 breaths/min",    priority: "secondary"  as const },
 ];
 
 const LAB_VITALS = [
@@ -167,18 +167,25 @@ export default function VitalsPage() {
 
   const logDef = logType ? ALL_DEFS.find((d) => d.type === logType)! : null;
 
-  function VitalCard({ def }: { def: typeof ALL_DEFS[0] }) {
+  const STATUS_BORDER = {
+    normal:  "border-l-green-400 dark:border-l-green-500",
+    warning: "border-l-amber-400 dark:border-l-amber-500",
+    danger:  "border-l-red-400 dark:border-l-red-500",
+  };
+
+  function VitalCard({ def, featured = false }: { def: typeof ALL_DEFS[0]; featured?: boolean }) {
     const list = byType(def.type);
     const latest = list[0];
     const spark = list.slice(0, 10).reverse().map((e) => e.value);
     const status = latest && def.type !== "weight" ? getStatus(def.type, latest.value, latest.value2) : null;
     const Icon = def.icon;
+    const borderClass = status && latest ? `border-l-4 ${STATUS_BORDER[status]}` : "";
     return (
-      <div className="card flex flex-col gap-1">
+      <div className={`card flex flex-col gap-1 ${borderClass}`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5 min-w-0">
-            <Icon className="w-3.5 h-3.5 text-teal-500 flex-shrink-0" />
-            <span className="text-xs font-medium text-gray-500 dark:text-gray-400 truncate">{def.label}</span>
+            <Icon className={`flex-shrink-0 text-teal-500 ${featured ? "w-4 h-4" : "w-3.5 h-3.5"}`} />
+            <span className={`font-medium text-gray-500 dark:text-gray-400 truncate ${featured ? "text-sm" : "text-xs"}`}>{def.label}</span>
           </div>
           <button onClick={() => openLog(def.type)} className="p-1 rounded-lg text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/30 transition-colors flex-shrink-0">
             <Plus className="w-3.5 h-3.5" />
@@ -186,7 +193,7 @@ export default function VitalsPage() {
         </div>
         {latest ? (
           <>
-            <p className="text-xl font-bold text-gray-900 dark:text-gray-100 leading-tight mt-0.5">{formatValue(latest)}</p>
+            <p className={`font-bold text-gray-900 dark:text-gray-100 leading-tight mt-0.5 ${featured ? "text-2xl" : "text-xl"}`}>{formatValue(latest)}</p>
             {latest.notes && <p className="text-xs text-gray-400 dark:text-gray-500 truncate">{latest.notes}</p>}
             <p className="text-xs text-gray-400 dark:text-gray-500">{timeAgo(latest.loggedAt)}</p>
             <div className="flex items-center justify-between mt-1">
@@ -196,6 +203,26 @@ export default function VitalsPage() {
           </>
         ) : (
           <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">No readings yet</p>
+        )}
+      </div>
+    );
+  }
+
+  function AdditionalReadings({ defs }: { defs: typeof HOME_VITALS }) {
+    const [open, setOpen] = useState(false);
+    return (
+      <div>
+        <button
+          onClick={() => setOpen((v) => !v)}
+          className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors mb-2"
+        >
+          {open ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          {open ? "Hide" : "Show"} additional readings
+        </button>
+        {open && (
+          <div className="grid grid-cols-2 gap-3">
+            {defs.map((def) => <VitalCard key={def.type} def={def} />)}
+          </div>
         )}
       </div>
     );
@@ -282,12 +309,25 @@ export default function VitalsPage() {
 
         {/* ── Section 2: At-Home Readings ─────────────────────────────────── */}
         <section>
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-2">At-Home Readings</h3>
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-3">At-Home Readings</h3>
           {loading ? (
             <div className="flex justify-center py-8"><div className="w-8 h-8 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" /></div>
           ) : (
-            <div className="grid grid-cols-2 gap-3">
-              {HOME_VITALS.map((def) => <VitalCard key={def.type} def={def} />)}
+            <div className="space-y-3">
+              {/* Featured: BP + Glucose — larger cards */}
+              <div className="grid grid-cols-2 gap-3">
+                {HOME_VITALS.filter((d) => d.priority === "featured").map((def) => (
+                  <VitalCard key={def.type} def={def} featured />
+                ))}
+              </div>
+              {/* Regular vitals */}
+              <div className="grid grid-cols-2 gap-3">
+                {HOME_VITALS.filter((d) => d.priority === "regular").map((def) => (
+                  <VitalCard key={def.type} def={def} />
+                ))}
+              </div>
+              {/* Secondary vitals — collapsible */}
+              <AdditionalReadings defs={HOME_VITALS.filter((d) => d.priority === "secondary")} />
             </div>
           )}
         </section>

@@ -10,7 +10,15 @@ import { usePersonContext } from "@/contexts/PersonContext";
 import type { Symptom } from "@/lib/storage";
 import { nowIST, formatIST } from "@/lib/time";
 
-const SEVERITY_LABELS = ["", "Mild", "Light", "Moderate", "Concerning", "Severe"];
+const SEVERITY_LABELS = [
+  "",
+  "Barely noticeable, no impact on daily activity",
+  "Mild, slightly uncomfortable",
+  "Moderate, disrupting normal routine",
+  "Severe, significant distress",
+  "Emergency-level, seek medical attention",
+];
+const SEVERITY_SHORT = ["", "Barely noticeable", "Mild", "Moderate", "Severe", "Emergency"];
 type Filter = "all" | "week" | "month";
 
 function severityClass(s: number) {
@@ -229,12 +237,20 @@ export default function SymptomsPage() {
                 value={form.symptom} onChange={(e) => setForm({ ...form, symptom: e.target.value })} />
             </div>
             <div>
-              <label className="label">Severity: {form.severity} — {SEVERITY_LABELS[form.severity]}</label>
+              <label className="label">Severity</label>
               <input type="range" min={1} max={5} value={form.severity}
                 onChange={(e) => setForm({ ...form, severity: Number(e.target.value) })}
                 className="w-full accent-teal-600" />
-              <div className="flex justify-between text-xs text-gray-400 dark:text-gray-500 mt-1">
-                <span>Mild</span><span>Severe</span>
+              <div className="flex justify-between text-[10px] text-gray-400 dark:text-gray-500 mt-0.5 mb-2">
+                {[1,2,3,4,5].map((n) => <span key={n}>{n}</span>)}
+              </div>
+              <div className={`rounded-lg px-3 py-2 text-xs font-medium ${
+                form.severity <= 2 ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400" :
+                form.severity === 3 ? "bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400" :
+                "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400"
+              }`}>
+                <span className="font-bold">{form.severity} — {SEVERITY_SHORT[form.severity]}:</span>{" "}
+                {SEVERITY_LABELS[form.severity]}
               </div>
             </div>
             <div>
