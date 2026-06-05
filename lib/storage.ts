@@ -189,6 +189,42 @@ export interface VitalEntry {
 
 const DATA_KEYS = ["medications", "symptoms", "appointments", "records", "activity", "dietary", "other", "vitals", "healthProfile"] as const;
 
+// Returns a persons accessor scoped to a specific user key (e.g. their email).
+// All per-person data keys (medications__<id>, etc.) are already scoped by person UUID,
+// so only the persons list and activePerson pointer need user-level scoping.
+export function scopedPersons(userKey: string) {
+  const listKey   = userKey ? `persons__u:${userKey}` : "persons";
+  const activeKey = userKey ? `activePerson__u:${userKey}` : "activePerson";
+
+  // One-time migration: copy legacy unscoped data into this user's namespace
+  if (typeof window !== "undefined" && userKey) {
+    if (!localStorage.getItem(listKey) && localStorage.getItem("persons")) {
+      localStorage.setItem(listKey, localStorage.getItem("persons")!);
+      const legacyActive = localStorage.getItem("activePerson");
+      if (legacyActive) localStorage.setItem(activeKey, legacyActive);
+    }
+  }
+
+  return {
+    getAll: (): Person[] => getList<Person>(listKey),
+    save: (p: Person) => upsert(listKey, p),
+    delete: (id: string) => {
+      setList(listKey, getList<Person>(listKey).filter((p) => p.id !== id));
+      if (typeof window !== "undefined") {
+        DATA_KEYS.forEach((k) => localStorage.removeItem(pk(k, id)));
+      }
+    },
+    getActiveId: (): string => {
+      if (typeof window === "undefined") return "";
+      return localStorage.getItem(activeKey) || "";
+    },
+    setActiveId: (id: string): void => {
+      if (typeof window === "undefined") return;
+      localStorage.setItem(activeKey, id);
+    },
+  };
+}
+
 export const storage = {
   persons: {
     getAll: (): Person[] => getList<Person>("persons"),

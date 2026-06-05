@@ -1,7 +1,10 @@
 "use client";
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { useSession } from "next-auth/react";
 import { v4 as uuidv4 } from "uuid";
-import { storage, Person, PersonColor } from "@/lib/storage";
+import { scopedPersons, Person, PersonColor } from "@/lib/storage";
+
+const DEV_SKIP_AUTH = process.env.NEXT_PUBLIC_DEV_SKIP_AUTH === "true";
 
 interface PersonContextValue {
   persons: Person[];
@@ -26,54 +29,66 @@ const PersonContext = createContext<PersonContextValue>({
 });
 
 export function PersonProvider({ children }: { children: React.ReactNode }) {
+  const { data: session, status } = useSession();
+
+  // In dev-skip-auth mode use a fixed key so storage still works.
+  // In prod, wait until the session resolves so we never read the wrong user's data.
+  const userKey = DEV_SKIP_AUTH ? "__dev__" : (session?.user?.email ?? "");
+  const sessionReady = DEV_SKIP_AUTH || status !== "loading";
+
   const [persons, setPersons] = useState<Person[]>([]);
   const [activePersonId, setActivePersonIdState] = useState<string>("");
   const [personsLoading, setPersonsLoading] = useState(true);
 
   const refreshPersons = useCallback(() => {
-    const p = storage.persons.getAll();
-    const storedId = storage.persons.getActiveId();
+    if (!sessionReady) return;
+    const ps = scopedPersons(userKey);
+    const p = ps.getAll();
+    const storedId = ps.getActiveId();
     const validId = p.find((x) => x.id === storedId) ? storedId : p[0]?.id || "";
     setPersons(p);
     setActivePersonIdState(validId);
-    if (validId !== storedId) storage.persons.setActiveId(validId);
+    if (validId !== storedId) ps.setActiveId(validId);
     setPersonsLoading(false);
-  }, []);
+  }, [userKey, sessionReady]);
 
+  // Re-load whenever the signed-in user changes (account switch)
   useEffect(() => {
-    refreshPersons();
-  }, [refreshPersons]);
+    if (sessionReady) {
+      setPersonsLoading(true);
+      refreshPersons();
+    }
+  }, [refreshPersons, sessionReady]);
 
   const switchPerson = useCallback((id: string) => {
-    storage.persons.setActiveId(id);
+    scopedPersons(userKey).setActiveId(id);
     setActivePersonIdState(id);
-  }, []);
+  }, [userKey]);
 
   const addPerson = useCallback((nickname: string, color: PersonColor): Person => {
+    const ps = scopedPersons(userKey);
     const p: Person = { id: uuidv4(), nickname: nickname.trim(), color };
-    storage.persons.save(p);
-    const updated = storage.persons.getAll();
+    ps.save(p);
+    const updated = ps.getAll();
     setPersons(updated);
-    if (!storage.persons.getActiveId()) {
-      storage.persons.setActiveId(p.id);
+    if (!ps.getActiveId()) {
+      ps.setActiveId(p.id);
       setActivePersonIdState(p.id);
     }
     return p;
-  }, []);
+  }, [userKey]);
 
-  const removePerson = useCallback(
-    (id: string) => {
-      storage.persons.delete(id);
-      const remaining = storage.persons.getAll();
-      setPersons(remaining);
-      if (activePersonId === id) {
-        const newId = remaining[0]?.id || "";
-        storage.persons.setActiveId(newId);
-        setActivePersonIdState(newId);
-      }
-    },
-    [activePersonId]
-  );
+  const removePerson = useCallback((id: string) => {
+    const ps = scopedPersons(userKey);
+    ps.delete(id);
+    const remaining = ps.getAll();
+    setPersons(remaining);
+    if (activePersonId === id) {
+      const newId = remaining[0]?.id || "";
+      ps.setActiveId(newId);
+      setActivePersonIdState(newId);
+    }
+  }, [userKey, activePersonId]);
 
   const activePerson = persons.find((p) => p.id === activePersonId) || null;
 
