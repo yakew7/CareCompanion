@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { v4 as uuidv4 } from "uuid";
-import { Pencil, Trash2, CalendarDays, MapPin, Sparkles, Download } from "lucide-react";
+import { Pencil, Trash2, CalendarDays, MapPin, Sparkles, Download, MoreVertical } from "lucide-react";
 import { downloadICS } from "@/lib/ics";
 import TopBar from "@/components/TopBar";
 import { api } from "@/lib/api";
@@ -22,10 +22,12 @@ const emptyForm = (): Omit<Appointment, "id"> => ({
 });
 
 export default function AppointmentsPage() {
-  const { activePersonId } = usePersonContext();
+  const { activePersonId, activePerson } = usePersonContext();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showOverflow, setShowOverflow] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [editing, setEditing] = useState<Appointment | null>(null);
   const [form, setForm] = useState(emptyForm());
   const [notesTarget, setNotesTarget] = useState<string | null>(null);
@@ -72,11 +74,11 @@ export default function AppointmentsPage() {
   }
 
   async function clearAll() {
-    if (!confirm("Remove all appointments for this person? This cannot be undone.")) return;
     const count = appointments.length;
     await api.appointments.clearAll();
     api.activity.push({ type: "appointment", label: `Cleared all appointments (${count} item${count !== 1 ? "s" : ""})`, at: new Date().toISOString(), deleted: true });
     setAppointments([]);
+    setShowClearConfirm(false);
     toast.success("All appointments cleared");
   }
 
@@ -210,19 +212,38 @@ export default function AppointmentsPage() {
       <main className="p-4 sm:p-6 max-w-3xl space-y-5">
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Appointments</h2>
-          <div className="flex gap-2">
-            {appointments.length > 0 && (
-              <>
-                <button
-                  onClick={() => downloadICS(appointments, "all_appointments.ics")}
-                  className="btn-secondary text-xs px-3 py-2 flex items-center gap-1.5"
-                >
-                  <Download className="w-3.5 h-3.5" /> Export .ics
-                </button>
-                <button onClick={clearAll} className="btn-danger text-xs px-3 py-2">Clear all</button>
-              </>
-            )}
+          <div className="flex items-center gap-2">
             <button onClick={openAdd} className="btn-primary">+ Add</button>
+            {appointments.length > 0 && (
+              <div className="relative">
+                <button
+                  onClick={() => setShowOverflow((v) => !v)}
+                  className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors"
+                  title="More options"
+                >
+                  <MoreVertical className="w-4 h-4" />
+                </button>
+                {showOverflow && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowOverflow(false)} />
+                    <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-50 overflow-hidden">
+                      <button
+                        onClick={() => { downloadICS(appointments, "all_appointments.ics"); setShowOverflow(false); }}
+                        className="w-full flex items-center gap-2 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                      >
+                        <Download className="w-4 h-4" /> Export all as .ics
+                      </button>
+                      <button
+                        onClick={() => { setShowOverflow(false); setShowClearConfirm(true); }}
+                        className="w-full flex items-center gap-2 px-4 py-3 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" /> Clear all appointments
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -335,6 +356,25 @@ export default function AppointmentsPage() {
                 {editing ? "Save Changes" : "Add Appointment"}
               </button>
               <button onClick={() => setShowModal(false)} className="btn-secondary flex-1">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showClearConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-sm shadow-xl space-y-4">
+            <div>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                Delete all appointments for {activePerson?.nickname}?
+              </h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                This will permanently remove all {appointments.length} appointment{appointments.length !== 1 ? "s" : ""}. This cannot be undone.
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={clearAll} className="btn-danger flex-1">Delete all</button>
+              <button onClick={() => setShowClearConfirm(false)} className="btn-secondary flex-1">Cancel</button>
             </div>
           </div>
         </div>

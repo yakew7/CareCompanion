@@ -9,15 +9,15 @@ import {
 
 const primary = [
   { href: "/", label: "Home", icon: LayoutDashboard },
+  { href: "/records", label: "Reports", icon: FileText },
   { href: "/medications", label: "Meds", icon: Pill },
   { href: "/symptoms", label: "Symptoms", icon: Activity },
-  { href: "/chat", label: "Ask AI", icon: MessageCircleHeart },
+  { href: "/appointments", label: "Appts", icon: Calendar },
 ];
 
 const overflow = [
-  { href: "/records", label: "Reports", icon: FileText },
+  { href: "/chat", label: "Ask AI", icon: MessageCircleHeart },
   { href: "/vitals", label: "Vitals", icon: HeartPulse },
-  { href: "/appointments", label: "Appointments", icon: Calendar },
   { href: "/notes", label: "Notes", icon: NotebookPen },
 ];
 
@@ -66,7 +66,7 @@ export default function BottomNav() {
             onClick={() => setOpen(false)}
           />
           <div className="md:hidden fixed bottom-16 left-2 right-2 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-xl overflow-hidden">
-            <div className="grid grid-cols-4">
+            <div className="grid grid-cols-3">
               {overflow.map(({ href, label, icon: Icon }) => (
                 <Link
                   key={href}
