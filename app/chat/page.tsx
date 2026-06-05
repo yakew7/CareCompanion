@@ -24,6 +24,25 @@ function buildStarters(data: {
   const prompts: string[] = [];
   const { name } = data;
 
+  // Feature 14: Prioritise the most recently logged event as the first prompt
+  const sortedSymptoms = [...data.symptoms].sort((a, b) => new Date(b.loggedAt).getTime() - new Date(a.loggedAt).getTime());
+  const sortedVitals = [...data.vitals].sort((a, b) => new Date(b.loggedAt).getTime() - new Date(a.loggedAt).getTime());
+  const mostRecentSym = sortedSymptoms[0];
+  const mostRecentVital = sortedVitals[0];
+
+  const symTime = mostRecentSym ? new Date(mostRecentSym.loggedAt).getTime() : 0;
+  const vitTime = mostRecentVital ? new Date(mostRecentVital.loggedAt).getTime() : 0;
+  const threeDays = Date.now() - 3 * 86_400_000;
+
+  if (symTime > vitTime && symTime >= threeDays) {
+    prompts.push(`Tell me about ${name}'s recent ${mostRecentSym.symptom} — what might be causing it?`);
+  } else if (vitTime >= threeDays && mostRecentVital) {
+    const VITAL_LABELS: Record<string, string> = { bp: "blood pressure", glucose: "blood glucose", weight: "weight", heart_rate: "heart rate", spo2: "SpO₂", temperature: "temperature", hba1c: "HbA1c", cholesterol: "cholesterol" };
+    const vLabel = VITAL_LABELS[mostRecentVital.type] ?? mostRecentVital.type;
+    const vVal = mostRecentVital.value2 != null ? `${mostRecentVital.value}/${mostRecentVital.value2}` : `${mostRecentVital.value}`;
+    prompts.push(`${name}'s recent ${vLabel} reading was ${vVal} ${mostRecentVital.unit} — is that concerning?`);
+  }
+
   // Medication-based
   if (data.medications.length > 0) {
     prompts.push(`What food or drug interactions should I know about for ${data.medications[0].name}?`);
@@ -32,20 +51,17 @@ function buildStarters(data: {
     prompts.push(`Are there any interactions between ${data.medications[0].name} and ${data.medications[1].name}?`);
   }
 
-  // Recent high-severity symptom
+  // Recent high-severity symptom (if not already added as top prompt)
   const weekAgo = Date.now() - 7 * 86_400_000;
-  const recentHighSeverity = data.symptoms
-    .filter((s) => new Date(s.loggedAt).getTime() >= weekAgo && s.severity >= 3)
-    .sort((a, b) => b.severity - a.severity)[0];
+  const recentHighSeverity = sortedSymptoms
+    .filter((s) => new Date(s.loggedAt).getTime() >= weekAgo && s.severity >= 3 && s.symptom !== mostRecentSym?.symptom)[0];
   if (recentHighSeverity) {
     prompts.push(`${name} had ${recentHighSeverity.symptom} (severity ${recentHighSeverity.severity}/5) recently — what could cause this?`);
   }
 
   // Vital-based
   const latestByType = new Map<string, typeof data.vitals[0]>();
-  [...data.vitals]
-    .sort((a, b) => new Date(b.loggedAt).getTime() - new Date(a.loggedAt).getTime())
-    .forEach((v) => { if (!latestByType.has(v.type)) latestByType.set(v.type, v); });
+  sortedVitals.forEach((v) => { if (!latestByType.has(v.type)) latestByType.set(v.type, v); });
 
   const hba1c = latestByType.get("hba1c");
   if (hba1c) prompts.push(`${name}'s HbA1c was ${hba1c.value}% — what does that mean and how can diet help?`);

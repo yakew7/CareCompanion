@@ -1,8 +1,8 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { v4 as uuidv4 } from "uuid";
-import { Pencil, Trash2, CheckSquare, Square, Download, MoreVertical, AlertTriangle, Search, Calendar, ChevronLeft, ChevronRight } from "lucide-react";
+import { Pencil, Trash2, CheckSquare, Square, Download, MoreVertical, AlertTriangle, Search, Calendar, ChevronLeft, ChevronRight, Clock } from "lucide-react";
 import TopBar from "@/components/TopBar";
 import { api } from "@/lib/api";
 import { usePersonContext } from "@/contexts/PersonContext";
@@ -44,6 +44,42 @@ const emptyForm = () => ({
   durationDays: "" as string,
 });
 
+// Feature 16: Swipe-to-delete wrapper for mobile
+function SwipeCard({ onDelete, children }: { onDelete: () => void; children: React.ReactNode }) {
+  const innerRef = useRef<HTMLDivElement>(null);
+  const startX = useRef(0);
+
+  function onTouchStart(e: React.TouchEvent) {
+    startX.current = e.touches[0].clientX;
+    if (innerRef.current) innerRef.current.style.transition = "none";
+  }
+  function onTouchMove(e: React.TouchEvent) {
+    const dx = e.touches[0].clientX - startX.current;
+    if (dx < -8 && innerRef.current) {
+      innerRef.current.style.transform = `translateX(${Math.max(dx, -76)}px)`;
+    }
+  }
+  function onTouchEnd(e: React.TouchEvent) {
+    const dx = e.changedTouches[0].clientX - startX.current;
+    if (innerRef.current) {
+      innerRef.current.style.transition = "transform 0.2s";
+      innerRef.current.style.transform = "";
+    }
+    if (dx < -60) onDelete();
+  }
+
+  return (
+    <div className="relative overflow-hidden rounded-xl">
+      <div className="absolute inset-y-0 right-0 w-16 flex items-center justify-center bg-red-500">
+        <Trash2 className="w-4 h-4 text-white" />
+      </div>
+      <div ref={innerRef} className="relative w-full" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 export default function MedicationsPage() {
   const { activePersonId, activePerson } = usePersonContext();
   const [meds, setMeds] = useState<Medication[]>([]);
@@ -59,6 +95,8 @@ export default function MedicationsPage() {
   const [showCalendar, setShowCalendar] = useState(false);
   const [calMonthOffset, setCalMonthOffset] = useState(0);
   const today = new Date().toISOString().split("T")[0];
+  // Feature 15: dose time editing — {medId, time, value}
+  const [doseTimeEdit, setDoseTimeEdit] = useState<{ medId: string; time: string; value: string } | null>(null);
 
   useEffect(() => {
     if (!activePersonId) return;
@@ -220,9 +258,30 @@ export default function MedicationsPage() {
 
   function toggleDose(med: Medication, time: string) {
     const todayLog = med.log[today] || {};
-    const updated: Medication = { ...med, log: { ...med.log, [today]: { ...todayLog, [time]: !todayLog[time] } } };
+    const nowTaken = !todayLog[time];
+    if (nowTaken) {
+      // Optimistically mark taken, then open time editor
+      const now = new Date();
+      const hhmm = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+      const updated: Medication = { ...med, log: { ...med.log, [today]: { ...todayLog, [time]: true } } };
+      setMeds((prev) => prev.map((m) => (m.id === med.id ? updated : m)));
+      api.medications.save(updated).catch(() => toast.error("Failed to save dose"));
+      setDoseTimeEdit({ medId: med.id, time, value: hhmm });
+    } else {
+      setDoseTimeEdit(null);
+      const updated: Medication = { ...med, log: { ...med.log, [today]: { ...todayLog, [time]: false } } };
+      setMeds((prev) => prev.map((m) => (m.id === med.id ? updated : m)));
+      api.medications.save(updated).catch(() => toast.error("Failed to save dose"));
+    }
+  }
+
+  function saveDoseTime(med: Medication, time: string, takenAt: string) {
+    const todayLog = med.log[today] || {};
+    const value = takenAt.trim() || true;
+    const updated: Medication = { ...med, log: { ...med.log, [today]: { ...todayLog, [time]: value } } };
     setMeds((prev) => prev.map((m) => (m.id === med.id ? updated : m)));
     api.medications.save(updated).catch(() => toast.error("Failed to save dose"));
+    setDoseTimeEdit(null);
   }
 
   function toggleTime(time: string) {
@@ -467,52 +526,81 @@ export default function MedicationsPage() {
             ) : filteredMeds.map((med) => {
               const todayLog = med.log[today] || {};
               return (
-                <div key={med.id} className="card">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="font-semibold text-gray-900 dark:text-gray-100">{med.name}</h3>
-                        {med.dosage && <span className="badge-gray">{med.dosage}</span>}
-                        {med.frequency && <span className="badge-purple">{med.frequency}</span>}
-                        {med.expiresAt && (() => {
-                          const daysLeft = Math.ceil((new Date(med.expiresAt).getTime() - Date.now()) / 86400000);
-                          return daysLeft <= 1
-                            ? <span className="text-xs px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-medium">{daysLeft <= 0 ? "Expired" : "Last day"}</span>
-                            : <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 font-medium">{daysLeft}d left</span>;
-                        })()}
+                <SwipeCard key={med.id} onDelete={() => deleteMed(med.id)}>
+                  <div className="card">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-semibold text-gray-900 dark:text-gray-100">{med.name}</h3>
+                          {med.dosage && <span className="badge-gray">{med.dosage}</span>}
+                          {med.frequency && <span className="badge-purple">{med.frequency}</span>}
+                          {med.expiresAt && (() => {
+                            const daysLeft = Math.ceil((new Date(med.expiresAt).getTime() - Date.now()) / 86400000);
+                            return daysLeft <= 1
+                              ? <span className="text-xs px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-medium">{daysLeft <= 0 ? "Expired" : "Last day"}</span>
+                              : <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 font-medium">{daysLeft}d left</span>;
+                          })()}
+                        </div>
+                        {med.notes && <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{med.notes}</p>}
                       </div>
-                      {med.notes && <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{med.notes}</p>}
+                      <div className="flex gap-0.5 flex-shrink-0">
+                        <button onClick={() => openEdit(med)}
+                          className="p-1.5 text-gray-400 hover:text-teal-600 dark:hover:text-teal-400 transition-colors rounded-lg hover:bg-teal-50 dark:hover:bg-teal-900/30">
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => deleteMed(med.id)}
+                          className="p-1.5 text-gray-400 hover:text-red-500 transition-colors rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex gap-0.5 flex-shrink-0">
-                      <button onClick={() => openEdit(med)}
-                        className="p-1.5 text-gray-400 hover:text-teal-600 dark:hover:text-teal-400 transition-colors rounded-lg hover:bg-teal-50 dark:hover:bg-teal-900/30">
-                        <Pencil className="w-4 h-4" />
-                      </button>
-                      <button onClick={() => deleteMed(med.id)}
-                        className="p-1.5 text-gray-400 hover:text-red-500 transition-colors rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
+                    {med.times.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
+                        {med.times.map((time) => {
+                          const rawTaken = todayLog[time];
+                          const taken = !!rawTaken;
+                          const takenAt = typeof rawTaken === "string" ? rawTaken : null;
+                          const isEditing = doseTimeEdit?.medId === med.id && doseTimeEdit?.time === time;
+                          return (
+                            <div key={time} className="flex flex-col gap-1">
+                              <button onClick={() => toggleDose(med, time)}
+                                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border transition-all active:scale-95 select-none ${
+                                  taken
+                                    ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700 text-green-700 dark:text-green-400"
+                                    : "bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-teal-300 dark:hover:border-teal-600"
+                                }`}>
+                                {taken ? <CheckSquare className="w-3.5 h-3.5" /> : <Square className="w-3.5 h-3.5" />}
+                                {time}
+                                {takenAt && <span className="text-[10px] opacity-75 ml-0.5">· {takenAt}</span>}
+                              </button>
+                              {/* Feature 15: Inline time editor */}
+                              {isEditing && (
+                                <div className="flex items-center gap-1.5 pl-1">
+                                  <Clock className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                                  <input
+                                    type="time"
+                                    value={doseTimeEdit.value}
+                                    onChange={(e) => setDoseTimeEdit(prev => prev ? { ...prev, value: e.target.value } : null)}
+                                    className="input text-xs py-1 px-2 w-24"
+                                    autoFocus
+                                  />
+                                  <button
+                                    onClick={() => saveDoseTime(med, time, doseTimeEdit.value)}
+                                    className="text-xs font-medium text-teal-600 dark:text-teal-400 hover:underline"
+                                  >Save</button>
+                                  <button
+                                    onClick={() => setDoseTimeEdit(null)}
+                                    className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                                  >Skip</button>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
-                  {med.times.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
-                      {med.times.map((time) => {
-                        const taken = todayLog[time];
-                        return (
-                          <button key={time} onClick={() => toggleDose(med, time)}
-                            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border transition-all active:scale-95 select-none ${
-                              taken
-                                ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700 text-green-700 dark:text-green-400"
-                                : "bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-teal-300 dark:hover:border-teal-600"
-                            }`}>
-                            {taken ? <CheckSquare className="w-3.5 h-3.5" /> : <Square className="w-3.5 h-3.5" />}
-                            {time}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
+                </SwipeCard>
               );
             })}
           </div>

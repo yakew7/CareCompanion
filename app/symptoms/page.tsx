@@ -1,9 +1,9 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import ReactMarkdown from "react-markdown";
 import { v4 as uuidv4 } from "uuid";
-import { Trash2, Sparkles, Search } from "lucide-react";
+import { Trash2, Sparkles, Search, TrendingUp } from "lucide-react";
 import TopBar from "@/components/TopBar";
 import { api } from "@/lib/api";
 import { usePersonContext } from "@/contexts/PersonContext";
@@ -21,10 +21,11 @@ const SEVERITY_LABELS = [
 const SEVERITY_SHORT = ["", "Barely noticeable", "Mild", "Moderate", "Severe", "Emergency"];
 type Filter = "all" | "week" | "month";
 
-function severityClass(s: number) {
-  if (s <= 2) return "badge-green";
-  if (s === 3) return "badge-yellow";
-  return "badge-red";
+// Feature 12: Unified severity vocabulary — Normal / Caution / Critical
+function sevStatus(s: number): { cls: string; label: string } {
+  if (s <= 2) return { cls: "badge-green", label: "Normal" };
+  if (s === 3) return { cls: "badge-yellow", label: "Caution" };
+  return { cls: "badge-red", label: "Critical" };
 }
 
 function SeverityBar({ value }: { value: number }) {
@@ -34,6 +35,60 @@ function SeverityBar({ value }: { value: number }) {
       {[1, 2, 3, 4, 5].map((i) => (
         <div key={i} className={`h-1.5 w-3 rounded-full ${i <= value ? colors[value] : "bg-gray-200 dark:bg-gray-600"}`} />
       ))}
+    </div>
+  );
+}
+
+// Feature 13: Co-occurrence computation
+function computeCoOccurrences(symptoms: Symptom[]): { a: string; b: string; count: number }[] {
+  const byDate = new Map<string, Set<string>>();
+  for (const s of symptoms) {
+    const date = s.loggedAt.split("T")[0];
+    if (!byDate.has(date)) byDate.set(date, new Set());
+    byDate.get(date)!.add(s.symptom.toLowerCase());
+  }
+  const pairCounts = new Map<string, number>();
+  Array.from(byDate.values()).forEach((syms) => {
+    const arr = Array.from(syms);
+    for (let i = 0; i < arr.length; i++) {
+      for (let j = i + 1; j < arr.length; j++) {
+        const key = [arr[i], arr[j]].sort().join("|||");
+        pairCounts.set(key, (pairCounts.get(key) || 0) + 1);
+      }
+    }
+  });
+  return Array.from(pairCounts.entries())
+    .filter(([, c]) => c >= 2)
+    .map(([key, count]) => { const [a, b] = key.split("|||"); return { a, b, count }; })
+    .sort((x, y) => y.count - x.count)
+    .slice(0, 3);
+}
+
+// Feature 16: Swipe-to-delete for mobile
+function SwipeCard({ onDelete, children }: { onDelete: () => void; children: React.ReactNode }) {
+  const innerRef = useRef<HTMLDivElement>(null);
+  const startX = useRef(0);
+  function onTouchStart(e: React.TouchEvent) {
+    startX.current = e.touches[0].clientX;
+    if (innerRef.current) innerRef.current.style.transition = "none";
+  }
+  function onTouchMove(e: React.TouchEvent) {
+    const dx = e.touches[0].clientX - startX.current;
+    if (dx < -8 && innerRef.current) innerRef.current.style.transform = `translateX(${Math.max(dx, -76)}px)`;
+  }
+  function onTouchEnd(e: React.TouchEvent) {
+    const dx = e.changedTouches[0].clientX - startX.current;
+    if (innerRef.current) { innerRef.current.style.transition = "transform 0.2s"; innerRef.current.style.transform = ""; }
+    if (dx < -60) onDelete();
+  }
+  return (
+    <div className="relative overflow-hidden rounded-xl">
+      <div className="absolute inset-y-0 right-0 w-16 flex items-center justify-center bg-red-500">
+        <Trash2 className="w-4 h-4 text-white" />
+      </div>
+      <div ref={innerRef} className="relative w-full" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
+        {children}
+      </div>
     </div>
   );
 }
@@ -155,6 +210,9 @@ export default function SymptomsPage() {
     !search.trim() || s.symptom.toLowerCase().includes(search.toLowerCase().trim())
   );
 
+  // Feature 13: Compute co-occurrence pairs
+  const coOccurrences = symptoms.length >= 4 ? computeCoOccurrences(symptoms) : [];
+
   return (
     <>
       <TopBar />
@@ -198,6 +256,29 @@ export default function SymptomsPage() {
           )}
         </div>
 
+        {/* Feature 13: Co-occurrence insight card */}
+        {coOccurrences.length > 0 && (
+          <div className="card border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-900/20">
+            <div className="flex items-center gap-2 mb-2">
+              <TrendingUp className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+              <h3 className="text-sm font-semibold text-indigo-700 dark:text-indigo-300">Symptom Co-occurrence</h3>
+            </div>
+            <p className="text-xs text-indigo-600/70 dark:text-indigo-400/70 mb-3">These symptoms tend to appear on the same day:</p>
+            <div className="space-y-2">
+              {coOccurrences.map(({ a, b, count }) => (
+                <div key={`${a}-${b}`} className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="px-2 py-0.5 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 rounded-lg text-xs font-medium capitalize truncate">{a}</span>
+                    <span className="text-xs text-gray-400 dark:text-gray-500">+</span>
+                    <span className="px-2 py-0.5 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 rounded-lg text-xs font-medium capitalize truncate">{b}</span>
+                  </div>
+                  <span className="text-xs text-indigo-500 dark:text-indigo-400 flex-shrink-0 font-medium">{count}×</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {showAnalysis && (
           <div className="card border border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-900/20">
             <div className="flex items-center justify-between mb-3">
@@ -239,32 +320,36 @@ export default function SymptomsPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {displayed.map((s) => (
-              <div key={s.id} className="card">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-semibold text-gray-900 dark:text-gray-100 capitalize">{s.symptom}</h3>
-                      <span className={severityClass(s.severity)}>
-                        {SEVERITY_LABELS[s.severity]}
-                      </span>
+            {displayed.map((s) => {
+              const { cls, label } = sevStatus(s.severity);
+              return (
+                <SwipeCard key={s.id} onDelete={() => deleteSymptom(s.id)}>
+                  <div className="card">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-semibold text-gray-900 dark:text-gray-100 capitalize">{s.symptom}</h3>
+                          <span className={cls}>{label}</span>
+                          <span className="text-xs text-gray-400 dark:text-gray-500">{SEVERITY_SHORT[s.severity]}</span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1.5">
+                          <SeverityBar value={s.severity} />
+                          <span className="text-xs text-gray-400 dark:text-gray-500">{s.severity}/5</span>
+                        </div>
+                        {s.notes && <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{s.notes}</p>}
+                        <p className="text-xs text-gray-400 dark:text-gray-500 mt-1.5">{formatIST(s.loggedAt)}</p>
+                      </div>
+                      <button
+                        onClick={() => deleteSymptom(s.id)}
+                        className="p-1.5 text-gray-300 dark:text-gray-600 hover:text-red-400 transition-colors rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 flex-shrink-0"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
-                    <div className="flex items-center gap-2 mt-1.5">
-                      <SeverityBar value={s.severity} />
-                      <span className="text-xs text-gray-400 dark:text-gray-500">{s.severity}/5</span>
-                    </div>
-                    {s.notes && <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{s.notes}</p>}
-                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1.5">{formatIST(s.loggedAt)}</p>
                   </div>
-                  <button
-                    onClick={() => deleteSymptom(s.id)}
-                    className="p-1.5 text-gray-300 dark:text-gray-600 hover:text-red-400 transition-colors rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 flex-shrink-0"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
+                </SwipeCard>
+              );
+            })}
           </div>
         )}
       </main>

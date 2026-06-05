@@ -23,7 +23,7 @@ export interface Medication {
   frequency: string;
   times: string[];
   notes: string;
-  log: Record<string, Record<string, boolean>>;
+  log: Record<string, Record<string, boolean | string>>; // string = "HH:MM" actual take time
   expiresAt?: string; // ISO date — auto-deleted after this date
 }
 

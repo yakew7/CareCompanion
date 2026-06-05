@@ -54,7 +54,7 @@ const STATUS_STYLE = {
   warning: "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400",
   danger:  "bg-red-100  dark:bg-red-900/30  text-red-600  dark:text-red-400",
 };
-const STATUS_LABEL = { normal: "Normal", warning: "Watch", danger: "High" };
+const STATUS_LABEL = { normal: "Normal", warning: "Caution", danger: "Critical" };
 
 function formatValue(entry: VitalEntry): string {
   return entry.value2 != null ? `${entry.value}/${entry.value2} ${entry.unit}` : `${entry.value} ${entry.unit}`;
@@ -102,6 +102,30 @@ const NUMERIC_RANGES: Partial<Record<VitalType, [number, number]>> = {
 };
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
+
+// Feature 17: Collapsible section with summary stats — defined outside to avoid nested-hook issues
+function CollapsibleSection({
+  title, summary, defaultOpen = true, children,
+}: { title: string; summary?: string; defaultOpen?: boolean; children: React.ReactNode }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between gap-2 mb-3 group"
+      >
+        <div className="flex items-center gap-2 min-w-0 overflow-hidden">
+          <span className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 flex-shrink-0">{title}</span>
+          {summary && !open && (
+            <span className="text-xs text-gray-500 dark:text-gray-400 truncate font-normal">{summary}</span>
+          )}
+        </div>
+        {open ? <ChevronUp className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />}
+      </button>
+      {open && children}
+    </div>
+  );
+}
 
 export default function VitalsPage() {
   const { activePersonId } = usePersonContext();
@@ -210,6 +234,20 @@ export default function VitalsPage() {
     danger:  "border-l-red-400 dark:border-l-red-500",
   };
 
+  // Feature 17: summary text for a section header — must be before nested components
+  const sectionSummary = (types: VitalType[], maxItems = 2): string =>
+    types
+      .map((type) => {
+        const latest = byType(type)[0];
+        if (!latest) return null;
+        const def = ALL_DEFS.find((d) => d.type === type);
+        const status = type !== "weight" ? getStatus(type, latest.value, latest.value2) : null;
+        return `${def?.label ?? type}: ${formatValue(latest)}${status ? ` — ${STATUS_LABEL[status]}` : ""}`;
+      })
+      .filter((x): x is string => Boolean(x))
+      .slice(0, maxItems)
+      .join(" · ");
+
   function VitalCard({ def, featured = false }: { def: typeof ALL_DEFS[0]; featured?: boolean }) {
     const list = byType(def.type);
     const latest = list[0];
@@ -260,25 +298,6 @@ export default function VitalsPage() {
     );
   }
 
-  function AdditionalReadings({ defs }: { defs: typeof HOME_VITALS }) {
-    const [open, setOpen] = useState(false);
-    return (
-      <div>
-        <button
-          onClick={() => setOpen((v) => !v)}
-          className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors mb-2"
-        >
-          {open ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-          {open ? "Hide" : "Show"} additional readings
-        </button>
-        {open && (
-          <div className="grid grid-cols-2 gap-3">
-            {defs.map((def) => <VitalCard key={def.type} def={def} />)}
-          </div>
-        )}
-      </div>
-    );
-  }
 
   return (
     <>
@@ -361,35 +380,57 @@ export default function VitalsPage() {
 
         {/* ── Section 2: At-Home Readings ─────────────────────────────────── */}
         <section>
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-3">At-Home Readings</h3>
           {loading ? (
             <div className="flex justify-center py-8"><div className="w-8 h-8 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" /></div>
           ) : (
-            <div className="space-y-3">
-              {/* Featured: BP + Glucose — larger cards */}
-              <div className="grid grid-cols-2 gap-3">
-                {HOME_VITALS.filter((d) => d.priority === "featured").map((def) => (
-                  <VitalCard key={def.type} def={def} featured />
-                ))}
-              </div>
-              {/* Regular vitals */}
-              <div className="grid grid-cols-2 gap-3">
-                {HOME_VITALS.filter((d) => d.priority === "regular").map((def) => (
-                  <VitalCard key={def.type} def={def} />
-                ))}
-              </div>
-              {/* Secondary vitals — collapsible */}
-              <AdditionalReadings defs={HOME_VITALS.filter((d) => d.priority === "secondary")} />
+            <div className="space-y-4">
+              {/* Featured + Regular: collapsible together as "Core Vitals" */}
+              <CollapsibleSection
+                title="Core Vitals"
+                summary={sectionSummary(["bp", "glucose"] as VitalType[])}
+                defaultOpen
+              >
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    {HOME_VITALS.filter((d) => d.priority === "featured").map((def) => (
+                      <VitalCard key={def.type} def={def} featured />
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {HOME_VITALS.filter((d) => d.priority === "regular").map((def) => (
+                      <VitalCard key={def.type} def={def} />
+                    ))}
+                  </div>
+                </div>
+              </CollapsibleSection>
+
+              {/* Secondary vitals — collapsed by default */}
+              <CollapsibleSection
+                title="Additional Readings"
+                summary={sectionSummary(["spo2", "pain"] as VitalType[], 1)}
+                defaultOpen={false}
+              >
+                <div className="grid grid-cols-2 gap-3">
+                  {HOME_VITALS.filter((d) => d.priority === "secondary").map((def) => (
+                    <VitalCard key={def.type} def={def} />
+                  ))}
+                </div>
+              </CollapsibleSection>
             </div>
           )}
         </section>
 
         {/* ── Section 3: Lab Results ───────────────────────────────────────── */}
         <section>
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-2">Lab Results</h3>
-          <div className="grid grid-cols-2 gap-3">
-            {LAB_VITALS.map((def) => <VitalCard key={def.type} def={def} />)}
-          </div>
+          <CollapsibleSection
+            title="Lab Results"
+            summary={sectionSummary(["hba1c", "cholesterol"] as VitalType[], 1)}
+            defaultOpen={LAB_VITALS.some((d) => byType(d.type).length > 0)}
+          >
+            <div className="grid grid-cols-2 gap-3">
+              {LAB_VITALS.map((def) => <VitalCard key={def.type} def={def} />)}
+            </div>
+          </CollapsibleSection>
         </section>
 
         {/* ── History ─────────────────────────────────────────────────────── */}

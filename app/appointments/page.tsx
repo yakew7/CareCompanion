@@ -1,8 +1,8 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { v4 as uuidv4 } from "uuid";
-import { Pencil, Trash2, CalendarDays, MapPin, Sparkles, Download, MoreVertical, Search } from "lucide-react";
+import { Pencil, Trash2, CalendarDays, MapPin, Sparkles, Download, MoreVertical, Search, ChevronLeft, ChevronRight, List, LayoutGrid } from "lucide-react";
 import { downloadICS } from "@/lib/ics";
 import TopBar from "@/components/TopBar";
 import { api } from "@/lib/api";
@@ -10,10 +10,47 @@ import { usePersonContext } from "@/contexts/PersonContext";
 import type { Appointment } from "@/lib/storage";
 import { nowIST, formatIST } from "@/lib/time";
 
+type ViewMode = "list" | "week" | "month";
+
+// Feature 16: Swipe-to-delete for mobile
+function SwipeCard({ onDelete, children }: { onDelete: () => void; children: React.ReactNode }) {
+  const innerRef = useRef<HTMLDivElement>(null);
+  const startX = useRef(0);
+  function onTouchStart(e: React.TouchEvent) {
+    startX.current = e.touches[0].clientX;
+    if (innerRef.current) innerRef.current.style.transition = "none";
+  }
+  function onTouchMove(e: React.TouchEvent) {
+    const dx = e.touches[0].clientX - startX.current;
+    if (dx < -8 && innerRef.current) innerRef.current.style.transform = `translateX(${Math.max(dx, -76)}px)`;
+  }
+  function onTouchEnd(e: React.TouchEvent) {
+    const dx = e.changedTouches[0].clientX - startX.current;
+    if (innerRef.current) { innerRef.current.style.transition = "transform 0.2s"; innerRef.current.style.transform = ""; }
+    if (dx < -60) onDelete();
+  }
+  return (
+    <div className="relative overflow-hidden rounded-xl">
+      <div className="absolute inset-y-0 right-0 w-16 flex items-center justify-center bg-red-500">
+        <Trash2 className="w-4 h-4 text-white" />
+      </div>
+      <div ref={innerRef} className="relative w-full" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 function statusBadge(status: Appointment["status"]) {
   if (status === "upcoming") return "badge-green";
   if (status === "completed") return "badge-gray";
   return "badge-red";
+}
+
+function statusColor(status: Appointment["status"]) {
+  if (status === "upcoming") return "bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300";
+  if (status === "completed") return "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400";
+  return "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400";
 }
 
 const emptyForm = (): Omit<Appointment, "id"> => ({
@@ -25,6 +62,8 @@ export default function AppointmentsPage() {
   const { activePersonId, activePerson } = usePersonContext();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const [calOffset, setCalOffset] = useState(0);
   const [showModal, setShowModal] = useState(false);
   const [showOverflow, setShowOverflow] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
@@ -111,7 +150,6 @@ export default function AppointmentsPage() {
     setAppointments(await api.appointments.getAll());
     setNotesTarget(null);
     toast.success("Notes saved");
-
     if (postNotes.trim()) {
       try {
         const res = await fetch("/api/suggest-followup", {
@@ -230,6 +268,194 @@ export default function AppointmentsPage() {
     );
   }
 
+  // ── Week View ──────────────────────────────────────────────────────────────
+  function WeekView() {
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() - now.getDay() + calOffset * 7);
+    weekStart.setHours(0, 0, 0, 0);
+    const days = Array.from({ length: 7 }, (_, i) => { const d = new Date(weekStart); d.setDate(weekStart.getDate() + i); return d; });
+    const weekEnd = days[6];
+    const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+    return (
+      <div className="card">
+        <div className="flex items-center justify-between mb-4">
+          <button onClick={() => setCalOffset(o => o - 1)} className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            {weekStart.toLocaleDateString("en-IN", { day: "numeric", month: "short" })} – {weekEnd.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+          </span>
+          <button onClick={() => setCalOffset(o => o + 1)} className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-7 gap-1 mb-2">
+          {DAY_LABELS.map((d, i) => {
+            const isToday = days[i].toDateString() === now.toDateString();
+            return (
+              <div key={d} className="text-center">
+                <div className={`text-[10px] font-medium mb-0.5 ${isToday ? "text-teal-600 dark:text-teal-400" : "text-gray-400 dark:text-gray-500"}`}>{d}</div>
+                <div className={`w-7 h-7 mx-auto rounded-full flex items-center justify-center text-xs font-semibold ${isToday ? "bg-teal-600 text-white" : "text-gray-600 dark:text-gray-400"}`}>
+                  {days[i].getDate()}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="grid grid-cols-7 gap-1 min-h-[100px]">
+          {days.map((day, i) => {
+            const dateStr = day.toISOString().split("T")[0];
+            const dayAppts = appointments
+              .filter(a => a.datetime.startsWith(dateStr))
+              .sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime());
+            const isToday = day.toDateString() === now.toDateString();
+            return (
+              <div key={i} className={`rounded-lg p-0.5 min-h-[80px] border ${isToday ? "border-teal-200 dark:border-teal-700 bg-teal-50/30 dark:bg-teal-900/10" : "border-gray-100 dark:border-gray-700/50"}`}>
+                {dayAppts.map(a => (
+                  <button key={a.id} onClick={() => openEdit(a)}
+                    className={`w-full text-left px-1.5 py-1 rounded mb-0.5 text-[10px] leading-tight font-medium truncate ${statusColor(a.status)}`}
+                    title={`${a.doctor}${a.specialty ? ` · ${a.specialty}` : ""}`}
+                  >
+                    <div className="truncate">{a.doctor}</div>
+                    <div className="opacity-75 truncate">{new Date(a.datetime).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })}</div>
+                  </button>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+
+        {appointments.length === 0 && (
+          <div className="text-center py-8 text-gray-400 dark:text-gray-500">
+            <CalendarDays className="w-8 h-8 mx-auto mb-2 opacity-40" />
+            <p className="text-sm">No appointments scheduled this week</p>
+          </div>
+        )}
+
+        <div className="flex flex-wrap gap-3 text-[10px] text-gray-500 dark:text-gray-400 pt-3 border-t border-gray-100 dark:border-gray-700 mt-3">
+          {[["bg-teal-100 dark:bg-teal-900/40", "Upcoming"], ["bg-gray-100 dark:bg-gray-700", "Completed"], ["bg-red-100 dark:bg-red-900/30", "Cancelled"]].map(([cls, lbl]) => (
+            <span key={lbl} className="flex items-center gap-1"><span className={`w-2.5 h-2.5 rounded ${cls} inline-block`} />{lbl}</span>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Month View ─────────────────────────────────────────────────────────────
+  function MonthView() {
+    const [selectedDate, setSelectedDate] = useState<string | null>(null);
+    const displayDate = new Date(now.getFullYear(), now.getMonth() + calOffset, 1);
+    const year = displayDate.getFullYear();
+    const month = displayDate.getMonth();
+    const firstDow = displayDate.getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const todayStr = now.toISOString().split("T")[0];
+
+    const selectedAppts = selectedDate
+      ? appointments.filter(a => a.datetime.startsWith(selectedDate)).sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime())
+      : [];
+
+    return (
+      <div className="card space-y-3">
+        <div className="flex items-center justify-between">
+          <button onClick={() => { setCalOffset(o => o - 1); setSelectedDate(null); }} className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            {displayDate.toLocaleDateString("en-IN", { month: "long", year: "numeric" })}
+          </span>
+          <button onClick={() => { setCalOffset(o => o + 1); setSelectedDate(null); }} className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-7 gap-0.5 text-center text-[10px] text-gray-400 dark:text-gray-500">
+          {["Su","Mo","Tu","We","Th","Fr","Sa"].map(d => <div key={d} className="py-0.5 font-medium">{d}</div>)}
+        </div>
+
+        <div className="grid grid-cols-7 gap-0.5">
+          {Array.from({ length: firstDow }).map((_, i) => <div key={`e${i}`} />)}
+          {Array.from({ length: daysInMonth }, (_, i) => {
+            const day = i + 1;
+            const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+            const dayAppts = appointments.filter(a => a.datetime.startsWith(dateStr));
+            const isToday = dateStr === todayStr;
+            const isSelected = dateStr === selectedDate;
+            const hasUpcoming = dayAppts.some(a => a.status === "upcoming");
+            const hasCompleted = dayAppts.some(a => a.status === "completed");
+            const hasCancelled = dayAppts.some(a => a.status === "cancelled");
+
+            return (
+              <button
+                key={day}
+                onClick={() => setSelectedDate(isSelected ? null : dateStr)}
+                className={`h-9 rounded-lg flex flex-col items-center justify-start pt-1 transition-colors ${
+                  isSelected ? "bg-teal-100 dark:bg-teal-900/40 ring-2 ring-teal-500 ring-offset-1 dark:ring-offset-gray-800" :
+                  isToday ? "bg-teal-600" :
+                  dayAppts.length > 0 ? "bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700" :
+                  "hover:bg-gray-50 dark:hover:bg-gray-800"
+                }`}
+              >
+                <span className={`text-[11px] font-medium ${isToday ? "text-white" : isSelected ? "text-teal-700 dark:text-teal-300" : "text-gray-700 dark:text-gray-300"}`}>{day}</span>
+                {dayAppts.length > 0 && !isToday && (
+                  <div className="flex gap-0.5 mt-0.5">
+                    {hasUpcoming && <span className="w-1 h-1 rounded-full bg-teal-500" />}
+                    {hasCompleted && <span className="w-1 h-1 rounded-full bg-gray-400" />}
+                    {hasCancelled && <span className="w-1 h-1 rounded-full bg-red-400" />}
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {selectedDate && (
+          <div className="pt-3 border-t border-gray-100 dark:border-gray-700 space-y-2">
+            <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+              {new Date(selectedDate + "T12:00:00").toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}
+            </h4>
+            {selectedAppts.length === 0 ? (
+              <p className="text-sm text-gray-400 dark:text-gray-500">No appointments on this day</p>
+            ) : (
+              selectedAppts.map(a => (
+                <div key={a.id} className="flex items-start justify-between gap-2 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+                  <div>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{a.doctor}</span>
+                      {a.specialty && <span className="badge-purple">{a.specialty}</span>}
+                      <span className={statusBadge(a.status)}>{a.status.charAt(0).toUpperCase() + a.status.slice(1)}</span>
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                      {new Date(a.datetime).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })}
+                      {a.location && ` · ${a.location}`}
+                    </p>
+                  </div>
+                  <div className="flex gap-0.5 flex-shrink-0">
+                    <button onClick={() => openEdit(a)} className="p-1.5 text-gray-400 hover:text-teal-600 dark:hover:text-teal-400 transition-colors rounded-lg">
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    <button onClick={() => deleteAppt(a.id)} className="p-1.5 text-gray-400 hover:text-red-500 transition-colors rounded-lg">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        <div className="flex flex-wrap gap-3 text-[10px] text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-100 dark:border-gray-700">
+          {[["bg-teal-500", "Upcoming"], ["bg-gray-400", "Completed"], ["bg-red-400", "Cancelled"]].map(([cls, lbl]) => (
+            <span key={lbl} className="flex items-center gap-1.5"><span className={`w-2 h-2 rounded-full ${cls} inline-block`} />{lbl}</span>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       <TopBar />
@@ -237,6 +463,31 @@ export default function AppointmentsPage() {
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Appointments</h2>
           <div className="flex items-center gap-2">
+            {/* View toggle */}
+            <div className="flex bg-gray-100 dark:bg-gray-700 rounded-xl p-0.5 gap-0.5">
+              <button
+                onClick={() => setViewMode("list")}
+                title="List view"
+                className={`p-1.5 rounded-lg transition-colors ${viewMode === "list" ? "bg-white dark:bg-gray-600 shadow-sm text-teal-600 dark:text-teal-400" : "text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"}`}
+              >
+                <List className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => { setViewMode("week"); setCalOffset(0); }}
+                title="Week view"
+                className={`p-1.5 rounded-lg transition-colors ${viewMode === "week" ? "bg-white dark:bg-gray-600 shadow-sm text-teal-600 dark:text-teal-400" : "text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"}`}
+              >
+                <CalendarDays className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => { setViewMode("month"); setCalOffset(0); }}
+                title="Month view"
+                className={`p-1.5 rounded-lg transition-colors ${viewMode === "month" ? "bg-white dark:bg-gray-600 shadow-sm text-teal-600 dark:text-teal-400" : "text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"}`}
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
             <button onClick={openAdd} className="btn-primary">+ Add</button>
             {appointments.length > 0 && (
               <div className="relative">
@@ -271,7 +522,7 @@ export default function AppointmentsPage() {
           </div>
         </div>
 
-        {appointments.length > 3 && (
+        {viewMode === "list" && appointments.length > 3 && (
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
             <input
@@ -287,6 +538,10 @@ export default function AppointmentsPage() {
           <div className="flex justify-center py-12">
             <div className="w-8 h-8 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
           </div>
+        ) : viewMode === "week" ? (
+          <WeekView />
+        ) : viewMode === "month" ? (
+          <MonthView />
         ) : (
           <>
             {appointments.length === 0 ? (
@@ -306,7 +561,7 @@ export default function AppointmentsPage() {
                       <p className="text-sm">No upcoming appointments</p>
                     </div>
                   ) : (
-                    <div className="space-y-3">{upcoming.map((a) => <AppCard key={a.id} appt={a} />)}</div>
+                    <div className="space-y-3">{upcoming.map((a) => <SwipeCard key={a.id} onDelete={() => deleteAppt(a.id)}><AppCard appt={a} /></SwipeCard>)}</div>
                   )}
                 </div>
                 {past.length > 0 && (
@@ -314,7 +569,7 @@ export default function AppointmentsPage() {
                     <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
                       Past and Cancelled ({past.length})
                     </h3>
-                    <div className="space-y-3">{past.map((a) => <AppCard key={a.id} appt={a} />)}</div>
+                    <div className="space-y-3">{past.map((a) => <SwipeCard key={a.id} onDelete={() => deleteAppt(a.id)}><AppCard appt={a} /></SwipeCard>)}</div>
                   </div>
                 )}
               </>
