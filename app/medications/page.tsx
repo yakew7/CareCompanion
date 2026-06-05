@@ -201,14 +201,6 @@ export default function MedicationsPage() {
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Medications</h2>
           <div className="flex items-center gap-2">
-            {meds.length > 0 && (
-              <button
-                onClick={() => setShowReminderExport((v) => !v)}
-                className="btn-secondary text-xs px-3 py-2 flex items-center gap-1.5"
-              >
-                <Download className="w-3.5 h-3.5" /> Reminders (.ics)
-              </button>
-            )}
             <button onClick={openAdd} className="btn-primary">+ Add</button>
             {meds.length > 0 && (
               <div className="relative">
@@ -222,7 +214,14 @@ export default function MedicationsPage() {
                 {showOverflow && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setShowOverflow(false)} />
-                    <div className="absolute right-0 top-full mt-1 w-44 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-50 overflow-hidden">
+                    <div className="absolute right-0 top-full mt-1 w-52 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-50 overflow-hidden">
+                      <button
+                        onClick={() => { setShowOverflow(false); setShowReminderExport((v) => !v); }}
+                        className="w-full flex items-center gap-2 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                      >
+                        <Download className="w-4 h-4" />
+                        Reminders (.ics)
+                      </button>
                       <button
                         onClick={() => { setShowOverflow(false); setShowClearConfirm(true); }}
                         className="w-full flex items-center gap-2 px-4 py-3 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
