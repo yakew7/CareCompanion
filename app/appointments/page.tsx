@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { v4 as uuidv4 } from "uuid";
-import { Pencil, Trash2, CalendarDays, MapPin, Sparkles, Download, MoreVertical } from "lucide-react";
+import { Pencil, Trash2, CalendarDays, MapPin, Sparkles, Download, MoreVertical, Search } from "lucide-react";
 import { downloadICS } from "@/lib/ics";
 import TopBar from "@/components/TopBar";
 import { api } from "@/lib/api";
@@ -31,6 +31,7 @@ export default function AppointmentsPage() {
   const [editing, setEditing] = useState<Appointment | null>(null);
   const [form, setForm] = useState(emptyForm());
   const [notesTarget, setNotesTarget] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
   const [postNotes, setPostNotes] = useState("");
   const [followupSuggestion, setFollowupSuggestion] = useState<{
     appt: Appointment; daysFromNow: number; reason: string;
@@ -142,11 +143,14 @@ export default function AppointmentsPage() {
   }
 
   const now = new Date();
+  const q = search.toLowerCase().trim();
+  const matchesSearch = (a: Appointment) =>
+    !q || a.doctor.toLowerCase().includes(q) || a.specialty.toLowerCase().includes(q) || a.location.toLowerCase().includes(q);
   const upcoming = appointments
-    .filter((a) => a.status === "upcoming" && new Date(a.datetime) >= now)
+    .filter((a) => a.status === "upcoming" && new Date(a.datetime) >= now && matchesSearch(a))
     .sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime());
   const past = appointments
-    .filter((a) => a.status !== "upcoming" || new Date(a.datetime) < now)
+    .filter((a) => (a.status !== "upcoming" || new Date(a.datetime) < now) && matchesSearch(a))
     .sort((a, b) => new Date(b.datetime).getTime() - new Date(a.datetime).getTime());
 
   function AppCard({ appt }: { appt: Appointment }) {
@@ -266,6 +270,18 @@ export default function AppointmentsPage() {
             )}
           </div>
         </div>
+
+        {appointments.length > 3 && (
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            <input
+              className="input pl-9 text-sm"
+              placeholder="Search by doctor, specialty, or location…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+        )}
 
         {loading ? (
           <div className="flex justify-center py-12">

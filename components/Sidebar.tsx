@@ -34,6 +34,7 @@ export default function Sidebar() {
   const [addOpen, setAddOpen] = useState(false);
   const [addForm, setAddForm] = useState<{ nickname: string; color: string }>({ nickname: "", color: "purple" });
   const [addError, setAddError] = useState("");
+  const [removeConfirmId, setRemoveConfirmId] = useState<string | null>(null);
 
   async function handleSignOut() {
     if (confirm("Sign out?")) {
@@ -112,7 +113,7 @@ export default function Sidebar() {
                 </button>
                 {persons.length > 1 && (
                   <button
-                    onClick={() => removePerson(p.id)}
+                    onClick={() => setRemoveConfirmId(p.id)}
                     className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-300 dark:text-gray-600 hover:text-red-400 transition-all rounded-lg ml-1 flex-shrink-0"
                     title="Remove person"
                   >
@@ -230,6 +231,37 @@ export default function Sidebar() {
           Sign out
         </button>
       </div>
+      {/* Remove person confirm modal */}
+      {removeConfirmId && (() => {
+        const target = persons.find((p) => p.id === removeConfirmId);
+        if (!target) return null;
+        return (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-sm shadow-xl space-y-4">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">Remove {target.nickname}?</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                  This will permanently delete <span className="font-semibold text-gray-700 dark:text-gray-300">{target.nickname}&apos;s</span> entire health record — medications, vitals, symptoms, appointments, reports, and notes. This cannot be undone.
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => { removePerson(removeConfirmId); setRemoveConfirmId(null); }}
+                  className="btn-danger flex-1"
+                >
+                  Remove and delete all data
+                </button>
+                <button
+                  onClick={() => setRemoveConfirmId(null)}
+                  className="btn-secondary flex-1"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </aside>
   );
 }

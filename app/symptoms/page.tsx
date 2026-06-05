@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import ReactMarkdown from "react-markdown";
 import { v4 as uuidv4 } from "uuid";
-import { Trash2, Sparkles } from "lucide-react";
+import { Trash2, Sparkles, Search } from "lucide-react";
 import TopBar from "@/components/TopBar";
 import { api } from "@/lib/api";
 import { usePersonContext } from "@/contexts/PersonContext";
@@ -47,6 +47,7 @@ export default function SymptomsPage() {
   const [analysis, setAnalysis] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
   const [showAnalysis, setShowAnalysis] = useState(false);
+  const [search, setSearch] = useState("");
   const [form, setForm] = useState({ symptom: "", severity: 3, notes: "", loggedAt: nowIST() });
 
   useEffect(() => {
@@ -150,7 +151,9 @@ export default function SymptomsPage() {
     finally { setAnalyzing(false); }
   }
 
-  const displayed = filtered();
+  const displayed = filtered().filter((s) =>
+    !search.trim() || s.symptom.toLowerCase().includes(search.toLowerCase().trim())
+  );
 
   return (
     <>
@@ -165,6 +168,18 @@ export default function SymptomsPage() {
             <button onClick={() => setShowForm(true)} className="btn-primary">+ Log</button>
           </div>
         </div>
+
+        {symptoms.length > 4 && (
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            <input
+              className="input pl-9 text-sm"
+              placeholder="Search symptoms…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+        )}
 
         <div className="flex items-center gap-2 flex-wrap">
           {(["all", "week", "month"] as Filter[]).map((f) => (
@@ -213,8 +228,14 @@ export default function SymptomsPage() {
           </div>
         ) : displayed.length === 0 ? (
           <div className="card text-center py-10 text-gray-400 dark:text-gray-500">
-            <p className="font-medium">No symptoms logged</p>
-            <p className="text-sm mt-1">Start tracking to spot patterns over time</p>
+            {search.trim() ? (
+              <p className="font-medium">No symptoms match &quot;{search}&quot;</p>
+            ) : (
+              <>
+                <p className="font-medium">No symptoms logged</p>
+                <p className="text-sm mt-1">Start tracking to spot patterns over time</p>
+              </>
+            )}
           </div>
         ) : (
           <div className="space-y-3">

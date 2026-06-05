@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { v4 as uuidv4 } from "uuid";
-import { Pencil, Trash2, CheckSquare, Square, Download, MoreVertical, AlertTriangle } from "lucide-react";
+import { Pencil, Trash2, CheckSquare, Square, Download, MoreVertical, AlertTriangle, Search, Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 import TopBar from "@/components/TopBar";
 import { api } from "@/lib/api";
 import { usePersonContext } from "@/contexts/PersonContext";
@@ -55,6 +55,9 @@ export default function MedicationsPage() {
   const [exportTimes, setExportTimes] = useState(() => storage.notifications.get().reminderTimes);
   const [showOverflow, setShowOverflow] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [search, setSearch] = useState("");
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [calMonthOffset, setCalMonthOffset] = useState(0);
   const today = new Date().toISOString().split("T")[0];
 
   useEffect(() => {
@@ -242,6 +245,27 @@ export default function MedicationsPage() {
   const takenDoses = meds.flatMap((m) => m.times.filter((t) => m.log[today]?.[t]));
   const progress = allDoses.length > 0 ? Math.round((takenDoses.length / allDoses.length) * 100) : 0;
 
+  const filteredMeds = search.trim()
+    ? meds.filter((m) => m.name.toLowerCase().includes(search.toLowerCase().trim()))
+    : meds;
+
+  const getDayAdherence = (dateStr: string): { taken: number; expected: number } => {
+    const dayName = new Date(dateStr + "T12:00:00").toLocaleDateString("en-US", { weekday: "long" });
+    let exp = 0, tak = 0;
+    for (const med of meds) {
+      if (med.expiresAt && dateStr > med.expiresAt.split("T")[0]) continue;
+      if (med.frequency === "As needed") continue;
+      if (isWeekly(med.frequency)) {
+        for (const time of med.times) {
+          if (time.startsWith(dayName)) { exp++; if (med.log[dateStr]?.[time]) tak++; }
+        }
+      } else if (!isMonthly(med.frequency)) {
+        for (const time of med.times) { exp++; if (med.log[dateStr]?.[time]) tak++; }
+      }
+    }
+    return { expected: exp, taken: tak };
+  };
+
   const weekly = isWeekly(form.frequency);
   const monthly = isMonthly(form.frequency);
   const asNeeded = form.frequency === "As needed";
@@ -288,6 +312,18 @@ export default function MedicationsPage() {
             )}
           </div>
         </div>
+
+        {meds.length > 3 && (
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            <input
+              className="input pl-9 text-sm"
+              placeholder="Search medications…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+        )}
 
         {showReminderExport && (
           <div className="card border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-900/10 space-y-3">
@@ -343,8 +379,92 @@ export default function MedicationsPage() {
             <p className="text-sm mt-1">Add a medication to start tracking</p>
           </div>
         ) : (
+          <>
+          {/* Adherence calendar */}
+          {meds.length > 0 && (
+            <div className="card">
+              <button
+                onClick={() => setShowCalendar((v) => !v)}
+                className="w-full flex items-center justify-between text-sm font-semibold text-gray-700 dark:text-gray-300"
+              >
+                <span className="flex items-center gap-2"><Calendar className="w-4 h-4 text-teal-500" /> Adherence Calendar</span>
+                <span className="text-xs text-gray-400">{showCalendar ? "Hide" : "Show"}</span>
+              </button>
+
+              {showCalendar && (() => {
+                const now = new Date();
+                const displayDate = new Date(now.getFullYear(), now.getMonth() + calMonthOffset, 1);
+                const year = displayDate.getFullYear();
+                const month = displayDate.getMonth();
+                const firstDow = displayDate.getDay();
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                const todayStr = now.toISOString().split("T")[0];
+
+                const cellColor = (taken: number, expected: number, isFuture: boolean): string => {
+                  if (isFuture) return "bg-gray-50 dark:bg-gray-800/40 text-gray-300 dark:text-gray-600";
+                  if (expected === 0) return "bg-gray-100 dark:bg-gray-700/50 text-gray-400 dark:text-gray-500";
+                  const pct = taken / expected;
+                  if (pct >= 1) return "bg-green-400 dark:bg-green-500 text-white";
+                  if (pct >= 0.5) return "bg-yellow-300 dark:bg-yellow-400 text-gray-800";
+                  if (pct > 0) return "bg-orange-300 dark:bg-orange-400 text-white";
+                  return "bg-red-300 dark:bg-red-400 text-white";
+                };
+
+                return (
+                  <div className="mt-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <button onClick={() => setCalMonthOffset((o) => o - 1)} className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <ChevronLeft className="w-4 h-4" />
+                      </button>
+                      <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">
+                        {displayDate.toLocaleDateString("en-IN", { month: "long", year: "numeric" })}
+                      </span>
+                      <button onClick={() => setCalMonthOffset((o) => Math.min(0, o + 1))} disabled={calMonthOffset >= 0} className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-30 disabled:cursor-default">
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-7 gap-0.5 text-center text-[10px] text-gray-400 dark:text-gray-500 mb-1">
+                      {["Su","Mo","Tu","We","Th","Fr","Sa"].map((d) => <div key={d} className="py-0.5">{d}</div>)}
+                    </div>
+                    <div className="grid grid-cols-7 gap-0.5">
+                      {Array.from({ length: firstDow }).map((_, i) => <div key={`e${i}`} />)}
+                      {Array.from({ length: daysInMonth }, (_, i) => {
+                        const day = i + 1;
+                        const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+                        const isFuture = dateStr > todayStr;
+                        const isToday = dateStr === todayStr;
+                        const { taken, expected } = isFuture ? { taken: 0, expected: 0 } : getDayAdherence(dateStr);
+                        return (
+                          <div
+                            key={day}
+                            title={!isFuture && expected > 0 ? `${taken}/${expected} doses` : undefined}
+                            className={`h-7 rounded-md flex items-center justify-center text-[11px] font-medium relative group cursor-default transition-colors ${cellColor(taken, expected, isFuture)} ${isToday ? "ring-2 ring-teal-500 ring-offset-1 dark:ring-offset-gray-800" : ""}`}
+                          >
+                            {day}
+                            {!isFuture && expected > 0 && (
+                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 bg-gray-900 text-white text-[10px] rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 z-20 pointer-events-none shadow-lg">
+                                {taken}/{expected} doses
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="flex flex-wrap gap-3 text-[10px] text-gray-500 dark:text-gray-400 pt-1 border-t border-gray-100 dark:border-gray-700">
+                      {[["bg-green-400","All taken"],["bg-yellow-300","Partial"],["bg-red-300","None taken"],["bg-gray-100 dark:bg-gray-700","No doses"]].map(([cls, lbl]) => (
+                        <span key={lbl} className="flex items-center gap-1"><span className={`w-2.5 h-2.5 rounded ${cls} inline-block`} />{lbl}</span>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+
           <div className="space-y-3">
-            {meds.map((med) => {
+            {(search.trim() && filteredMeds.length === 0) ? (
+              <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-6">No medications match &quot;{search}&quot;</p>
+            ) : filteredMeds.map((med) => {
               const todayLog = med.log[today] || {};
               return (
                 <div key={med.id} className="card">
@@ -396,6 +516,7 @@ export default function MedicationsPage() {
               );
             })}
           </div>
+          </>
         )}
       </main>
 

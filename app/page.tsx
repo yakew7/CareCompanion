@@ -2,11 +2,12 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { Pill, Activity, Calendar, FileText, Upload, Thermometer, ClipboardList, ShieldCheck, ChevronRight } from "lucide-react";
+import { Pill, Activity, Calendar, FileText, Upload, Thermometer, ClipboardList, ShieldCheck, ChevronRight, Printer, X } from "lucide-react";
+import type { Medication, VitalEntry, Appointment, Symptom } from "@/lib/storage";
 import TopBar from "@/components/TopBar";
 import { api } from "@/lib/api";
 import { usePersonContext } from "@/contexts/PersonContext";
-import type { ActivityEntry, VitalEntry, VitalType } from "@/lib/storage";
+import type { ActivityEntry, VitalType } from "@/lib/storage";
 
 interface Stats {
   medications: number;
@@ -43,6 +44,12 @@ export default function DashboardPage() {
   const [symptomSparkline, setSymptomSparkline] = useState<number[]>([]);
   const [flaggedVitals, setFlaggedVitals] = useState<{ label: string; reading: string; status: "warning" | "danger" }[]>([]);
   const [hour] = useState(new Date().getHours());
+  const [showPrint, setShowPrint] = useState(false);
+  const [reengageDismissed, setReengageDismissed] = useState(false);
+  const [daysSinceLast, setDaysSinceLast] = useState<number | null>(null);
+  const [printData, setPrintData] = useState<{
+    meds: Medication[]; vitals: VitalEntry[]; appts: Appointment[]; symptoms: Symptom[];
+  }>({ meds: [], vitals: [], appts: [], symptoms: [] });
   const [onboardingDismissed, setOnboardingDismissed] = useState(() => {
     if (typeof window !== "undefined") return localStorage.getItem("onboarding_dismissed") === "1";
     return false;
@@ -70,6 +77,14 @@ export default function DashboardPage() {
         records: records.length,
       });
       setActivity(acts.slice(0, 20));
+      setPrintData({ meds, vitals, appts, symptoms });
+
+      // Days since last logged entry
+      const lastEntry = acts[0];
+      if (lastEntry) {
+        const d = Math.floor((Date.now() - new Date(lastEntry.at).getTime()) / 86400000);
+        setDaysSinceLast(d);
+      }
 
       // 7-day symptom sparkline — max severity per day
       const sparkDays = Array.from({ length: 7 }, (_, i) => {
@@ -140,6 +155,8 @@ export default function DashboardPage() {
     localStorage.setItem("onboarding_dismissed", "1");
     setOnboardingDismissed(true);
   }
+
+  const showReengage = !isFirstUse && !reengageDismissed && daysSinceLast !== null && daysSinceLast >= 2;
 
   const neutral = "bg-gray-50 dark:bg-gray-800/60 text-gray-700 dark:text-gray-300 border-gray-100 dark:border-gray-700";
   const orange  = "bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 border-orange-100 dark:border-orange-800";
@@ -216,6 +233,25 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {showReengage && (
+          <div className="card border border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-900/10">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <p className="text-sm font-semibold text-blue-800 dark:text-blue-200">
+                  Last logged {daysSinceLast} day{daysSinceLast !== 1 ? "s" : ""} ago
+                </p>
+                <p className="text-xs text-blue-600 dark:text-blue-400 mt-0.5">Anything new to log today?</p>
+              </div>
+              <button onClick={() => setReengageDismissed(true)} className="text-blue-300 hover:text-blue-500 dark:hover:text-blue-300 text-lg leading-none flex-shrink-0">×</button>
+            </div>
+            <div className="flex flex-wrap gap-2 mt-3">
+              <Link href="/vitals" onClick={() => setReengageDismissed(true)} className="btn-primary text-xs px-3 py-1.5 flex items-center gap-1.5"><Activity className="w-3.5 h-3.5" /> Log vitals</Link>
+              <Link href="/symptoms" onClick={() => setReengageDismissed(true)} className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1.5"><Thermometer className="w-3.5 h-3.5" /> Log symptom</Link>
+              <Link href="/medications" onClick={() => setReengageDismissed(true)} className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1.5"><Pill className="w-3.5 h-3.5" /> Check meds</Link>
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-3 sm:gap-4">
           {summaryCards.map((card) => (
             <Link
@@ -270,6 +306,9 @@ export default function DashboardPage() {
             <Link href="/appointments" className="btn-secondary flex items-center gap-2">
               <Calendar className="w-4 h-4" /> Add Appointment
             </Link>
+            <button onClick={() => setShowPrint(true)} className="btn-secondary flex items-center gap-2">
+              <Printer className="w-4 h-4" /> Print Summary
+            </button>
           </div>
         </div>
 
@@ -352,6 +391,117 @@ export default function DashboardPage() {
           </p>
         </div>
       </main>
+
+      {/* ── Print Summary Modal ────────────────────────────────────────────── */}
+      {showPrint && (
+        <>
+          <style>{`@media print{*{visibility:hidden;}#print-root,#print-root *{visibility:visible;}#print-root{position:absolute;top:0;left:0;right:0;padding:24px;}}`}</style>
+          <div className="fixed inset-0 bg-black/60 z-50 flex items-start justify-center overflow-y-auto py-6 px-4">
+            <div id="print-root" className="bg-white text-gray-900 rounded-2xl w-full max-w-2xl shadow-2xl">
+              {/* Print header */}
+              <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-gray-200">
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">Health Summary</h2>
+                  <p className="text-sm text-gray-500 mt-0.5">{new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}</p>
+                </div>
+                <div className="flex items-center gap-2 print:hidden">
+                  <button onClick={() => window.print()} className="btn-primary flex items-center gap-2 text-sm">
+                    <Printer className="w-4 h-4" /> Print / Save PDF
+                  </button>
+                  <button onClick={() => setShowPrint(false)} className="p-2 text-gray-400 hover:text-gray-600 rounded-xl hover:bg-gray-100 transition-colors">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="px-6 py-5 space-y-6">
+                {/* Medications */}
+                <section>
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-3">Current Medications ({printData.meds.length})</h3>
+                  {printData.meds.length === 0 ? (
+                    <p className="text-sm text-gray-400">None recorded</p>
+                  ) : (
+                    <table className="w-full text-sm border-collapse">
+                      <thead><tr className="border-b border-gray-200"><th className="text-left pb-1.5 font-semibold text-gray-700">Medication</th><th className="text-left pb-1.5 font-semibold text-gray-700">Dose</th><th className="text-left pb-1.5 font-semibold text-gray-700">Frequency</th><th className="text-left pb-1.5 font-semibold text-gray-700">Times</th></tr></thead>
+                      <tbody>
+                        {printData.meds.map((m) => (
+                          <tr key={m.id} className="border-b border-gray-100">
+                            <td className="py-1.5 font-medium">{m.name}</td>
+                            <td className="py-1.5 text-gray-600">{m.dosage || "—"}</td>
+                            <td className="py-1.5 text-gray-600">{m.frequency}</td>
+                            <td className="py-1.5 text-gray-600">{m.times.join(", ")}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </section>
+
+                {/* Latest Vitals */}
+                {printData.vitals.length > 0 && (() => {
+                  const VITAL_LABELS: Record<string, string> = { bp:"Blood Pressure", glucose:"Blood Glucose", weight:"Weight", heart_rate:"Heart Rate", temperature:"Temperature", spo2:"SpO₂", respiratory_rate:"Resp. Rate", hba1c:"HbA1c", cholesterol:"Cholesterol", hemoglobin:"Hemoglobin", creatinine:"Creatinine", pain:"Pain Level" };
+                  const latest = new Map<string, VitalEntry>();
+                  [...printData.vitals].sort((a,b)=>new Date(b.loggedAt).getTime()-new Date(a.loggedAt).getTime()).forEach(v=>{if(!latest.has(v.type))latest.set(v.type,v);});
+                  return (
+                    <section>
+                      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-3">Latest Vitals</h3>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {Array.from(latest.entries()).map(([type, v]) => (
+                          <div key={type} className="border border-gray-200 rounded-lg px-3 py-2">
+                            <p className="text-xs text-gray-400">{VITAL_LABELS[type] ?? type}</p>
+                            <p className="text-sm font-semibold">{v.value2 != null ? `${v.value}/${v.value2}` : v.value} {v.unit}</p>
+                            <p className="text-xs text-gray-400">{new Date(v.loggedAt).toLocaleDateString("en-IN")}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  );
+                })()}
+
+                {/* Upcoming Appointments */}
+                {printData.appts.filter(a => a.status === "upcoming" && new Date(a.datetime) >= new Date()).length > 0 && (
+                  <section>
+                    <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-3">Upcoming Appointments</h3>
+                    <div className="space-y-2">
+                      {printData.appts.filter(a => a.status === "upcoming" && new Date(a.datetime) >= new Date()).slice(0,5).map(a => (
+                        <div key={a.id} className="flex items-start gap-3 border border-gray-100 rounded-lg px-3 py-2">
+                          <div className="flex-1">
+                            <p className="text-sm font-medium">{a.doctor}{a.specialty ? ` — ${a.specialty}` : ""}</p>
+                            <p className="text-xs text-gray-500">{new Date(a.datetime).toLocaleDateString("en-IN", { day:"numeric", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit" })}{a.location ? ` · ${a.location}` : ""}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                {/* Recent Symptoms */}
+                {printData.symptoms.slice(0, 10).length > 0 && (
+                  <section>
+                    <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-3">Recent Symptoms (last {printData.symptoms.slice(0,10).length})</h3>
+                    <table className="w-full text-sm border-collapse">
+                      <thead><tr className="border-b border-gray-200"><th className="text-left pb-1.5 font-semibold text-gray-700">Symptom</th><th className="text-left pb-1.5 font-semibold text-gray-700">Severity</th><th className="text-left pb-1.5 font-semibold text-gray-700">Date</th></tr></thead>
+                      <tbody>
+                        {printData.symptoms.slice(0,10).map(s => (
+                          <tr key={s.id} className="border-b border-gray-100">
+                            <td className="py-1.5 font-medium capitalize">{s.symptom}</td>
+                            <td className="py-1.5 text-gray-600">{s.severity}/5</td>
+                            <td className="py-1.5 text-gray-500">{new Date(s.loggedAt).toLocaleDateString("en-IN")}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </section>
+                )}
+
+                <footer className="pt-4 border-t border-gray-200 text-xs text-gray-400">
+                  Generated by CareCompanion · {new Date().toLocaleString("en-IN")} · For informational purposes only. Always consult a qualified healthcare professional.
+                </footer>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </>
   );
 }
