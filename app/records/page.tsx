@@ -68,6 +68,9 @@ export default function RecordsPage() {
     if (!file.name.endsWith(".pdf") && !file.name.endsWith(".txt")) {
       toast.error("Only PDF and TXT files are supported"); return;
     }
+    if (file.size > 4 * 1024 * 1024) {
+      toast.error("File too large — maximum upload size is 4 MB"); return;
+    }
     setUploading(true);
     try {
       let text = "";
