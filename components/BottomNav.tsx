@@ -9,7 +9,7 @@ import {
 
 const primary = [
   { href: "/", label: "Home", icon: LayoutDashboard },
-  { href: "/records", label: "Records", icon: FileText },
+  { href: "/records", label: "Reports", icon: FileText },
   { href: "/medications", label: "Meds", icon: Pill },
   { href: "/symptoms", label: "Symptoms", icon: Activity },
 ];

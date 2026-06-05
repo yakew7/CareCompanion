@@ -8,7 +8,7 @@ import { useTheme } from "@/lib/theme";
 
 const titles: Record<string, string> = {
   "/": "Dashboard",
-  "/records": "Records & Chat",
+  "/records": "Reports",
   "/medications": "Medications",
   "/symptoms": "Symptom Log",
   "/vitals": "Vitals",

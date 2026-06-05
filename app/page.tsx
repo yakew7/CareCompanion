@@ -11,6 +11,7 @@ import type { ActivityEntry } from "@/lib/storage";
 interface Stats {
   medications: number;
   symptomsThisWeek: number;
+  maxSymptomSeverityThisWeek: number;
   upcomingAppointments: number;
   records: number;
 }
@@ -18,7 +19,7 @@ interface Stats {
 export default function DashboardPage() {
   const { data: session } = useSession();
   const { activePersonId } = usePersonContext();
-  const [stats, setStats] = useState<Stats>({ medications: 0, symptomsThisWeek: 0, upcomingAppointments: 0, records: 0 });
+  const [stats, setStats] = useState<Stats>({ medications: 0, symptomsThisWeek: 0, maxSymptomSeverityThisWeek: 0, upcomingAppointments: 0, records: 0 });
   const [activity, setActivity] = useState<ActivityEntry[]>([]);
   const [activityFilter, setActivityFilter] = useState<"all" | "active">("all");
   const [hour] = useState(new Date().getHours());
@@ -35,9 +36,11 @@ export default function DashboardPage() {
       const weekAgo = new Date();
       weekAgo.setDate(weekAgo.getDate() - 7);
       const now = new Date();
+      const recentSymptoms = symptoms.filter((s) => new Date(s.loggedAt) >= weekAgo);
       setStats({
         medications: meds.length,
-        symptomsThisWeek: symptoms.filter((s) => new Date(s.loggedAt) >= weekAgo).length,
+        symptomsThisWeek: recentSymptoms.length,
+        maxSymptomSeverityThisWeek: recentSymptoms.reduce((max, s) => Math.max(max, s.severity), 0),
         upcomingAppointments: appts.filter((a) => a.status === "upcoming" && new Date(a.datetime) >= now).length,
         records: records.length,
       });
@@ -48,11 +51,19 @@ export default function DashboardPage() {
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   const firstName = session?.user?.name?.split(" ")[0] || "there";
 
+  const neutral = "bg-gray-50 dark:bg-gray-800/60 text-gray-700 dark:text-gray-300 border-gray-100 dark:border-gray-700";
+  const orange  = "bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 border-orange-100 dark:border-orange-800";
+  const red     = "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-100 dark:border-red-800";
+
+  const symptomColor = stats.maxSymptomSeverityThisWeek === 5 ? red
+    : stats.maxSymptomSeverityThisWeek >= 4 ? orange
+    : neutral;
+
   const summaryCards = [
-    { label: "Medications tracked", value: stats.medications, icon: Pill, href: "/medications", color: "bg-teal-50 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300 border-teal-100 dark:border-teal-800" },
-    { label: "Symptoms this week", value: stats.symptomsThisWeek, icon: Thermometer, href: "/symptoms", color: "bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border-purple-100 dark:border-purple-800" },
-    { label: "Upcoming appointments", value: stats.upcomingAppointments, icon: Calendar, href: "/appointments", color: "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-100 dark:border-blue-800" },
-    { label: "Reports uploaded", value: stats.records, icon: FileText, href: "/records", color: "bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 border-orange-100 dark:border-orange-800" },
+    { label: "Medications tracked",   value: stats.medications,           icon: Pill,       href: "/medications",  color: neutral },
+    { label: "Symptoms this week",    value: stats.symptomsThisWeek,      icon: Thermometer, href: "/symptoms",    color: symptomColor },
+    { label: "Upcoming appointments", value: stats.upcomingAppointments,  icon: Calendar,   href: "/appointments", color: neutral },
+    { label: "Reports uploaded",      value: stats.records,               icon: FileText,   href: "/records",      color: neutral },
   ];
 
   return (

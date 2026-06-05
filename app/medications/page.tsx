@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { v4 as uuidv4 } from "uuid";
-import { Pencil, Trash2, CheckSquare, Square, Download } from "lucide-react";
+import { Pencil, Trash2, CheckSquare, Square, Download, MoreVertical } from "lucide-react";
 import TopBar from "@/components/TopBar";
 import { api } from "@/lib/api";
 import { usePersonContext } from "@/contexts/PersonContext";
@@ -45,7 +45,7 @@ const emptyForm = () => ({
 });
 
 export default function MedicationsPage() {
-  const { activePersonId } = usePersonContext();
+  const { activePersonId, activePerson } = usePersonContext();
   const [meds, setMeds] = useState<Medication[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -53,6 +53,8 @@ export default function MedicationsPage() {
   const [form, setForm] = useState(emptyForm());
   const [showReminderExport, setShowReminderExport] = useState(false);
   const [exportTimes, setExportTimes] = useState(() => storage.notifications.get().reminderTimes);
+  const [showOverflow, setShowOverflow] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
   const today = new Date().toISOString().split("T")[0];
 
   useEffect(() => {
@@ -153,11 +155,11 @@ export default function MedicationsPage() {
   }
 
   async function clearAll() {
-    if (!confirm("Remove all medications for this person? This cannot be undone.")) return;
     const count = meds.length;
     await api.medications.clearAll();
     api.activity.push({ type: "medication", label: `Cleared all medications (${count} item${count !== 1 ? "s" : ""})`, at: new Date().toISOString(), deleted: true });
     setMeds([]);
+    setShowClearConfirm(false);
     toast.success("All medications cleared");
   }
 
@@ -198,19 +200,41 @@ export default function MedicationsPage() {
       <main className="p-4 sm:p-6 max-w-3xl space-y-5">
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Medications</h2>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
             {meds.length > 0 && (
-              <>
-                <button
-                  onClick={() => setShowReminderExport((v) => !v)}
-                  className="btn-secondary text-xs px-3 py-2 flex items-center gap-1.5"
-                >
-                  <Download className="w-3.5 h-3.5" /> Reminders (.ics)
-                </button>
-                <button onClick={clearAll} className="btn-danger text-xs px-3 py-2">Clear all</button>
-              </>
+              <button
+                onClick={() => setShowReminderExport((v) => !v)}
+                className="btn-secondary text-xs px-3 py-2 flex items-center gap-1.5"
+              >
+                <Download className="w-3.5 h-3.5" /> Reminders (.ics)
+              </button>
             )}
             <button onClick={openAdd} className="btn-primary">+ Add</button>
+            {meds.length > 0 && (
+              <div className="relative">
+                <button
+                  onClick={() => setShowOverflow((v) => !v)}
+                  className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors"
+                  title="More options"
+                >
+                  <MoreVertical className="w-4 h-4" />
+                </button>
+                {showOverflow && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowOverflow(false)} />
+                    <div className="absolute right-0 top-full mt-1 w-44 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-50 overflow-hidden">
+                      <button
+                        onClick={() => { setShowOverflow(false); setShowClearConfirm(true); }}
+                        className="w-full flex items-center gap-2 px-4 py-3 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        Clear all medications
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -442,6 +466,25 @@ export default function MedicationsPage() {
                 {editing ? "Save Changes" : "Add Medication"}
               </button>
               <button onClick={() => setShowModal(false)} className="btn-secondary flex-1">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showClearConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-sm shadow-xl space-y-4">
+            <div>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                Delete all medications for {activePerson?.nickname}?
+              </h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                This will permanently remove all {meds.length} medication{meds.length !== 1 ? "s" : ""}. This cannot be undone.
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={clearAll} className="btn-danger flex-1">Delete all</button>
+              <button onClick={() => setShowClearConfirm(false)} className="btn-secondary flex-1">Cancel</button>
             </div>
           </div>
         </div>

@@ -7,6 +7,8 @@ import { usePersonContext } from "@/contexts/PersonContext";
 import { PRESET_COLORS, personColorHex } from "@/lib/storage";
 import Sidebar from "@/components/Sidebar";
 import BottomNav from "@/components/BottomNav";
+import BackupReminder from "@/components/BackupReminder";
+import { markFirstUseIfNeeded } from "@/lib/backup";
 
 const DEV_SKIP_AUTH = process.env.NEXT_PUBLIC_DEV_SKIP_AUTH === "true";
 
@@ -16,11 +18,13 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
 }
 
 function AppShell({ children }: { children: React.ReactNode }) {
+  if (typeof window !== "undefined") markFirstUseIfNeeded();
   return (
     <>
       <Sidebar />
       <div className="md:ml-64 min-h-screen pb-20 md:pb-0 bg-white dark:bg-gray-900">{children}</div>
       <BottomNav />
+      <BackupReminder />
     </>
   );
 }

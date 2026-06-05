@@ -7,14 +7,17 @@ import { useState } from "react";
 import {
   LayoutDashboard, FileText, Pill, Activity, Calendar,
   Heart, LogOut, Sun, Moon, Plus, X, Check, NotebookPen, MessageCircleHeart, HeartPulse,
+  Download, Upload,
 } from "lucide-react";
+import { exportAllData, importBackup } from "@/lib/backup";
+import toast from "react-hot-toast";
 import { usePersonContext } from "@/contexts/PersonContext";
 import { PRESET_COLORS, personColorHex, getNextPersonColor } from "@/lib/storage";
 import { useTheme } from "@/lib/theme";
 
 const nav = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/records", label: "Records & Chat", icon: FileText },
+  { href: "/records", label: "Reports", icon: FileText },
   { href: "/medications", label: "Medications", icon: Pill },
   { href: "/symptoms", label: "Symptoms", icon: Activity },
   { href: "/vitals", label: "Vitals", icon: HeartPulse },
@@ -172,6 +175,36 @@ export default function Sidebar() {
           {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           {dark ? "Light mode" : "Dark mode"}
         </button>
+
+        <button
+          onClick={() => { exportAllData(); toast.success("Backup downloaded"); }}
+          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl transition-colors"
+        >
+          <Download className="w-4 h-4" />
+          Export data
+        </button>
+
+        <label className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl transition-colors cursor-pointer">
+          <Upload className="w-4 h-4" />
+          Import backup
+          <input
+            type="file"
+            accept=".json"
+            className="sr-only"
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              try {
+                const { personsRestored } = await importBackup(file);
+                toast.success(`Restored ${personsRestored} person${personsRestored !== 1 ? "s" : ""} — reloading…`);
+                setTimeout(() => window.location.reload(), 1200);
+              } catch {
+                toast.error("Could not read backup file");
+              }
+              e.target.value = "";
+            }}
+          />
+        </label>
 
         <div className="flex items-center gap-3 px-2">
           {session?.user?.image ? (
