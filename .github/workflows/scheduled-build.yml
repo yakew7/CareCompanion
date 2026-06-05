@@ -1,0 +1,35 @@
+name: Scheduled build check
+
+on:
+  schedule:
+    - cron: "0 3 * * 3"  # every Wednesday at 3 am UTC
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Lint & build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+        env:
+          GROQ_API_KEY: placeholder
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "::warning::Scheduled build failed — a dependency or Node.js update may have broken the build. Check the logs above."
