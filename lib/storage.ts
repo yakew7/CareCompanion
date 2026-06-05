@@ -247,7 +247,6 @@ export const storage = {
   records: {
     getAll: (personId: string) => getList<MedicalRecord>(pk("records", personId)),
     save: (r: MedicalRecord, personId: string) => {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { text: _t, ...rest } = r;
       upsert(pk("records", personId), { ...rest, text: "" } as MedicalRecord, true);
     },
