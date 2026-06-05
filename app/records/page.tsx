@@ -300,7 +300,7 @@ export default function RecordsPage() {
                 <>
                   <Upload className="w-7 h-7 text-gray-400 dark:text-gray-500 mx-auto mb-2" />
                   <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Drop a report here or tap to upload</p>
-                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">PDF or TXT files</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">PDF or TXT files · Max 4 MB</p>
                   <p className="flex items-center justify-center gap-1 text-xs text-gray-400 dark:text-gray-500 mt-2">
                     <Shield className="w-3 h-3" /> Report text is never stored
                   </p>
