@@ -4,7 +4,8 @@
 
 | Version | Supported |
 |---|---|
-| 1.0.0 (current) | ✅ |
+| 1.1.0 (current) | ✅ |
+| 1.0.0 | ✅ |
 | Pre-release dev builds | ❌ Not supported |
 
 ---
@@ -68,7 +69,8 @@ No health data, no patient names, no medical records are stored in Supabase.
 
 - **localStorage is not encrypted.** Anyone with physical access to the device and browser dev tools can read stored health data. Do not use this app on a shared or public device without clearing browser data afterward.
 - **Web Notifications work while the tab is open** (or when the PWA is installed on Android Chrome). iOS Safari does not support background push for web apps.
-- **No data backup.** Clearing browser data permanently deletes all health records. There is no cloud sync or export feature beyond .ics for appointments.
+- **localStorage can be cleared.** Clearing browser data or switching browsers permanently deletes all health records on that device. Use the **Export data** feature in the sidebar to download a local JSON backup regularly. The backup file lives only on your device and is never uploaded to any server. Use **Import backup** to restore from a saved file.
+- **Data is per-browser, not per-device.** Each browser (Chrome, Firefox, Safari) has its own localStorage. To move data to a new device or browser, export from the old one and import on the new one.
 - **AI responses are informational only.** CareCompanion is not a medical device and does not provide medical advice.
 
 ---

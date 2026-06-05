@@ -9,16 +9,16 @@ import {
 
 const primary = [
   { href: "/", label: "Home", icon: LayoutDashboard },
-  { href: "/records", label: "Reports", icon: FileText },
   { href: "/medications", label: "Meds", icon: Pill },
   { href: "/symptoms", label: "Symptoms", icon: Activity },
+  { href: "/chat", label: "Ask AI", icon: MessageCircleHeart },
 ];
 
 const overflow = [
+  { href: "/records", label: "Reports", icon: FileText },
   { href: "/vitals", label: "Vitals", icon: HeartPulse },
   { href: "/appointments", label: "Appointments", icon: Calendar },
   { href: "/notes", label: "Notes", icon: NotebookPen },
-  { href: "/chat", label: "Ask AI", icon: MessageCircleHeart },
 ];
 
 export default function BottomNav() {

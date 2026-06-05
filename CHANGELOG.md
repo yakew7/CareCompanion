@@ -5,6 +5,42 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.1.0] — 2026-06-05
+
+### Added
+
+- **Data export / import** — Export all data for all people as a single JSON backup file; import from a previous backup to restore everything. Backup lives only on the user's device and is never uploaded anywhere.
+- **Per-account data scoping** — Each Google account's people list and active-person pointer are namespaced by user email in localStorage. Signing in with a different account no longer shows another user's data. Existing data is migrated to the current user's namespace automatically on first login.
+- **7-day backup reminder** — A persistent, dismissible banner appears after 7 days of first use prompting the user to export a backup.
+- **Dashboard passive data overlays** — Medication adherence % for the past 7 days shown on the Medications stat card; 7-day symptom severity sparkline on the Symptoms card; a "Vitals needing attention" banner surfaces any Watch or High vital readings directly on the dashboard.
+- **Vitals page hierarchy** — Blood Pressure and Blood Glucose pinned at the top as larger featured cards. Weight, Heart Rate, and Temperature in a standard grid. SpO₂ and Respiratory Rate collapsed into an expandable "Additional readings" section.
+- **Vital card left-border accent** — When a reading exists, the card shows a green/amber/red left border matching the Normal/Watch/High status.
+- **Calibrated symptom severity anchors** — The 1–5 severity slider now shows a coloured description chip that updates in real time: 1 = Barely noticeable, 2 = Mild, 3 = Moderate, 4 = Severe, 5 = Emergency-level.
+- **Dynamic Health Assistant prompts** — Suggested prompt chips are generated from the patient's actual data (medications, recent high-severity symptoms, HbA1c, BP, glucose readings) instead of static generic questions.
+- **Records page 25/75 layout** — Left panel (upload + list) reduced to 25%; right panel (summary + chat) expanded to 75% with an improved empty state.
+- **Appointments single empty state** — When no appointments exist, a single empty state with a clear call-to-action is shown instead of the previous two stacked empty cards.
+- **Mobile bottom nav with More overflow** — Primary nav: Home, Meds, Symptoms, Ask AI, More. More sheet: Reports, Vitals, Appointments, Notes. Ask AI is directly accessible from the primary bar.
+- **Top bar shows active person** — The top bar on every page shows the active person's avatar and nickname instead of a repeated page title.
+- **Clear activity log** — A "Clear" button on the Recent Activity section wipes the log without navigating away.
+- **Export data / Import backup in sidebar** — One-click export and file-picker import available in the desktop sidebar for all users.
+- **ICS inline help** — The calendar import instructions now appear inline inside the `.ics` export panel on the Medications page, not buried in the dashboard Quick Help.
+- **Dark mode `aria-label`** — The dark mode toggle in the top bar now has an accessible `aria-label` and a smooth icon transition animation.
+
+### Changed
+
+- Renamed **"Records & Chat"** to **"Reports"** everywhere (sidebar, top bar, bottom nav, page metadata).
+- Dashboard stat cards now use a single neutral colour by default; the Symptoms card turns orange (severity ≥ 4) or red (severity 5).
+- Medications **"Clear all"** moved from the main action row (adjacent to "+ Add") into a three-dot overflow menu with a named confirmation dialog ("Delete all medications for [Name]?").
+- Section label casing standardised — all section dividers now use the same `uppercase tracking-wide text-xs` style throughout the app.
+- **"Today's doses"** label in Medications now uses the same small muted uppercase style as other section labels.
+
+### Fixed
+
+- Two empty states stacking on the Appointments page when no appointments exist.
+- No mobile navigation on inner pages — the bottom nav is now rendered globally via the app shell.
+
+---
+
 ## [1.0.0] — 2026-06-04
 
 First public stable release.
