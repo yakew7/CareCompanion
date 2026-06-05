@@ -1,12 +1,13 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, FileText, Pill, Calendar, HeartPulse } from "lucide-react";
+import { LayoutDashboard, FileText, Pill, Activity, HeartPulse, Calendar } from "lucide-react";
 
 const nav = [
   { href: "/", label: "Home", icon: LayoutDashboard },
   { href: "/records", label: "Records", icon: FileText },
   { href: "/medications", label: "Meds", icon: Pill },
+  { href: "/symptoms", label: "Symptoms", icon: Activity },
   { href: "/vitals", label: "Vitals", icon: HeartPulse },
   { href: "/appointments", label: "Appts", icon: Calendar },
 ];
