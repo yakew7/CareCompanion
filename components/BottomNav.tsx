@@ -4,8 +4,9 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
   LayoutDashboard, FileText, Pill, Activity,
-  HeartPulse, Calendar, NotebookPen, MessageCircleHeart, MoreHorizontal, X,
+  HeartPulse, Calendar, NotebookPen, MessageCircleHeart, MoreHorizontal, X, Globe,
 } from "lucide-react";
+import toast from "react-hot-toast";
 
 const primary = [
   { href: "/", label: "Home", icon: LayoutDashboard },
@@ -24,6 +25,10 @@ const overflow = [
 export default function BottomNav() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [timezone, setTimezone] = useState(() => {
+    if (typeof window !== "undefined") return localStorage.getItem("cc_timezone") || "Asia/Kolkata";
+    return "Asia/Kolkata";
+  });
 
   const overflowActive = overflow.some((i) => i.href === pathname);
 
@@ -82,6 +87,34 @@ export default function BottomNav() {
                   {label}
                 </Link>
               ))}
+            </div>
+            <div className="border-t border-gray-100 dark:border-gray-700 px-4 py-3">
+              <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 mb-1.5">
+                <Globe className="w-3.5 h-3.5 flex-shrink-0" />
+                <span>Timezone</span>
+              </div>
+              <select
+                value={timezone}
+                onChange={(e) => {
+                  const tz = e.target.value;
+                  setTimezone(tz);
+                  localStorage.setItem("cc_timezone", tz);
+                  toast.success("Timezone updated");
+                }}
+                className="w-full text-xs rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-2 py-2"
+              >
+                <option value="Asia/Kolkata">IST — India (+5:30)</option>
+                <option value="Asia/Dubai">GST — Gulf (+4)</option>
+                <option value="Asia/Singapore">SGT — Singapore (+8)</option>
+                <option value="Asia/Tokyo">JST — Japan (+9)</option>
+                <option value="Australia/Sydney">AEST — Sydney (+10/11)</option>
+                <option value="Europe/London">GMT/BST — London</option>
+                <option value="Europe/Paris">CET — Europe (+1)</option>
+                <option value="America/New_York">ET — New York</option>
+                <option value="America/Chicago">CT — Chicago</option>
+                <option value="America/Los_Angeles">PT — Los Angeles</option>
+                <option value="Pacific/Auckland">NZST — Auckland (+12)</option>
+              </select>
             </div>
           </div>
         </>

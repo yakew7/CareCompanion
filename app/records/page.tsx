@@ -185,6 +185,9 @@ export default function RecordsPage() {
   async function reExtractFromFile(file: File) {
     const record = records.find((r) => r.id === reExtractRecordId);
     if (!record) return;
+    if (file.name !== record.name) {
+      toast(`Re-extracting from "${file.name}" — this differs from the original "${record.name}". Proceeding anyway.`, { icon: "⚠️" });
+    }
     if (!file.name.endsWith(".pdf") && !file.name.endsWith(".txt")) {
       toast.error("Only PDF and TXT files are supported");
       setReExtractRecordId(null);
@@ -461,17 +464,22 @@ export default function RecordsPage() {
                           <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{formatDateIST(r.uploadedAt)}</p>
                         </div>
                       </div>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); triggerReExtract(r); }}
-                        title="Re-extract data from this report"
-                        className="p-1 text-gray-300 dark:text-gray-600 hover:text-teal-500 dark:hover:text-teal-400 transition-colors flex-shrink-0"
-                      >
-                        <RefreshCw className="w-3.5 h-3.5" />
-                      </button>
-                      <button onClick={(e) => { e.stopPropagation(); deleteRecord(r.id); }}
-                        className="p-1 text-gray-300 dark:text-gray-600 hover:text-red-400 transition-colors flex-shrink-0">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); triggerReExtract(r); }}
+                          title="Re-extract data from this report"
+                          className="p-2.5 -m-1 text-gray-300 dark:text-gray-600 hover:text-teal-500 dark:hover:text-teal-400 transition-colors"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); deleteRecord(r.id); }}
+                          title="Delete this report"
+                          className="p-2.5 -m-1 text-gray-300 dark:text-gray-600 hover:text-red-400 transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   </li>
                 ))}
