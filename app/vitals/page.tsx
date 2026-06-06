@@ -207,9 +207,19 @@ export default function VitalsPage() {
     toast.success("Custom range cleared");
   }
 
+  const VITAL_DEFAULTS: Partial<Record<VitalType, { value: string; value2?: string }>> = {
+    bp:             { value: "120", value2: "80" },
+    heart_rate:     { value: "72" },
+    temperature:    { value: "36.6" },
+    spo2:           { value: "98" },
+    respiratory_rate: { value: "16" },
+    pain:           { value: "3" },
+  };
+
   function openLog(type: VitalType) {
     setLogType(type);
-    setForm({ value: "", value2: "", notes: "" });
+    const d = VITAL_DEFAULTS[type] || {};
+    setForm({ value: d.value || "", value2: d.value2 || "", notes: "" });
     setCholForm({ total: "", ldl: "", hdl: "", tg: "" });
   }
 

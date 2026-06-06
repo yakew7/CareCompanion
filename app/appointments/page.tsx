@@ -182,15 +182,15 @@ export default function AppointmentsPage() {
     toast.success("Follow-up appointment created");
   }
 
-  const now = new Date();
+  const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
   const q = search.toLowerCase().trim();
   const matchesSearch = (a: Appointment) =>
     !q || a.doctor.toLowerCase().includes(q) || a.specialty.toLowerCase().includes(q) || a.location.toLowerCase().includes(q);
   const upcoming = appointments
-    .filter((a) => a.status === "upcoming" && new Date(a.datetime) >= now && matchesSearch(a))
+    .filter((a) => a.status === "upcoming" && new Date(a.datetime) >= todayStart && matchesSearch(a))
     .sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime());
   const past = appointments
-    .filter((a) => (a.status !== "upcoming" || new Date(a.datetime) < now) && matchesSearch(a))
+    .filter((a) => (a.status !== "upcoming" || new Date(a.datetime) < todayStart) && matchesSearch(a))
     .sort((a, b) => new Date(b.datetime).getTime() - new Date(a.datetime).getTime());
 
   function AppCard({ appt }: { appt: Appointment }) {

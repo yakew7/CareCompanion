@@ -2,7 +2,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { v4 as uuidv4 } from "uuid";
-import { scopedPersons, Person, PersonColor } from "@/lib/storage";
+import { scopedPersons, storage, Person, PersonColor } from "@/lib/storage";
 
 const DEV_SKIP_AUTH = process.env.NEXT_PUBLIC_DEV_SKIP_AUTH === "true";
 
@@ -49,6 +49,7 @@ export function PersonProvider({ children }: { children: React.ReactNode }) {
     setPersons(p);
     setActivePersonIdState(validId);
     if (validId !== storedId) ps.setActiveId(validId);
+    storage.persons.setActiveId(validId); // keep unscoped key in sync for api.ts
     setPersonsLoading(false);
   }, [userKey, sessionReady]);
 
@@ -62,6 +63,7 @@ export function PersonProvider({ children }: { children: React.ReactNode }) {
 
   const switchPerson = useCallback((id: string) => {
     scopedPersons(userKey).setActiveId(id);
+    storage.persons.setActiveId(id); // keep unscoped key in sync for api.ts
     setActivePersonIdState(id);
   }, [userKey]);
 
@@ -73,6 +75,7 @@ export function PersonProvider({ children }: { children: React.ReactNode }) {
     setPersons(updated);
     if (!ps.getActiveId()) {
       ps.setActiveId(p.id);
+      storage.persons.setActiveId(p.id);
       setActivePersonIdState(p.id);
     }
     return p;
@@ -86,6 +89,7 @@ export function PersonProvider({ children }: { children: React.ReactNode }) {
     if (activePersonId === id) {
       const newId = remaining[0]?.id || "";
       ps.setActiveId(newId);
+      storage.persons.setActiveId(newId);
       setActivePersonIdState(newId);
     }
   }, [userKey, activePersonId]);

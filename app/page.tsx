@@ -72,7 +72,7 @@ function DashSparkline({ values }: { values: number[] }) {
 
 export default function DashboardPage() {
   const { data: session } = useSession();
-  const { activePersonId } = usePersonContext();
+  const { activePersonId, activePerson } = usePersonContext();
   const [stats, setStats] = useState<Stats>({ medications: 0, symptomsThisWeek: 0, maxSymptomSeverityThisWeek: 0, upcomingAppointments: 0, records: 0 });
   const [activity, setActivity] = useState<ActivityEntry[]>([]);
   const [activityFilter, setActivityFilter] = useState<ActivityFilterType>(() => {
@@ -112,7 +112,7 @@ export default function DashboardPage() {
         medications: meds.length,
         symptomsThisWeek: recentSymptoms.length,
         maxSymptomSeverityThisWeek: recentSymptoms.reduce((max, s) => Math.max(max, s.severity), 0),
-        upcomingAppointments: appts.filter((a) => a.status === "upcoming" && new Date(a.datetime) >= now).length,
+        upcomingAppointments: appts.filter((a) => a.status === "upcoming" && new Date(a.datetime) >= new Date(new Date().setHours(0,0,0,0))).length,
         records: records.length,
       });
       setActivity(acts.slice(0, 20));
@@ -171,7 +171,7 @@ export default function DashboardPage() {
   }, [activePersonId]);
 
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
-  const firstName = session?.user?.name?.split(" ")[0] || "there";
+  const firstName = activePerson?.nickname || session?.user?.name?.split(" ")[0] || "there";
 
   const isFirstUse = !onboardingDismissed
     && stats.medications === 0
