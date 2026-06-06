@@ -21,6 +21,7 @@ function NoteSection({
   loading,
   onAdd,
   onDelete,
+  onEdit,
   onClearAll,
   accentClass,
 }: {

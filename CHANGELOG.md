@@ -5,6 +5,47 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.2.0] — 2026-06-06
+
+### Added
+
+- **Rename / recolor profiles** — Pencil icon appears on hover next to each person in the sidebar People section; opens an inline form to change nickname and colour. No more being stuck with "Demo".
+- **Symptom edit dialog** — Pencil icon on every symptom card opens a modal to change severity, update notes, or correct the entry without deleting and re-adding.
+- **Note edit button** — Pencil icon on every note card (Dietary and Other) allows inline editing; replaces the note in-place on save.
+- **Timezone on mobile** — Timezone selector now appears in the More sheet of the bottom nav; previously only accessible in the desktop sidebar.
+- **Timezone live-update** — Changing timezone immediately re-renders all displayed timestamps on the current page without requiring navigation or a reload.
+- **Activity filter persistence** — Selected activity filter (All / Active / Meds / Vitals / Reports / Symptoms) is saved to localStorage and restored on next visit.
+- **Re-extract confirmation dialog** — Clicking ↺ on a report now opens a small modal explaining that the user needs to re-select the original PDF, instead of immediately opening a silent file picker. A filename-mismatch warning fires if the selected file differs from the record name.
+- **Reports page heading** — "Reports" heading added to the left panel, consistent with all other pages.
+
+### Changed
+
+- **Adherence calendar** — Days before a medication was added now show as grey "No doses scheduled" instead of red "None taken". Each medication records its creation date and the calendar only tracks from that day forward.
+- **Home adherence %** — Weekly adherence calculation now excludes days before each medication was added, preventing artificially low percentages for recently added medications.
+- **Appointments section boundary** — Upcoming vs Past split now uses start-of-today (midnight) instead of exact current time; same-day appointments always appear in Upcoming regardless of the scheduled hour.
+- **Dashboard greeting** — Shows the active profile's nickname ("Good afternoon, Mom") instead of the signed-in Google account's name or the fallback "there". Populates immediately on first render from cached localStorage.
+- **AI severity scale** — Health assistant system prompt now includes the full 1–5 severity scale definition so it never asks "what does severity 3 mean?" when discussing symptoms.
+- **Dose time format** — Taken-at time on medication dose buttons now displays in 12-hour format ("2:13 PM") consistent with the rest of the app.
+- **Vital log defaults** — Blood Pressure fields open pre-filled with 120 / 80; Heart Rate with 72; Temperature with 36.6; SpO₂ with 98; Respiratory Rate with 16; Pain with 3. Submitting without editing uses the pre-filled value.
+- **Activity filter pill** — Selected filter pill changed from teal-100/teal-700 (low contrast, ~4.6:1) to solid teal-600 background with white text for clear WCAG AA compliance at small size.
+- **Report button touch targets** — Re-extract (↺) and Delete (🗑) buttons now have `p-2.5` padding and `gap-2` separation, meeting the 44×44 px minimum touch target guideline.
+- **Notes + Add touch target** — Slightly larger padding (`px-4 py-2`) on the Dietary and Other "+ Add" buttons.
+- **Vitals range modal buttons** — When all three buttons (Save Target / Clear / Cancel) are present, each gets `flex-1` so they share space equally instead of Save stretching to fill the row.
+- **Sliders icon** — SlidersHorizontal icon on vital cards without a custom range upgraded from `text-gray-300 w-3 h-3` to `text-gray-400 w-3.5 h-3.5` for better discoverability.
+- **Onboarding step 1** — Text updated to "On mobile: tap the avatar in the top bar. On desktop: use the People section in the sidebar." — previously only described the mobile flow.
+- **Node.js** — CI and local dev now target Node.js 24 (up from 20); aligns with GitHub Actions deprecation timeline and the `pdfjs-dist ≥ 22` engine requirement.
+
+### Fixed
+
+- **Profile data isolation** — Switching profiles now correctly re-scopes all API reads. Root cause: `api.ts` read the active person ID from the unscoped `activePerson` localStorage key while `PersonContext` wrote to a user-scoped key (`activePerson__u:email`); the two keys were never in sync. Fixed by syncing the unscoped key whenever the context updates.
+- **More sheet stays open after navigation** — Bottom nav More sheet now closes immediately when the pathname changes using a render-time derived state reset (avoids the React "setState during render" warning that the previous `useEffect` approach triggered).
+- **Appointments calendar crash** — `WeekView` and `MonthView` inner functions now declare their own `const now = new Date()` rather than relying on the outer-scope variable that was removed during the day-boundary refactor.
+- **TypeScript build error in vitals page** — `VITAL_DEFAULTS[type] || {}` produced a type error because `{}` was not assignable to the defaults shape; fixed with an explicit cast.
+- **CI dependency-review failure** — Removed `.github/workflows/dependency-review.yml`; the action requires GitHub Advanced Security which is not available on this repository.
+- **Dependabot PRs** — Merged all 7 open Dependabot PRs (Next.js 14.2.35, eslint-config-next 14.2.35, groq-sdk 0.37.0, actions/checkout v6, actions/setup-node v6, actions/stale v10, actions/dependency-review-action v5).
+
+---
+
 ## [1.1.0] — 2026-06-05
 
 ### Added

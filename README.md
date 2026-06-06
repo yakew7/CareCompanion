@@ -1,6 +1,6 @@
 # CareCompanion
 
-[![Version](https://img.shields.io/badge/version-1.1.0-blue)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.2.0-blue)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 A health tracking app built for family caregivers. Upload medical reports, track medications, log symptoms, manage appointments, and store dietary and other notes — all in one place, with AI-powered summaries, pattern analysis, and a health assistant that knows the patient's full context.
@@ -12,7 +12,9 @@ A health tracking app built for family caregivers. Upload medical reports, track
 ### Multi-person profiles
 - Track as many family members as you need, each with a colour-coded avatar
 - Switch between people in the sidebar (desktop) or top-bar dropdown (mobile) — all data is fully isolated per person **and per Google account**
+- **Rename or recolor** any profile at any time via the pencil icon in the sidebar People section
 - Each signed-in Google account sees only its own people and data; two accounts on the same browser never share records
+- Dashboard greeting uses the active profile's nickname ("Good morning, Mom") — updates instantly when you switch
 
 ### Medical reports
 - Upload PDF or TXT reports and get a plain-English AI summary split into three sections: **Summary**, **Dietary Notes**, and **Other Notes**
@@ -23,6 +25,8 @@ A health tracking app built for family caregivers. Upload medical reports, track
 ### Medications
 - Track daily, weekly (specific days of week), and monthly medications with customisable times (Morning / Afternoon / Evening / Night)
 - One-tap dose logging with a daily progress bar and adherence percentage
+- Dose log shows taken time in 12-hour format (e.g. "2:13 PM")
+- Adherence calendar and home % only count days from when the medication was first added — no false "missed dose" red marks for days before the med existed
 - Optional course duration — medication auto-removes itself after N days
 - Understands Indian prescription notation (1-0-1, 0-0-1, 1-1-1 etc.) when extracted from reports
 - Export recurring `.ics` calendar reminders with VALARM alerts — imports into Apple Calendar or Google Calendar with native pop-up alerts
@@ -35,17 +39,19 @@ A health tracking app built for family caregivers. Upload medical reports, track
   - **3** — Moderate, disrupting normal routine
   - **4** — Severe, significant distress
   - **5** — Emergency-level, seek medical attention
-- AI pattern analysis across recent entries to surface trends
+- AI pattern analysis across recent entries to surface trends — AI is briefed on the 1–5 scale so it never asks "what does severity 3 mean?"
 - Colour-coded severity indicator updates in real time as you set the slider
+- **Edit any logged symptom** via the pencil icon — change severity, update notes, or correct the entry without deleting and re-adding
 
 ### Appointments
-- Track upcoming and past/cancelled appointments
+- Track upcoming and past/cancelled appointments; section boundary is start-of-today so same-day appointments always show as Upcoming, not Past
 - AI-suggested follow-up appointments generated from post-visit notes
 - Export any appointment or all appointments as `.ics` — opens in Apple Calendar, Google Calendar, and any standard calendar app
 
 ### Notes
 - Dedicated **Dietary** and **Other** sections for doctor instructions and care notes
 - Auto-populated from uploaded reports; manual add supported
+- **Edit any note** via the pencil icon to fix typos or update instructions without deleting and re-adding
 - Notes from multiple reports accumulate over time
 
 ### Vitals
@@ -76,7 +82,7 @@ A health tracking app built for family caregivers. Upload medical reports, track
   - 7-day symptom severity sparkline on the Symptoms card (when data exists)
   - Flagged vitals banner below the cards whenever any reading is in Watch or High range — links directly to the Vitals page
 - Cards are semantically coloured: neutral when everything is normal; orange if any recent symptom reaches severity ≥ 4; red if severity 5
-- Recent Activity log with filter toggle (All / Active only) and a Clear button
+- Recent Activity log with filter toggle (All / Active / Meds / Vitals / Reports / Symptoms); selected filter persists across reloads; type filters hide deleted entries
 - Quick Actions: Upload Report, Log Symptom, Add Medication, Add Appointment
 
 ### Data backup and restore
@@ -92,6 +98,11 @@ A health tracking app built for family caregivers. Upload medical reports, track
 
 ### PWA support
 - Service Worker + Web App Manifest — installable on Android Chrome for home-screen access and near-native notifications
+
+### Timezone
+- User-selectable timezone (11 options covering IST, Gulf, Singapore, Tokyo, Sydney, London, Europe, US East/Central/West, Auckland)
+- Accessible on **both mobile** (More sheet in bottom nav) and desktop (sidebar)
+- Changing timezone live-updates all displayed timestamps on the current page without requiring a reload
 
 ### Dark mode
 - Toggleable from the sidebar (desktop) or the top bar (mobile/all pages), persisted across sessions
@@ -128,7 +139,7 @@ A health tracking app built for family caregivers. Upload medical reports, track
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js 24+
 - A [Groq API key](https://console.groq.com) (free tier is sufficient)
 - A Google OAuth client (via [Google Cloud Console](https://console.cloud.google.com))
 - A [Supabase](https://supabase.com) project (used for auth session storage only)
