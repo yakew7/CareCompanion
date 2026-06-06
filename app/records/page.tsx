@@ -407,8 +407,12 @@ export default function RecordsPage() {
       <div className="flex overflow-hidden" style={{ height: "calc(100vh - 3.5rem)" }}>
         {/* Reports list panel */}
         <div className={`${mobileView === "list" ? "flex" : "hidden"} md:flex flex-col w-full md:w-[25%] flex-shrink-0 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 overflow-y-auto`}>
+          {/* Heading */}
+          <div className="px-4 pt-4 pb-2 flex-shrink-0">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Reports</h2>
+          </div>
           {/* Upload zone */}
-          <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
+          <div className="px-4 pb-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
             <div
               className={`border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-colors ${
                 dragOver ? "border-teal-400 bg-teal-50 dark:bg-teal-900/20" : "border-gray-300 dark:border-gray-600 hover:border-teal-400 hover:bg-gray-50 dark:hover:bg-gray-800"

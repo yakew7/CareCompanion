@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import ReactMarkdown from "react-markdown";
 import { v4 as uuidv4 } from "uuid";
-import { Trash2, Sparkles, Search, TrendingUp } from "lucide-react";
+import { Trash2, Sparkles, Search, TrendingUp, Pencil } from "lucide-react";
 import TopBar from "@/components/TopBar";
 import { api } from "@/lib/api";
 import { usePersonContext } from "@/contexts/PersonContext";
@@ -106,6 +106,7 @@ export default function SymptomsPage() {
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [search, setSearch] = useState("");
   const [form, setForm] = useState({ symptom: "", severity: 3, notes: "", loggedAt: nowIST() });
+  const [editSymptom, setEditSymptom] = useState<Symptom | null>(null);
 
   useEffect(() => {
     if (!activePersonId) return;
@@ -141,6 +142,15 @@ export default function SymptomsPage() {
     setShowForm(false);
     setForm({ symptom: "", severity: 3, notes: "", loggedAt: nowIST() });
     toast.success("Symptom logged");
+  }
+
+  async function saveEdit() {
+    if (!editSymptom) return;
+    const updated = { ...editSymptom };
+    await api.symptoms.save(updated);
+    setSymptoms(await api.symptoms.getAll());
+    setEditSymptom(null);
+    toast.success("Symptom updated");
   }
 
   function deleteSymptom(id: string) {
@@ -341,12 +351,16 @@ export default function SymptomsPage() {
                         {s.notes && <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{s.notes}</p>}
                         <p className="text-xs text-gray-400 dark:text-gray-500 mt-1.5">{formatIST(s.loggedAt)}</p>
                       </div>
-                      <button
-                        onClick={() => deleteSymptom(s.id)}
-                        className="p-1.5 text-gray-300 dark:text-gray-600 hover:text-red-400 transition-colors rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 flex-shrink-0"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex gap-1 flex-shrink-0">
+                        <button onClick={() => setEditSymptom({ ...s })}
+                          className="p-1.5 text-gray-300 dark:text-gray-600 hover:text-teal-500 transition-colors rounded-lg hover:bg-teal-50 dark:hover:bg-teal-900/20">
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => deleteSymptom(s.id)}
+                          className="p-1.5 text-gray-300 dark:text-gray-600 hover:text-red-400 transition-colors rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </SwipeCard>
@@ -395,6 +409,35 @@ export default function SymptomsPage() {
             <div className="flex gap-3 pt-2">
               <button onClick={saveSymptom} className="btn-primary flex-1">Log Symptom</button>
               <button onClick={() => setShowForm(false)} className="btn-secondary flex-1">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit symptom modal */}
+      {editSymptom && (
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4" onClick={() => setEditSymptom(null)}>
+          <div className="bg-white dark:bg-gray-800 rounded-t-2xl sm:rounded-2xl p-6 w-full sm:max-w-md shadow-xl space-y-4" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">Edit Symptom</h3>
+            <div>
+              <label className="label">Symptom</label>
+              <input className="input" value={editSymptom.symptom}
+                onChange={(e) => setEditSymptom({ ...editSymptom, symptom: e.target.value })} />
+            </div>
+            <div>
+              <label className="label">Severity: {editSymptom.severity}/5 — {SEVERITY_LABELS[editSymptom.severity]}</label>
+              <input type="range" min={1} max={5} value={editSymptom.severity}
+                onChange={(e) => setEditSymptom({ ...editSymptom, severity: Number(e.target.value) })}
+                className="w-full accent-teal-600" />
+            </div>
+            <div>
+              <label className="label">Notes (optional)</label>
+              <textarea className="input resize-none" rows={2} value={editSymptom.notes}
+                onChange={(e) => setEditSymptom({ ...editSymptom, notes: e.target.value })} />
+            </div>
+            <div className="flex gap-3 pt-2">
+              <button onClick={saveEdit} className="btn-primary flex-1">Save</button>
+              <button onClick={() => setEditSymptom(null)} className="btn-secondary flex-1">Cancel</button>
             </div>
           </div>
         </div>

@@ -25,6 +25,7 @@ export interface Medication {
   notes: string;
   log: Record<string, Record<string, boolean | string>>; // string = "HH:MM" actual take time
   expiresAt?: string; // ISO date — auto-deleted after this date
+  createdAt?: string; // ISO date — first day to track adherence from
 }
 
 export interface Symptom {

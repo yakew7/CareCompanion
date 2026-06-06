@@ -185,7 +185,7 @@ export default function MedicationsPage() {
     const expiresAt = form.durationDays !== "" && days > 0
       ? new Date(Date.now() + days * 86400000).toISOString()
       : form.durationDays === "" ? editing?.expiresAt : undefined;
-    const med: Medication = { id: editing?.id || uuidv4(), name: form.name, dosage: form.dosage, frequency: form.frequency, times, notes: form.notes, log: editing?.log || {}, expiresAt };
+    const med: Medication = { id: editing?.id || uuidv4(), name: form.name, dosage: form.dosage, frequency: form.frequency, times, notes: form.notes, log: editing?.log || {}, expiresAt, createdAt: editing?.createdAt || new Date().toISOString().split("T")[0] };
     await api.medications.save(med);
     if (!editing) api.activity.push({ type: "medication", label: `Added medication: ${med.name}`, at: new Date().toISOString() });
     const refreshed = await api.medications.getAll();
@@ -319,6 +319,7 @@ export default function MedicationsPage() {
     const dayName = new Date(dateStr + "T12:00:00").toLocaleDateString("en-US", { weekday: "long" });
     let exp = 0, tak = 0;
     for (const med of meds) {
+      if (med.createdAt && dateStr < med.createdAt) continue;
       if (med.expiresAt && dateStr > med.expiresAt.split("T")[0]) continue;
       if (med.frequency === "As needed") continue;
       if (isWeekly(med.frequency)) {

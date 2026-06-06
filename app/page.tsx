@@ -141,6 +141,7 @@ export default function DashboardPage() {
         sparkDays.forEach((day) => {
           meds.forEach((med) => {
             if (med.times.length === 0) return;
+            if (med.createdAt && day < med.createdAt) return;
             expected += med.times.length;
             taken += med.times.filter((t) => med.log[day]?.[t]).length;
           });
@@ -358,7 +359,7 @@ export default function DashboardPage() {
                 onClick={() => { setActivityFilter(f.value); localStorage.setItem("cc_activity_filter", f.value); }}
                 className={`px-2.5 py-0.5 rounded-full whitespace-nowrap flex-shrink-0 transition-colors ${
                   activityFilter === f.value
-                    ? "bg-teal-100 dark:bg-teal-900/50 text-teal-700 dark:text-teal-300 font-medium"
+                    ? "bg-teal-600 dark:bg-teal-700 text-white font-medium"
                     : "text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
                 }`}
               >{f.label}</button>
