@@ -14,6 +14,7 @@ interface PersonContextValue {
   switchPerson: (id: string) => void;
   addPerson: (nickname: string, color: PersonColor) => Person;
   removePerson: (id: string) => void;
+  renamePerson: (id: string, nickname: string, color: PersonColor) => void;
   refreshPersons: () => void;
 }
 
@@ -25,6 +26,7 @@ const PersonContext = createContext<PersonContextValue>({
   switchPerson: () => {},
   addPerson: () => ({ id: "", nickname: "", color: "teal" }),
   removePerson: () => {},
+  renamePerson: () => {},
   refreshPersons: () => {},
 });
 
@@ -36,8 +38,15 @@ export function PersonProvider({ children }: { children: React.ReactNode }) {
   const userKey = DEV_SKIP_AUTH ? "__dev__" : (session?.user?.email ?? "");
   const sessionReady = DEV_SKIP_AUTH || status !== "loading";
 
-  const [persons, setPersons] = useState<Person[]>([]);
-  const [activePersonId, setActivePersonIdState] = useState<string>("");
+  // Seed from unscoped localStorage for instant first-render — refreshPersons will correct to scoped keys
+  const [persons, setPersons] = useState<Person[]>(() => {
+    if (typeof window === "undefined") return [];
+    try { return JSON.parse(localStorage.getItem("persons") || "[]"); } catch { return []; }
+  });
+  const [activePersonId, setActivePersonIdState] = useState<string>(() => {
+    if (typeof window === "undefined") return "";
+    return localStorage.getItem("activePerson") || "";
+  });
   const [personsLoading, setPersonsLoading] = useState(true);
 
   const refreshPersons = useCallback(() => {
@@ -94,11 +103,18 @@ export function PersonProvider({ children }: { children: React.ReactNode }) {
     }
   }, [userKey, activePersonId]);
 
+  const renamePerson = useCallback((id: string, nickname: string, color: PersonColor) => {
+    const ps = scopedPersons(userKey);
+    const updated = ps.getAll().map((p) => p.id === id ? { ...p, nickname: nickname.trim(), color } : p);
+    updated.forEach((p) => ps.save(p));
+    setPersons(ps.getAll());
+  }, [userKey]);
+
   const activePerson = persons.find((p) => p.id === activePersonId) || null;
 
   return (
     <PersonContext.Provider
-      value={{ persons, activePersonId, activePerson, personsLoading, switchPerson, addPerson, removePerson, refreshPersons }}
+      value={{ persons, activePersonId, activePerson, personsLoading, switchPerson, addPerson, removePerson, renamePerson, refreshPersons }}
     >
       {children}
     </PersonContext.Provider>

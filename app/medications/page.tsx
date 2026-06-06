@@ -11,6 +11,13 @@ import { downloadMedRemindersICS } from "@/lib/ics";
 import { storage } from "@/lib/storage";
 
 const TIMES = ["Morning", "Afternoon", "Evening", "Night"];
+
+function format12h(time24: string): string {
+  const [h, m] = time24.split(":").map(Number);
+  const period = h >= 12 ? "PM" : "AM";
+  const hour = h % 12 || 12;
+  return `${hour}:${String(m).padStart(2, "0")} ${period}`;
+}
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const DAY_FULL: Record<string, string> = {
   Mon: "Monday", Tue: "Tuesday", Wed: "Wednesday", Thu: "Thursday",
@@ -571,7 +578,7 @@ export default function MedicationsPage() {
                                 }`}>
                                 {taken ? <CheckSquare className="w-3.5 h-3.5" /> : <Square className="w-3.5 h-3.5" />}
                                 {time}
-                                {takenAt && <span className="text-[10px] opacity-75 ml-0.5">· {takenAt}</span>}
+                                {takenAt && <span className="text-[10px] opacity-75 ml-0.5">· {format12h(takenAt)}</span>}
                               </button>
                               {/* Feature 15: Inline time editor */}
                               {isEditing && (

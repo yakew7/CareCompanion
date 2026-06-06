@@ -55,7 +55,7 @@ function NoteSection({
           {notes.length > 0 && (
             <button onClick={onClearAll} className="btn-danger text-xs px-3 py-1.5">Clear all</button>
           )}
-          <button onClick={() => setShowForm((v) => !v)} className="btn-primary flex items-center gap-1.5 text-xs px-3 py-1.5">
+          <button onClick={() => setShowForm((v) => !v)} className="btn-primary flex items-center gap-1.5 text-xs px-4 py-2">
             <Plus className="w-3.5 h-3.5" /> Add
           </button>
         </div>

@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   LayoutDashboard, FileText, Pill, Activity,
   HeartPulse, Calendar, NotebookPen, MessageCircleHeart, MoreHorizontal, X, Globe,
@@ -26,6 +26,7 @@ const overflow = [
 export default function BottomNav() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  useEffect(() => { setOpen(false); }, [pathname]);
   const [timezone, setTimezone] = useState(() => {
     if (typeof window !== "undefined") return localStorage.getItem("cc_timezone") || "Asia/Kolkata";
     return "Asia/Kolkata";

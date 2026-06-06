@@ -7,7 +7,7 @@ import { useState } from "react";
 import {
   LayoutDashboard, FileText, Pill, Activity, Calendar,
   Heart, LogOut, Sun, Moon, Plus, X, Check, NotebookPen, MessageCircleHeart, HeartPulse,
-  Download, Upload, Globe,
+  Download, Upload, Globe, Pencil,
 } from "lucide-react";
 import { exportAllData, importBackup } from "@/lib/backup";
 import { dispatchTimezoneChange } from "@/lib/useTimezoneRefresh";
@@ -30,12 +30,14 @@ const nav = [
 export default function Sidebar() {
   const pathname = usePathname();
   const { data: session } = useSession();
-  const { persons, activePerson, activePersonId, switchPerson, addPerson, removePerson } = usePersonContext();
+  const { persons, activePerson, activePersonId, switchPerson, addPerson, removePerson, renamePerson } = usePersonContext();
   const { dark, toggle } = useTheme();
   const [addOpen, setAddOpen] = useState(false);
   const [addForm, setAddForm] = useState<{ nickname: string; color: string }>({ nickname: "", color: "purple" });
   const [addError, setAddError] = useState("");
   const [removeConfirmId, setRemoveConfirmId] = useState<string | null>(null);
+  const [editPersonId, setEditPersonId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<{ nickname: string; color: string }>({ nickname: "", color: "teal" });
   const [timezone, setTimezone] = useState(() => {
     if (typeof window !== "undefined") return localStorage.getItem("cc_timezone") || "Asia/Kolkata";
     return "Asia/Kolkata";
@@ -98,32 +100,67 @@ export default function Sidebar() {
             const hex = personColorHex(p.color);
             const isActive = p.id === activePersonId;
             return (
-              <div key={p.id} className="flex items-center group">
-                <button
-                  onClick={() => switchPerson(p.id)}
-                  className={`flex-1 flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors ${
-                    isActive
-                      ? "bg-gray-100 dark:bg-gray-700 font-medium text-gray-900 dark:text-gray-100"
-                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
-                  }`}
-                >
-                  <span
-                    style={{ backgroundColor: hex }}
-                    className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-                  >
-                    {p.nickname[0]?.toUpperCase()}
-                  </span>
-                  <span className="truncate">{p.nickname}</span>
-                  {isActive && <Check className="w-3 h-3 text-teal-600 ml-auto flex-shrink-0" />}
-                </button>
-                {persons.length > 1 && (
-                  <button
-                    onClick={() => setRemoveConfirmId(p.id)}
-                    className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-300 dark:text-gray-600 hover:text-red-400 transition-all rounded-lg ml-1 flex-shrink-0"
-                    title="Remove person"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
+              <div key={p.id}>
+                {editPersonId === p.id ? (
+                  <div className="mt-1 mb-1 space-y-1.5 bg-gray-50 dark:bg-gray-800 rounded-xl p-2">
+                    <input
+                      className="input text-xs py-1.5"
+                      value={editForm.nickname}
+                      autoFocus
+                      onChange={(e) => setEditForm({ ...editForm, nickname: e.target.value })}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && editForm.nickname.trim()) {
+                          renamePerson(p.id, editForm.nickname, editForm.color as import("@/lib/storage").PersonColor);
+                          setEditPersonId(null);
+                        } else if (e.key === "Escape") setEditPersonId(null);
+                      }}
+                    />
+                    <div className="flex flex-wrap gap-1.5 px-0.5">
+                      {PRESET_COLORS.map((c) => (
+                        <button key={c.id} type="button" onClick={() => setEditForm({ ...editForm, color: c.id })}
+                          title={c.label} style={{ backgroundColor: c.hex }}
+                          className={`w-5 h-5 rounded-full transition-transform ${editForm.color === c.id ? "ring-2 ring-offset-1 ring-gray-400 scale-110" : "hover:scale-105"}`}
+                        />
+                      ))}
+                    </div>
+                    <div className="flex gap-1.5">
+                      <button onClick={() => { if (editForm.nickname.trim()) { renamePerson(p.id, editForm.nickname, editForm.color as import("@/lib/storage").PersonColor); setEditPersonId(null); } }} className="btn-primary flex-1 py-1 text-xs">Save</button>
+                      <button onClick={() => setEditPersonId(null)} className="btn-secondary flex-1 py-1 text-xs">Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center group">
+                    <button
+                      onClick={() => switchPerson(p.id)}
+                      className={`flex-1 flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors ${
+                        isActive
+                          ? "bg-gray-100 dark:bg-gray-700 font-medium text-gray-900 dark:text-gray-100"
+                          : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
+                      }`}
+                    >
+                      <span style={{ backgroundColor: hex }} className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                        {p.nickname[0]?.toUpperCase()}
+                      </span>
+                      <span className="truncate">{p.nickname}</span>
+                      {isActive && <Check className="w-3 h-3 text-teal-600 ml-auto flex-shrink-0" />}
+                    </button>
+                    <button
+                      onClick={() => { setEditPersonId(p.id); setEditForm({ nickname: p.nickname, color: p.color }); }}
+                      className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-300 dark:text-gray-600 hover:text-teal-500 transition-all rounded-lg ml-0.5 flex-shrink-0"
+                      title="Rename / recolor"
+                    >
+                      <Pencil className="w-3 h-3" />
+                    </button>
+                    {persons.length > 1 && (
+                      <button
+                        onClick={() => setRemoveConfirmId(p.id)}
+                        className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-300 dark:text-gray-600 hover:text-red-400 transition-all rounded-lg flex-shrink-0"
+                        title="Remove person"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
             );
