@@ -324,6 +324,7 @@ export default function NotesPage() {
               loading={loading}
               onAdd={addDietary}
               onDelete={deleteDietary}
+              onEdit={editDietary}
               onClearAll={clearDietary}
               accentClass="text-green-600 dark:text-green-400"
             />
@@ -335,6 +336,7 @@ export default function NotesPage() {
               loading={loading}
               onAdd={addOther}
               onDelete={deleteOther}
+              onEdit={editOther}
               onClearAll={clearOther}
               accentClass="text-orange-500 dark:text-orange-400"
             />
