@@ -273,6 +273,7 @@ export default function AppointmentsPage() {
 
   // ── Week View ──────────────────────────────────────────────────────────────
   function WeekView() {
+    const now = new Date();
     const weekStart = new Date(now);
     weekStart.setDate(now.getDate() - now.getDay() + calOffset * 7);
     weekStart.setHours(0, 0, 0, 0);
@@ -349,6 +350,7 @@ export default function AppointmentsPage() {
 
   // ── Month View ─────────────────────────────────────────────────────────────
   function MonthView() {
+    const now = new Date();
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
     const displayDate = new Date(now.getFullYear(), now.getMonth() + calOffset, 1);
     const year = displayDate.getFullYear();

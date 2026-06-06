@@ -225,7 +225,7 @@ export default function DashboardPage() {
                 {
                   step: "1",
                   title: "Add the person you're caring for",
-                  desc: "Tap the person icon in the top bar to create a profile.",
+                  desc: "On mobile: tap the avatar in the top bar. On desktop: use the People section in the sidebar.",
                   href: null,
                   color: "bg-teal-500",
                 },
