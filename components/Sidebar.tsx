@@ -192,7 +192,7 @@ export default function Sidebar() {
               const tz = e.target.value;
               setTimezone(tz);
               localStorage.setItem("cc_timezone", tz);
-              toast.success("Timezone updated");
+              toast.success("Timezone updated — reload to refresh existing timestamps");
             }}
             className="input text-xs py-1 w-full"
           >

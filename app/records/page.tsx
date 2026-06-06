@@ -54,6 +54,7 @@ export default function RecordsPage() {
   const fileRef = useRef<HTMLInputElement>(null);
   const reExtractFileRef = useRef<HTMLInputElement>(null);
   const [reExtractRecordId, setReExtractRecordId] = useState<string | null>(null);
+  const [reExtractConfirmRecord, setReExtractConfirmRecord] = useState<MedicalRecord | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -178,7 +179,13 @@ export default function RecordsPage() {
   }
 
   function triggerReExtract(record: MedicalRecord) {
-    setReExtractRecordId(record.id);
+    setReExtractConfirmRecord(record);
+  }
+
+  function confirmReExtract() {
+    if (!reExtractConfirmRecord) return;
+    setReExtractRecordId(reExtractConfirmRecord.id);
+    setReExtractConfirmRecord(null);
     reExtractFileRef.current?.click();
   }
 
@@ -552,6 +559,25 @@ export default function RecordsPage() {
           )}
         </div>
       </div>
+
+      {/* Re-extract confirmation modal */}
+      {reExtractConfirmRecord && (
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-4" onClick={() => setReExtractConfirmRecord(null)}>
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full sm:max-w-sm p-5 space-y-3" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-3">
+              <RefreshCw className="w-5 h-5 text-teal-500 flex-shrink-0" />
+              <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Re-extract data</h3>
+            </div>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Select the original PDF for <span className="font-medium text-gray-700 dark:text-gray-300">{reExtractConfirmRecord.name}</span> to re-run AI extraction. Previously saved items won&apos;t be removed automatically.
+            </p>
+            <div className="flex gap-2 pt-1">
+              <button onClick={confirmReExtract} className="btn-primary flex-1">Choose file</button>
+              <button onClick={() => setReExtractConfirmRecord(null)} className="btn-secondary flex-1">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Extracted items modal */}
       {extractedItems.length > 0 && (

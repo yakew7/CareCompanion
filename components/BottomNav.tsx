@@ -99,7 +99,7 @@ export default function BottomNav() {
                   const tz = e.target.value;
                   setTimezone(tz);
                   localStorage.setItem("cc_timezone", tz);
-                  toast.success("Timezone updated");
+                  toast.success("Timezone updated — reload to refresh existing timestamps");
                 }}
                 className="w-full text-xs rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-2 py-2"
               >

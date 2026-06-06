@@ -321,9 +321,9 @@ export default function VitalsPage() {
               <button
                 onClick={() => openCustomRange(def.type)}
                 title="Set doctor's target range"
-                className={`p-1 rounded-lg transition-colors ${hasCustomRange ? "text-teal-600 dark:text-teal-400" : "text-gray-300 dark:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-teal-600 dark:hover:text-teal-400"}`}
+                className={`p-1 rounded-lg transition-colors ${hasCustomRange ? "text-teal-600 dark:text-teal-400" : "text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-teal-600 dark:hover:text-teal-400"}`}
               >
-                <SlidersHorizontal className="w-3 h-3" />
+                <SlidersHorizontal className="w-3.5 h-3.5" />
               </button>
             )}
             {list.length >= 2 && (
@@ -751,11 +751,11 @@ export default function VitalsPage() {
               )}
 
               <div className="flex gap-2 pt-1">
-                <button onClick={saveCustomRange} className="btn-primary flex-1">Save Target</button>
+                <button onClick={saveCustomRange} className={`btn-primary ${hasExisting ? "flex-1" : "flex-1"}`}>Save Target</button>
                 {hasExisting && (
-                  <button onClick={clearCustomRange} className="btn-secondary">Clear</button>
+                  <button onClick={clearCustomRange} className="btn-secondary flex-1">Clear</button>
                 )}
-                <button onClick={() => setCustomRangeType(null)} className="btn-secondary">Cancel</button>
+                <button onClick={() => setCustomRangeType(null)} className="btn-secondary flex-1">Cancel</button>
               </div>
             </div>
           </div>

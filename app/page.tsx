@@ -367,10 +367,10 @@ export default function DashboardPage() {
             const filtered = (() => {
               switch (activityFilter) {
                 case "active":     return activity.filter((e) => !e.deleted);
-                case "medication": return activity.filter((e) => e.type === "medication");
-                case "vital":      return activity.filter((e) => e.type === "vital");
-                case "record":     return activity.filter((e) => e.type === "record");
-                case "symptom":    return activity.filter((e) => e.type === "symptom");
+                case "medication": return activity.filter((e) => e.type === "medication" && !e.deleted);
+                case "vital":      return activity.filter((e) => e.type === "vital" && !e.deleted);
+                case "record":     return activity.filter((e) => e.type === "record" && !e.deleted);
+                case "symptom":    return activity.filter((e) => e.type === "symptom" && !e.deleted);
                 default:           return activity;
               }
             })();
