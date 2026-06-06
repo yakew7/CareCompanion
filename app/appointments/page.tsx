@@ -182,6 +182,7 @@ export default function AppointmentsPage() {
     toast.success("Follow-up appointment created");
   }
 
+  const now = new Date();
   const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
   const q = search.toLowerCase().trim();
   const matchesSearch = (a: Appointment) =>
