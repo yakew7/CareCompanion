@@ -9,6 +9,7 @@ import { api } from "@/lib/api";
 import { usePersonContext } from "@/contexts/PersonContext";
 import type { Symptom } from "@/lib/storage";
 import { nowIST, formatIST } from "@/lib/time";
+import { useTimezoneRefresh } from "@/lib/useTimezoneRefresh";
 
 const SEVERITY_LABELS = [
   "",
@@ -94,6 +95,7 @@ function SwipeCard({ onDelete, children }: { onDelete: () => void; children: Rea
 }
 
 export default function SymptomsPage() {
+  useTimezoneRefresh();
   const { activePersonId } = usePersonContext();
   const [symptoms, setSymptoms] = useState<Symptom[]>([]);
   const [loading, setLoading] = useState(true);

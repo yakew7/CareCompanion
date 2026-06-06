@@ -9,6 +9,7 @@ import { api } from "@/lib/api";
 import { usePersonContext } from "@/contexts/PersonContext";
 import type { Appointment } from "@/lib/storage";
 import { nowIST, formatIST } from "@/lib/time";
+import { useTimezoneRefresh } from "@/lib/useTimezoneRefresh";
 
 type ViewMode = "list" | "week" | "month";
 
@@ -59,6 +60,7 @@ const emptyForm = (): Omit<Appointment, "id"> => ({
 });
 
 export default function AppointmentsPage() {
+  useTimezoneRefresh();
   const { activePersonId, activePerson } = usePersonContext();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);

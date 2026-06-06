@@ -75,7 +75,10 @@ export default function DashboardPage() {
   const { activePersonId } = usePersonContext();
   const [stats, setStats] = useState<Stats>({ medications: 0, symptomsThisWeek: 0, maxSymptomSeverityThisWeek: 0, upcomingAppointments: 0, records: 0 });
   const [activity, setActivity] = useState<ActivityEntry[]>([]);
-  const [activityFilter, setActivityFilter] = useState<ActivityFilterType>("all");
+  const [activityFilter, setActivityFilter] = useState<ActivityFilterType>(() => {
+    if (typeof window !== "undefined") return (localStorage.getItem("cc_activity_filter") as ActivityFilterType) || "all";
+    return "all";
+  });
   const [medAdherence, setMedAdherence] = useState<number | null>(null);
   const [symptomSparkline, setSymptomSparkline] = useState<number[]>([]);
   const [flaggedVitals, setFlaggedVitals] = useState<{ label: string; reading: string; status: "warning" | "danger" }[]>([]);
@@ -352,7 +355,7 @@ export default function DashboardPage() {
             {ACTIVITY_FILTERS.map((f) => (
               <button
                 key={f.value}
-                onClick={() => setActivityFilter(f.value)}
+                onClick={() => { setActivityFilter(f.value); localStorage.setItem("cc_activity_filter", f.value); }}
                 className={`px-2.5 py-0.5 rounded-full whitespace-nowrap flex-shrink-0 transition-colors ${
                   activityFilter === f.value
                     ? "bg-teal-100 dark:bg-teal-900/50 text-teal-700 dark:text-teal-300 font-medium"

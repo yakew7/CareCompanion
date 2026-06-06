@@ -9,6 +9,7 @@ import { api } from "@/lib/api";
 import { usePersonContext } from "@/contexts/PersonContext";
 import type { MedicalRecord } from "@/lib/storage";
 import { formatDateIST } from "@/lib/time";
+import { useTimezoneRefresh } from "@/lib/useTimezoneRefresh";
 
 interface ChatMessage { role: "user" | "assistant"; content: string; }
 
@@ -39,6 +40,7 @@ const TYPE_LABEL: Record<ExtractedItemType, string> = {
 };
 
 export default function RecordsPage() {
+  useTimezoneRefresh();
   const { activePersonId } = usePersonContext();
   const [records, setRecords] = useState<MedicalRecord[]>([]);
   const [loading, setLoading] = useState(true);

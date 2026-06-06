@@ -10,6 +10,7 @@ import {
   Download, Upload, Globe,
 } from "lucide-react";
 import { exportAllData, importBackup } from "@/lib/backup";
+import { dispatchTimezoneChange } from "@/lib/useTimezoneRefresh";
 import toast from "react-hot-toast";
 import { usePersonContext } from "@/contexts/PersonContext";
 import { PRESET_COLORS, personColorHex, getNextPersonColor } from "@/lib/storage";
@@ -192,7 +193,8 @@ export default function Sidebar() {
               const tz = e.target.value;
               setTimezone(tz);
               localStorage.setItem("cc_timezone", tz);
-              toast.success("Timezone updated — reload to refresh existing timestamps");
+              dispatchTimezoneChange();
+              toast.success("Timezone updated");
             }}
             className="input text-xs py-1 w-full"
           >

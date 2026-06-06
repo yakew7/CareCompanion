@@ -10,6 +10,7 @@ import type { Note } from "@/lib/storage";
 
 function truncate(s: string, n = 40) { return s.length > n ? s.slice(0, n) + "…" : s; }
 import { formatDateIST } from "@/lib/time";
+import { useTimezoneRefresh } from "@/lib/useTimezoneRefresh";
 
 type Tab = "dietary" | "other";
 
@@ -120,6 +121,7 @@ function NoteSection({
 }
 
 export default function NotesPage() {
+  useTimezoneRefresh();
   const { activePersonId } = usePersonContext();
   const [dietary, setDietary] = useState<Note[]>([]);
   const [other, setOther] = useState<Note[]>([]);
