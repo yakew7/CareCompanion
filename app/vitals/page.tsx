@@ -218,8 +218,8 @@ export default function VitalsPage() {
 
   function openLog(type: VitalType) {
     setLogType(type);
-    const d = VITAL_DEFAULTS[type] || {};
-    setForm({ value: d.value || "", value2: d.value2 || "", notes: "" });
+    const d = VITAL_DEFAULTS[type] ?? {};
+    setForm({ value: (d as { value?: string }).value || "", value2: (d as { value2?: string }).value2 || "", notes: "" });
     setCholForm({ total: "", ldl: "", hdl: "", tg: "" });
   }
 
