@@ -14,12 +14,12 @@ const primary = [
   { href: "/records", label: "Reports", icon: FileText },
   { href: "/medications", label: "Meds", icon: Pill },
   { href: "/symptoms", label: "Symptoms", icon: Activity },
-  { href: "/appointments", label: "Appts", icon: Calendar },
+  { href: "/vitals", label: "Vitals", icon: HeartPulse },
 ];
 
 const overflow = [
   { href: "/chat", label: "Ask AI", icon: MessageCircleHeart },
-  { href: "/vitals", label: "Vitals", icon: HeartPulse },
+  { href: "/appointments", label: "Appts", icon: Calendar },
   { href: "/notes", label: "Notes", icon: NotebookPen },
 ];
 

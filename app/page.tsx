@@ -75,10 +75,7 @@ export default function DashboardPage() {
   const { activePersonId, activePerson } = usePersonContext();
   const [stats, setStats] = useState<Stats>({ medications: 0, symptomsThisWeek: 0, maxSymptomSeverityThisWeek: 0, upcomingAppointments: 0, records: 0 });
   const [activity, setActivity] = useState<ActivityEntry[]>([]);
-  const [activityFilter, setActivityFilter] = useState<ActivityFilterType>(() => {
-    if (typeof window !== "undefined") return (localStorage.getItem("cc_activity_filter") as ActivityFilterType) || "all";
-    return "all";
-  });
+  const [activityFilter, setActivityFilter] = useState<ActivityFilterType>("all");
   const [medAdherence, setMedAdherence] = useState<number | null>(null);
   const [symptomSparkline, setSymptomSparkline] = useState<number[]>([]);
   const [flaggedVitals, setFlaggedVitals] = useState<{ label: string; reading: string; status: "warning" | "danger" }[]>([]);
@@ -361,7 +358,7 @@ export default function DashboardPage() {
             {ACTIVITY_FILTERS.map((f) => (
               <button
                 key={f.value}
-                onClick={() => { setActivityFilter(f.value); localStorage.setItem("cc_activity_filter", f.value); }}
+                onClick={() => { setActivityFilter(f.value); }}
                 className={`px-2.5 py-0.5 rounded-full whitespace-nowrap flex-shrink-0 transition-colors ${
                   activityFilter === f.value
                     ? "bg-teal-600 dark:bg-teal-700 text-white font-medium"
@@ -439,7 +436,7 @@ export default function DashboardPage() {
       {showPrint && (
         <>
           <style>{`@media print{*{visibility:hidden;}#print-root,#print-root *{visibility:visible;}#print-root{position:absolute;top:0;left:0;right:0;padding:24px;}}`}</style>
-          <div className="fixed inset-0 bg-black/60 z-50" onClick={() => setShowPrint(false)} />
+          <div className="fixed inset-0 bg-black/90 z-50" onClick={() => setShowPrint(false)} />
           <div className="fixed inset-0 z-50 overflow-y-auto py-6 px-4 flex items-start justify-center pointer-events-none">
             <div id="print-root" className="bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded-2xl w-full max-w-2xl shadow-2xl pointer-events-auto" onClick={e => e.stopPropagation()}>
               {/* Print header */}

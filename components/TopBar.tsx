@@ -1,10 +1,11 @@
 "use client";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { Sun, Moon, Users, Check, Plus, X } from "lucide-react";
+import { Sun, Moon, Users, Check, Plus, X, Pencil, Trash2 } from "lucide-react";
 import { usePersonContext } from "@/contexts/PersonContext";
 import { personColorHex, PRESET_COLORS, getNextPersonColor } from "@/lib/storage";
 import { useTheme } from "@/lib/theme";
+import type { PersonColor } from "@/lib/storage";
 
 const titles: Record<string, string> = {
   "/": "Dashboard",
@@ -21,11 +22,14 @@ export default function TopBar({ reportName }: { reportName?: string }) {
   const pathname = usePathname();
   const title = titles[pathname] || "CareCompanion";
   const { dark, toggle } = useTheme();
-  const { persons, activePerson, activePersonId, switchPerson, addPerson } = usePersonContext();
+  const { persons, activePerson, activePersonId, switchPerson, addPerson, renamePerson, removePerson } = usePersonContext();
   const [menuOpen, setMenuOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [addForm, setAddForm] = useState<{ nickname: string; color: string }>({ nickname: "", color: "teal" });
   const [addError, setAddError] = useState("");
+  const [editPersonId, setEditPersonId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<{ nickname: string; color: string }>({ nickname: "", color: "teal" });
+  const [removeConfirmId, setRemoveConfirmId] = useState<string | null>(null);
 
   const activeHex = activePerson ? personColorHex(activePerson.color) : null;
 
@@ -45,6 +49,7 @@ export default function TopBar({ reportName }: { reportName?: string }) {
   }
 
   return (
+    <>
     <header className="h-14 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 flex items-center px-4 justify-between sticky top-0 z-20">
       {activePerson && activeHex ? (
         <div className="flex items-center gap-2 min-w-0">
@@ -109,20 +114,70 @@ export default function TopBar({ reportName }: { reportName?: string }) {
                   {persons.map((p) => {
                     const hex = personColorHex(p.color);
                     const isActive = p.id === activePersonId;
+                    if (editPersonId === p.id) {
+                      return (
+                        <div key={p.id} className="px-3 py-2 space-y-2 bg-gray-50 dark:bg-gray-700/50">
+                          <input
+                            className="input text-sm py-1.5 w-full"
+                            value={editForm.nickname}
+                            autoFocus
+                            onChange={(e) => setEditForm({ ...editForm, nickname: e.target.value })}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && editForm.nickname.trim()) {
+                                renamePerson(p.id, editForm.nickname, editForm.color as PersonColor);
+                                setEditPersonId(null);
+                              } else if (e.key === "Escape") setEditPersonId(null);
+                            }}
+                          />
+                          <div className="flex flex-wrap gap-1.5">
+                            {PRESET_COLORS.map((c) => (
+                              <button key={c.id} type="button" onClick={() => setEditForm({ ...editForm, color: c.id })}
+                                title={c.label} style={{ backgroundColor: c.hex }}
+                                className={`w-5 h-5 rounded-full transition-transform ${editForm.color === c.id ? "ring-2 ring-offset-1 ring-gray-400 scale-110" : "hover:scale-105"}`}
+                              />
+                            ))}
+                          </div>
+                          <div className="flex gap-1.5">
+                            <button
+                              onClick={() => { if (editForm.nickname.trim()) { renamePerson(p.id, editForm.nickname, editForm.color as PersonColor); setEditPersonId(null); } }}
+                              className="btn-primary flex-1 py-1 text-xs"
+                            >Save</button>
+                            <button onClick={() => setEditPersonId(null)} className="btn-secondary flex-1 py-1 text-xs">Cancel</button>
+                          </div>
+                        </div>
+                      );
+                    }
                     return (
-                      <button
-                        key={p.id}
-                        onClick={() => { switchPerson(p.id); setMenuOpen(false); setAddOpen(false); }}
-                        className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-sm transition-colors text-left ${
-                          isActive ? "bg-gray-50 dark:bg-gray-700 font-medium" : "hover:bg-gray-50 dark:hover:bg-gray-700"
-                        }`}
-                      >
-                        <span style={{ backgroundColor: hex }} className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                          {p.nickname[0]?.toUpperCase()}
-                        </span>
-                        <span className="truncate text-gray-900 dark:text-gray-100">{p.nickname}</span>
-                        {isActive && <Check className="w-3.5 h-3.5 text-teal-600 ml-auto flex-shrink-0" />}
-                      </button>
+                      <div key={p.id} className={`flex items-center group ${isActive ? "bg-gray-50 dark:bg-gray-700" : ""}`}>
+                        <button
+                          onClick={() => { switchPerson(p.id); setMenuOpen(false); setAddOpen(false); setEditPersonId(null); }}
+                          className={`flex-1 flex items-center gap-2.5 px-3 py-2.5 text-sm transition-colors text-left ${
+                            isActive ? "font-medium" : "hover:bg-gray-50 dark:hover:bg-gray-700"
+                          }`}
+                        >
+                          <span style={{ backgroundColor: hex }} className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                            {p.nickname[0]?.toUpperCase()}
+                          </span>
+                          <span className="truncate text-gray-900 dark:text-gray-100">{p.nickname}</span>
+                          {isActive && <Check className="w-3.5 h-3.5 text-teal-600 ml-auto flex-shrink-0" />}
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setEditPersonId(p.id); setEditForm({ nickname: p.nickname, color: p.color }); setAddOpen(false); }}
+                          className="p-2 text-gray-300 dark:text-gray-600 hover:text-teal-500 transition-colors flex-shrink-0"
+                          title="Rename / recolor"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        {persons.length > 1 && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setRemoveConfirmId(p.id); }}
+                            className="p-2 text-gray-300 dark:text-gray-600 hover:text-red-400 transition-colors flex-shrink-0 pr-3"
+                            title="Remove person"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
                     );
                   })}
 
@@ -177,5 +232,33 @@ export default function TopBar({ reportName }: { reportName?: string }) {
         )}
       </div>
     </header>
+
+    {/* Remove person confirm modal — rendered outside header to avoid z-index issues */}
+    {removeConfirmId && (() => {
+      const target = persons.find((p) => p.id === removeConfirmId);
+      if (!target) return null;
+      return (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-sm shadow-xl space-y-4">
+            <div>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">Remove {target.nickname}?</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                This will permanently delete <span className="font-semibold text-gray-700 dark:text-gray-300">{target.nickname}&apos;s</span> entire health record — medications, vitals, symptoms, appointments, reports, and notes. This cannot be undone.
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => { removePerson(removeConfirmId); setRemoveConfirmId(null); setMenuOpen(false); }}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-2.5 px-4 rounded-xl transition-colors text-sm"
+              >
+                Remove and delete all data
+              </button>
+              <button onClick={() => setRemoveConfirmId(null)} className="btn-secondary flex-1">Cancel</button>
+            </div>
+          </div>
+        </div>
+      );
+    })()}
+  </>
   );
 }

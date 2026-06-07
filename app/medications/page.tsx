@@ -584,6 +584,11 @@ export default function MedicationsPage() {
                                 {taken ? <CheckSquare className="w-3.5 h-3.5" /> : <Square className="w-3.5 h-3.5" />}
                                 {time}
                               </button>
+                              {takenAt && !isEditing && (
+                                <span className="text-[10px] text-gray-400 dark:text-gray-500 pl-0.5">
+                                  Taken {format12h(takenAt)}
+                                </span>
+                              )}
                               {/* Feature 15: Inline time editor */}
                               {isEditing && (
                                 <div className="flex items-center gap-1.5 pl-1">
@@ -709,6 +714,16 @@ export default function MedicationsPage() {
                       }`}>{t}</button>
                   ))}
                 </div>
+                {form.frequency === "Once daily" && form.times.length > 1 && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-1.5">
+                    ⚠ "Once daily" — select only 1 time slot. Pick the most appropriate one.
+                  </p>
+                )}
+                {form.frequency === "Twice daily" && form.times.length !== 2 && form.times.length > 0 && (
+                  <p className="text-xs text-blue-500 dark:text-blue-400 mt-1.5">
+                    Tip: "Twice daily" works best with 2 time slots (e.g. Morning + Evening).
+                  </p>
+                )}
               </div>
             )}
 

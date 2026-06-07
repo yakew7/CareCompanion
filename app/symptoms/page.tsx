@@ -312,7 +312,7 @@ export default function SymptomsPage() {
               </div>
             ) : (
               <>
-                <div className="prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0 prose-strong:font-semibold text-gray-700 dark:text-gray-300 dark:prose-invert">
+                <div className="prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0 prose-strong:font-semibold text-gray-700 dark:text-gray-300 dark:prose-invert max-h-72 overflow-y-auto pr-1">
                   <ReactMarkdown>{analysis}</ReactMarkdown>
                   {analyzing && <span className="inline-block w-1 h-4 bg-purple-500 animate-pulse ml-0.5 align-middle" />}
                 </div>
