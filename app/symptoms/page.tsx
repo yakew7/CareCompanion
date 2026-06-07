@@ -228,7 +228,7 @@ export default function SymptomsPage() {
   return (
     <>
       <TopBar />
-      <main className="p-4 sm:p-6 max-w-3xl space-y-5">
+      <main className="p-4 sm:p-6 pb-24 max-w-3xl space-y-5">
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Symptom Log</h2>
           <div className="flex gap-2">

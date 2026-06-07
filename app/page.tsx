@@ -115,7 +115,7 @@ export default function DashboardPage() {
         medications: meds.length,
         symptomsThisWeek: recentSymptoms.length,
         maxSymptomSeverityThisWeek: recentSymptoms.reduce((max, s) => Math.max(max, s.severity), 0),
-        upcomingAppointments: appts.filter((a) => a.status === "upcoming" && new Date(a.datetime) >= new Date(new Date().setHours(0,0,0,0))).length,
+        upcomingAppointments: appts.filter((a) => a.status === "upcoming" && new Date(a.datetime) >= now).length,
         records: records.length,
       });
       setActivity(acts.slice(0, 20));
@@ -439,8 +439,9 @@ export default function DashboardPage() {
       {showPrint && (
         <>
           <style>{`@media print{*{visibility:hidden;}#print-root,#print-root *{visibility:visible;}#print-root{position:absolute;top:0;left:0;right:0;padding:24px;}}`}</style>
-          <div className="fixed inset-0 bg-black/60 z-50 flex items-start justify-center overflow-y-auto py-6 px-4" onClick={() => setShowPrint(false)}>
-            <div id="print-root" className="bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded-2xl w-full max-w-2xl shadow-2xl" onClick={e => e.stopPropagation()}>
+          <div className="fixed inset-0 bg-black/60 z-50" onClick={() => setShowPrint(false)} />
+          <div className="fixed inset-0 z-50 overflow-y-auto py-6 px-4 flex items-start justify-center pointer-events-none">
+            <div id="print-root" className="bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded-2xl w-full max-w-2xl shadow-2xl pointer-events-auto" onClick={e => e.stopPropagation()}>
               {/* Print header */}
               <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-gray-200 dark:border-gray-700">
                 <div>

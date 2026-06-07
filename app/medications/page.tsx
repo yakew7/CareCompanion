@@ -580,7 +580,6 @@ export default function MedicationsPage() {
                                 }`}>
                                 {taken ? <CheckSquare className="w-3.5 h-3.5" /> : <Square className="w-3.5 h-3.5" />}
                                 {time}
-                                {takenAt && <span className="text-[10px] opacity-75 ml-0.5">· {format12h(takenAt)}</span>}
                               </button>
                               {/* Feature 15: Inline time editor */}
                               {isEditing && (

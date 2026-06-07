@@ -192,11 +192,15 @@ export default function AppointmentsPage() {
   const q = search.toLowerCase().trim();
   const matchesSearch = (a: Appointment) =>
     !q || a.doctor.toLowerCase().includes(q) || a.specialty.toLowerCase().includes(q) || a.location.toLowerCase().includes(q);
+  const isPast = (a: Appointment) => a.status === "upcoming" && new Date(a.datetime) < now;
+  const displayBadge = (a: Appointment) => isPast(a) ? "badge-gray" : statusBadge(a.status);
+  const displayLabel = (a: Appointment) => isPast(a) ? "Past" : a.status.charAt(0).toUpperCase() + a.status.slice(1);
+
   const upcoming = appointments
-    .filter((a) => a.status === "upcoming" && new Date(a.datetime) >= todayStart && matchesSearch(a))
+    .filter((a) => a.status === "upcoming" && new Date(a.datetime) >= now && matchesSearch(a))
     .sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime());
   const past = appointments
-    .filter((a) => (a.status !== "upcoming" || new Date(a.datetime) < todayStart) && matchesSearch(a))
+    .filter((a) => (a.status !== "upcoming" || new Date(a.datetime) < now) && matchesSearch(a))
     .sort((a, b) => new Date(b.datetime).getTime() - new Date(a.datetime).getTime());
 
   function AppCard({ appt }: { appt: Appointment }) {
@@ -207,8 +211,8 @@ export default function AppointmentsPage() {
             <div className="flex items-center gap-2 flex-wrap">
               <h3 className="font-semibold text-gray-900 dark:text-gray-100">{appt.doctor}</h3>
               {appt.specialty && <span className="badge-purple">{appt.specialty}</span>}
-              <span className={statusBadge(appt.status)}>
-                {appt.status.charAt(0).toUpperCase() + appt.status.slice(1)}
+              <span className={displayBadge(appt)}>
+                {displayLabel(appt)}
               </span>
             </div>
             <div className="text-sm text-gray-500 dark:text-gray-400 mt-1.5 space-y-0.5">
@@ -436,7 +440,7 @@ export default function AppointmentsPage() {
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{a.doctor}</span>
                       {a.specialty && <span className="badge-purple">{a.specialty}</span>}
-                      <span className={statusBadge(a.status)}>{a.status.charAt(0).toUpperCase() + a.status.slice(1)}</span>
+                      <span className={displayBadge(a)}>{displayLabel(a)}</span>
                     </div>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                       {new Date(a.datetime).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })}
