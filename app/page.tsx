@@ -435,18 +435,18 @@ export default function DashboardPage() {
         <>
           <style>{`@media print{*{visibility:hidden;}#print-root,#print-root *{visibility:visible;}#print-root{position:absolute;top:0;left:0;right:0;padding:24px;}}`}</style>
           <div className="fixed inset-0 bg-black/60 z-50 flex items-start justify-center overflow-y-auto py-6 px-4">
-            <div id="print-root" className="bg-white text-gray-900 rounded-2xl w-full max-w-2xl shadow-2xl">
+            <div id="print-root" className="bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded-2xl w-full max-w-2xl shadow-2xl">
               {/* Print header */}
-              <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-gray-200">
+              <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-gray-200 dark:border-gray-700">
                 <div>
-                  <h2 className="text-xl font-bold text-gray-900">Health Summary</h2>
-                  <p className="text-sm text-gray-500 mt-0.5">{new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}</p>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Health Summary</h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}</p>
                 </div>
                 <div className="flex items-center gap-2 print:hidden">
                   <button onClick={() => window.print()} className="btn-primary flex items-center gap-2 text-sm">
                     <Printer className="w-4 h-4" /> Print / Save PDF
                   </button>
-                  <button onClick={() => setShowPrint(false)} className="p-2 text-gray-400 hover:text-gray-600 rounded-xl hover:bg-gray-100 transition-colors">
+                  <button onClick={() => setShowPrint(false)} className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                     <X className="w-5 h-5" />
                   </button>
                 </div>
@@ -455,19 +455,19 @@ export default function DashboardPage() {
               <div className="px-6 py-5 space-y-6">
                 {/* Medications */}
                 <section>
-                  <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-3">Current Medications ({printData.meds.length})</h3>
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-3">Current Medications ({printData.meds.length})</h3>
                   {printData.meds.length === 0 ? (
                     <p className="text-sm text-gray-400">None recorded</p>
                   ) : (
                     <table className="w-full text-sm border-collapse">
-                      <thead><tr className="border-b border-gray-200"><th className="text-left pb-1.5 font-semibold text-gray-700">Medication</th><th className="text-left pb-1.5 font-semibold text-gray-700">Dose</th><th className="text-left pb-1.5 font-semibold text-gray-700">Frequency</th><th className="text-left pb-1.5 font-semibold text-gray-700">Times</th></tr></thead>
+                      <thead><tr className="border-b border-gray-200 dark:border-gray-700"><th className="text-left pb-1.5 font-semibold text-gray-700 dark:text-gray-300">Medication</th><th className="text-left pb-1.5 font-semibold text-gray-700 dark:text-gray-300">Dose</th><th className="text-left pb-1.5 font-semibold text-gray-700 dark:text-gray-300">Frequency</th><th className="text-left pb-1.5 font-semibold text-gray-700 dark:text-gray-300">Times</th></tr></thead>
                       <tbody>
                         {printData.meds.map((m) => (
-                          <tr key={m.id} className="border-b border-gray-100">
+                          <tr key={m.id} className="border-b border-gray-100 dark:border-gray-800">
                             <td className="py-1.5 font-medium">{m.name}</td>
-                            <td className="py-1.5 text-gray-600">{m.dosage || "—"}</td>
-                            <td className="py-1.5 text-gray-600">{m.frequency}</td>
-                            <td className="py-1.5 text-gray-600">{m.times.join(", ")}</td>
+                            <td className="py-1.5 text-gray-600 dark:text-gray-400">{m.dosage || "—"}</td>
+                            <td className="py-1.5 text-gray-600 dark:text-gray-400">{m.frequency}</td>
+                            <td className="py-1.5 text-gray-600 dark:text-gray-400">{m.times.join(", ")}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -482,13 +482,13 @@ export default function DashboardPage() {
                   [...printData.vitals].sort((a,b)=>new Date(b.loggedAt).getTime()-new Date(a.loggedAt).getTime()).forEach(v=>{if(!latest.has(v.type))latest.set(v.type,v);});
                   return (
                     <section>
-                      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-3">Latest Vitals</h3>
+                      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-3">Latest Vitals</h3>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                         {Array.from(latest.entries()).map(([type, v]) => (
-                          <div key={type} className="border border-gray-200 rounded-lg px-3 py-2">
-                            <p className="text-xs text-gray-400">{VITAL_LABELS[type] ?? type}</p>
+                          <div key={type} className="border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2">
+                            <p className="text-xs text-gray-400 dark:text-gray-500">{VITAL_LABELS[type] ?? type}</p>
                             <p className="text-sm font-semibold">{v.value2 != null ? `${v.value}/${v.value2}` : v.value} {v.unit}</p>
-                            <p className="text-xs text-gray-400">{new Date(v.loggedAt).toLocaleDateString("en-IN")}</p>
+                            <p className="text-xs text-gray-400 dark:text-gray-500">{new Date(v.loggedAt).toLocaleDateString("en-IN")}</p>
                           </div>
                         ))}
                       </div>
@@ -499,13 +499,13 @@ export default function DashboardPage() {
                 {/* Upcoming Appointments */}
                 {printData.appts.filter(a => a.status === "upcoming" && new Date(a.datetime) >= new Date()).length > 0 && (
                   <section>
-                    <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-3">Upcoming Appointments</h3>
+                    <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-3">Upcoming Appointments</h3>
                     <div className="space-y-2">
                       {printData.appts.filter(a => a.status === "upcoming" && new Date(a.datetime) >= new Date()).slice(0,5).map(a => (
-                        <div key={a.id} className="flex items-start gap-3 border border-gray-100 rounded-lg px-3 py-2">
+                        <div key={a.id} className="flex items-start gap-3 border border-gray-100 dark:border-gray-700 rounded-lg px-3 py-2">
                           <div className="flex-1">
                             <p className="text-sm font-medium">{a.doctor}{a.specialty ? ` — ${a.specialty}` : ""}</p>
-                            <p className="text-xs text-gray-500">{new Date(a.datetime).toLocaleDateString("en-IN", { day:"numeric", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit" })}{a.location ? ` · ${a.location}` : ""}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">{new Date(a.datetime).toLocaleDateString("en-IN", { day:"numeric", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit" })}{a.location ? ` · ${a.location}` : ""}</p>
                           </div>
                         </div>
                       ))}
@@ -516,15 +516,15 @@ export default function DashboardPage() {
                 {/* Recent Symptoms */}
                 {printData.symptoms.slice(0, 10).length > 0 && (
                   <section>
-                    <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-3">Recent Symptoms (last {printData.symptoms.slice(0,10).length})</h3>
+                    <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-3">Recent Symptoms (last {printData.symptoms.slice(0,10).length})</h3>
                     <table className="w-full text-sm border-collapse">
-                      <thead><tr className="border-b border-gray-200"><th className="text-left pb-1.5 font-semibold text-gray-700">Symptom</th><th className="text-left pb-1.5 font-semibold text-gray-700">Severity</th><th className="text-left pb-1.5 font-semibold text-gray-700">Date</th></tr></thead>
+                      <thead><tr className="border-b border-gray-200 dark:border-gray-700"><th className="text-left pb-1.5 font-semibold text-gray-700 dark:text-gray-300">Symptom</th><th className="text-left pb-1.5 font-semibold text-gray-700 dark:text-gray-300">Severity</th><th className="text-left pb-1.5 font-semibold text-gray-700 dark:text-gray-300">Date</th></tr></thead>
                       <tbody>
                         {printData.symptoms.slice(0,10).map(s => (
-                          <tr key={s.id} className="border-b border-gray-100">
+                          <tr key={s.id} className="border-b border-gray-100 dark:border-gray-800">
                             <td className="py-1.5 font-medium capitalize">{s.symptom}</td>
-                            <td className="py-1.5 text-gray-600">{s.severity}/5</td>
-                            <td className="py-1.5 text-gray-500">{new Date(s.loggedAt).toLocaleDateString("en-IN")}</td>
+                            <td className="py-1.5 text-gray-600 dark:text-gray-400">{s.severity}/5</td>
+                            <td className="py-1.5 text-gray-500 dark:text-gray-400">{new Date(s.loggedAt).toLocaleDateString("en-IN")}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -532,7 +532,7 @@ export default function DashboardPage() {
                   </section>
                 )}
 
-                <footer className="pt-4 border-t border-gray-200 text-xs text-gray-400">
+                <footer className="pt-4 border-t border-gray-200 dark:border-gray-700 text-xs text-gray-400 dark:text-gray-500">
                   Generated by CareCompanion · {new Date().toLocaleString("en-IN")} · For informational purposes only. Always consult a qualified healthcare professional.
                 </footer>
               </div>
