@@ -125,9 +125,10 @@ export default function MedicationsPage() {
     });
   }, [activePersonId]);
 
-  function openAdd() { setEditing(null); setForm(emptyForm()); setShowModal(true); }
+  function openAdd() { setShowOverflow(false); setEditing(null); setForm(emptyForm()); setShowModal(true); }
 
   function openEdit(med: Medication) {
+    setShowOverflow(false);
     setEditing(med);
     // Detect weekly/monthly from stored times and reconstruct form state
     const weekly = isWeekly(med.frequency);

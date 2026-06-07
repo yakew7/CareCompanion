@@ -9,6 +9,11 @@ import { api } from "@/lib/api";
 import { usePersonContext } from "@/contexts/PersonContext";
 import type { Appointment } from "@/lib/storage";
 import { nowIST, formatIST } from "@/lib/time";
+
+function toDateStr(d: Date | string): string {
+  const dt = typeof d === "string" ? new Date(d) : d;
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+}
 import { useTimezoneRefresh } from "@/lib/useTimezoneRefresh";
 
 type ViewMode = "list" | "week" | "month";
@@ -311,9 +316,9 @@ export default function AppointmentsPage() {
 
         <div className="grid grid-cols-7 gap-1 min-h-[100px]">
           {days.map((day, i) => {
-            const dateStr = day.toISOString().split("T")[0];
+            const dateStr = toDateStr(day);
             const dayAppts = appointments
-              .filter(a => a.datetime.startsWith(dateStr))
+              .filter(a => toDateStr(a.datetime) === dateStr)
               .sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime());
             const isToday = day.toDateString() === now.toDateString();
             return (
@@ -357,10 +362,10 @@ export default function AppointmentsPage() {
     const month = displayDate.getMonth();
     const firstDow = displayDate.getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const todayStr = now.toISOString().split("T")[0];
+    const todayStr = toDateStr(now);
 
     const selectedAppts = selectedDate
-      ? appointments.filter(a => a.datetime.startsWith(selectedDate)).sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime())
+      ? appointments.filter(a => toDateStr(a.datetime) === selectedDate).sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime())
       : [];
 
     return (
@@ -386,7 +391,7 @@ export default function AppointmentsPage() {
           {Array.from({ length: daysInMonth }, (_, i) => {
             const day = i + 1;
             const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-            const dayAppts = appointments.filter(a => a.datetime.startsWith(dateStr));
+            const dayAppts = appointments.filter(a => toDateStr(a.datetime) === dateStr);
             const isToday = dateStr === todayStr;
             const isSelected = dateStr === selectedDate;
             const hasUpcoming = dayAppts.some(a => a.status === "upcoming");
@@ -405,11 +410,11 @@ export default function AppointmentsPage() {
                 }`}
               >
                 <span className={`text-[11px] font-medium ${isToday ? "text-white" : isSelected ? "text-teal-700 dark:text-teal-300" : "text-gray-700 dark:text-gray-300"}`}>{day}</span>
-                {dayAppts.length > 0 && !isToday && (
+                {dayAppts.length > 0 && (
                   <div className="flex gap-0.5 mt-0.5">
-                    {hasUpcoming && <span className="w-1 h-1 rounded-full bg-teal-500" />}
-                    {hasCompleted && <span className="w-1 h-1 rounded-full bg-gray-400" />}
-                    {hasCancelled && <span className="w-1 h-1 rounded-full bg-red-400" />}
+                    {hasUpcoming && <span className={`w-1 h-1 rounded-full ${isToday ? "bg-white/80" : "bg-teal-500"}`} />}
+                    {hasCompleted && <span className={`w-1 h-1 rounded-full ${isToday ? "bg-white/60" : "bg-gray-400"}`} />}
+                    {hasCancelled && <span className={`w-1 h-1 rounded-full ${isToday ? "bg-red-200" : "bg-red-400"}`} />}
                   </div>
                 )}
               </button>

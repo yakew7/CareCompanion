@@ -147,6 +147,8 @@ export default function DashboardPage() {
           });
         });
         setMedAdherence(expected > 0 ? Math.round((taken / expected) * 100) : null);
+      } else {
+        setMedAdherence(null);
       }
 
       // Flagged vitals (Watch or High, latest reading per type)
@@ -434,8 +436,8 @@ export default function DashboardPage() {
       {showPrint && (
         <>
           <style>{`@media print{*{visibility:hidden;}#print-root,#print-root *{visibility:visible;}#print-root{position:absolute;top:0;left:0;right:0;padding:24px;}}`}</style>
-          <div className="fixed inset-0 bg-black/60 z-50 flex items-start justify-center overflow-y-auto py-6 px-4">
-            <div id="print-root" className="bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded-2xl w-full max-w-2xl shadow-2xl">
+          <div className="fixed inset-0 bg-black/60 z-50 flex items-start justify-center overflow-y-auto py-6 px-4" onClick={() => setShowPrint(false)}>
+            <div id="print-root" className="bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded-2xl w-full max-w-2xl shadow-2xl" onClick={e => e.stopPropagation()}>
               {/* Print header */}
               <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-gray-200 dark:border-gray-700">
                 <div>
