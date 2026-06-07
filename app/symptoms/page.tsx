@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import ReactMarkdown from "react-markdown";
 import { v4 as uuidv4 } from "uuid";
-import { Trash2, Sparkles, Search, TrendingUp, Pencil } from "lucide-react";
+import { Trash2, Sparkles, Search, TrendingUp, Pencil, X, ChevronUp } from "lucide-react";
 import TopBar from "@/components/TopBar";
 import { api } from "@/lib/api";
 import { usePersonContext } from "@/contexts/PersonContext";
@@ -297,8 +297,12 @@ export default function SymptomsPage() {
               <h3 className="text-sm font-semibold text-purple-700 dark:text-purple-300 flex items-center gap-1.5">
                 <Sparkles className="w-4 h-4" /> Pattern Analysis
               </h3>
-              <button onClick={() => setShowAnalysis(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-sm">
-                <span className="text-lg leading-none">&times;</span>
+              <button
+                onClick={() => setShowAnalysis(false)}
+                className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-purple-100 dark:hover:bg-purple-900/40 rounded-lg transition-colors"
+                title="Dismiss"
+              >
+                <X className="w-4 h-4" />
               </button>
             </div>
             {analyzing && !analysis ? (
@@ -307,10 +311,20 @@ export default function SymptomsPage() {
                 Analysing patterns...
               </div>
             ) : (
-              <div className="prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0 prose-strong:font-semibold text-gray-700 dark:text-gray-300 dark:prose-invert">
-                <ReactMarkdown>{analysis}</ReactMarkdown>
-                {analyzing && <span className="inline-block w-1 h-4 bg-purple-500 animate-pulse ml-0.5 align-middle" />}
-              </div>
+              <>
+                <div className="prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0 prose-strong:font-semibold text-gray-700 dark:text-gray-300 dark:prose-invert">
+                  <ReactMarkdown>{analysis}</ReactMarkdown>
+                  {analyzing && <span className="inline-block w-1 h-4 bg-purple-500 animate-pulse ml-0.5 align-middle" />}
+                </div>
+                {!analyzing && (
+                  <button
+                    onClick={() => setShowAnalysis(false)}
+                    className="mt-3 flex items-center gap-1 text-xs text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-200 transition-colors"
+                  >
+                    <ChevronUp className="w-3.5 h-3.5" /> Collapse
+                  </button>
+                )}
+              </>
             )}
           </div>
         )}

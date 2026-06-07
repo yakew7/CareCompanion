@@ -37,6 +37,7 @@ export default function BottomNav() {
   });
 
   const overflowActive = overflow.some((i) => i.href === pathname);
+  const activeOverflow = overflow.find((i) => i.href === pathname);
 
   return (
     <>
@@ -64,8 +65,8 @@ export default function BottomNav() {
               : "text-gray-500 dark:text-gray-400"
           }`}
         >
-          {open ? <X className="w-5 h-5" /> : <MoreHorizontal className="w-5 h-5" />}
-          More
+          {open ? <X className="w-5 h-5" /> : activeOverflow ? <activeOverflow.icon className="w-5 h-5" /> : <MoreHorizontal className="w-5 h-5" />}
+          {open ? "More" : activeOverflow ? activeOverflow.label : "More"}
         </button>
       </nav>
 

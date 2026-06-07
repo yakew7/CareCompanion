@@ -3,13 +3,13 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { Pill, Activity, Calendar, FileText, Upload, Thermometer, ClipboardList, ShieldCheck, ChevronRight, Printer, X } from "lucide-react";
-import type { Medication, VitalEntry, Appointment, Symptom, CustomVitalRange } from "@/lib/storage";
+import type { Medication, VitalEntry, Appointment, Symptom, CustomVitalRange, Note } from "@/lib/storage";
 import { storage } from "@/lib/storage";
 import TopBar from "@/components/TopBar";
 import { api } from "@/lib/api";
 import { usePersonContext } from "@/contexts/PersonContext";
 import type { ActivityEntry, VitalType } from "@/lib/storage";
-import { getAppTimezone } from "@/lib/time";
+import { getAppTimezone, formatDateIST, formatIST } from "@/lib/time";
 
 const ACTIVITY_FILTERS = [
   { value: "all",        label: "All"      },
@@ -88,7 +88,8 @@ export default function DashboardPage() {
   const [daysSinceLast, setDaysSinceLast] = useState<number | null>(null);
   const [printData, setPrintData] = useState<{
     meds: Medication[]; vitals: VitalEntry[]; appts: Appointment[]; symptoms: Symptom[];
-  }>({ meds: [], vitals: [], appts: [], symptoms: [] });
+    dietary: Note[]; other: Note[];
+  }>({ meds: [], vitals: [], appts: [], symptoms: [], dietary: [], other: [] });
   const [onboardingDismissed, setOnboardingDismissed] = useState(() => {
     if (typeof window !== "undefined") return localStorage.getItem("onboarding_dismissed") === "1";
     return false;
@@ -103,7 +104,9 @@ export default function DashboardPage() {
       api.records.getAll(),
       api.activity.getAll(),
       api.vitals.getAll(),
-    ]).then(([meds, symptoms, appts, records, acts, vitals]) => {
+      api.dietary.getAll(),
+      api.other.getAll(),
+    ]).then(([meds, symptoms, appts, records, acts, vitals, dietary, other]) => {
       const now = new Date();
       const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
       const recentSymptoms = symptoms.filter((s) => new Date(s.loggedAt) >= weekAgo);
@@ -116,7 +119,7 @@ export default function DashboardPage() {
         records: records.length,
       });
       setActivity(acts.slice(0, 20));
-      setPrintData({ meds, vitals, appts, symptoms });
+      setPrintData({ meds, vitals, appts, symptoms, dietary, other });
 
       // Days since last logged entry
       const lastEntry = acts[0];
@@ -397,7 +400,7 @@ export default function DashboardPage() {
                       </span>
                     )}
                     <span className="text-gray-400 dark:text-gray-500 text-xs flex-shrink-0">
-                      {new Date(entry.at).toLocaleDateString("en-IN", { timeZone: getAppTimezone() })}
+                      {formatDateIST(entry.at)}
                     </span>
                   </li>
                 ))}
@@ -490,7 +493,7 @@ export default function DashboardPage() {
                           <div key={type} className="border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2">
                             <p className="text-xs text-gray-400 dark:text-gray-500">{VITAL_LABELS[type] ?? type}</p>
                             <p className="text-sm font-semibold">{v.value2 != null ? `${v.value}/${v.value2}` : v.value} {v.unit}</p>
-                            <p className="text-xs text-gray-400 dark:text-gray-500">{new Date(v.loggedAt).toLocaleDateString("en-IN")}</p>
+                            <p className="text-xs text-gray-400 dark:text-gray-500">{formatDateIST(v.loggedAt)}</p>
                           </div>
                         ))}
                       </div>
@@ -498,22 +501,46 @@ export default function DashboardPage() {
                   );
                 })()}
 
-                {/* Upcoming Appointments */}
-                {printData.appts.filter(a => a.status === "upcoming" && new Date(a.datetime) >= new Date()).length > 0 && (
-                  <section>
-                    <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-3">Upcoming Appointments</h3>
-                    <div className="space-y-2">
-                      {printData.appts.filter(a => a.status === "upcoming" && new Date(a.datetime) >= new Date()).slice(0,5).map(a => (
-                        <div key={a.id} className="flex items-start gap-3 border border-gray-100 dark:border-gray-700 rounded-lg px-3 py-2">
-                          <div className="flex-1">
-                            <p className="text-sm font-medium">{a.doctor}{a.specialty ? ` — ${a.specialty}` : ""}</p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">{new Date(a.datetime).toLocaleDateString("en-IN", { day:"numeric", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit" })}{a.location ? ` · ${a.location}` : ""}</p>
+                {/* Appointments */}
+                {(() => {
+                  const now = new Date();
+                  const thirtyDaysAgo = new Date(now.getTime() - 30 * 86400000);
+                  const upcoming = printData.appts
+                    .filter(a => a.status === "upcoming" && new Date(a.datetime) >= now)
+                    .sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime())
+                    .slice(0, 5);
+                  const recentPast = printData.appts
+                    .filter(a => a.status === "completed" && new Date(a.datetime) >= thirtyDaysAgo)
+                    .sort((a, b) => new Date(b.datetime).getTime() - new Date(a.datetime).getTime())
+                    .slice(0, 3);
+                  if (upcoming.length === 0 && recentPast.length === 0) return null;
+                  return (
+                    <section>
+                      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-3">Appointments</h3>
+                      <div className="space-y-2">
+                        {upcoming.map(a => (
+                          <div key={a.id} className="flex items-start gap-3 border border-gray-100 dark:border-gray-700 rounded-lg px-3 py-2">
+                            <div className="flex-1">
+                              <p className="text-sm font-medium">{a.doctor}{a.specialty ? ` — ${a.specialty}` : ""}</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">{formatIST(a.datetime)}{a.location ? ` · ${a.location}` : ""}</p>
+                            </div>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300 font-medium flex-shrink-0">Upcoming</span>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  </section>
-                )}
+                        ))}
+                        {recentPast.map(a => (
+                          <div key={a.id} className="flex items-start gap-3 border border-gray-100 dark:border-gray-700 rounded-lg px-3 py-2">
+                            <div className="flex-1">
+                              <p className="text-sm font-medium">{a.doctor}{a.specialty ? ` — ${a.specialty}` : ""}</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">{formatIST(a.datetime)}{a.location ? ` · ${a.location}` : ""}</p>
+                              {a.postVisitNotes && <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5 italic">{a.postVisitNotes}</p>}
+                            </div>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 font-medium flex-shrink-0">Completed</span>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  );
+                })()}
 
                 {/* Recent Symptoms */}
                 {printData.symptoms.slice(0, 10).length > 0 && (
@@ -526,7 +553,7 @@ export default function DashboardPage() {
                           <tr key={s.id} className="border-b border-gray-100 dark:border-gray-800">
                             <td className="py-1.5 font-medium capitalize">{s.symptom}</td>
                             <td className="py-1.5 text-gray-600 dark:text-gray-400">{s.severity}/5</td>
-                            <td className="py-1.5 text-gray-500 dark:text-gray-400">{new Date(s.loggedAt).toLocaleDateString("en-IN")}</td>
+                            <td className="py-1.5 text-gray-500 dark:text-gray-400">{formatDateIST(s.loggedAt)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -534,8 +561,31 @@ export default function DashboardPage() {
                   </section>
                 )}
 
+                {/* Notes */}
+                {(printData.dietary.length > 0 || printData.other.length > 0) && (
+                  <section>
+                    <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-3">Notes</h3>
+                    <div className="space-y-2">
+                      {printData.dietary.slice(0, 5).map(n => (
+                        <div key={n.id} className="border border-gray-100 dark:border-gray-700 rounded-lg px-3 py-2">
+                          <p className="text-[10px] font-semibold text-teal-600 dark:text-teal-400 uppercase tracking-wide mb-0.5">Dietary</p>
+                          <p className="text-sm text-gray-700 dark:text-gray-300">{n.content}</p>
+                          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{formatDateIST(n.createdAt)}</p>
+                        </div>
+                      ))}
+                      {printData.other.slice(0, 5).map(n => (
+                        <div key={n.id} className="border border-gray-100 dark:border-gray-700 rounded-lg px-3 py-2">
+                          <p className="text-[10px] font-semibold text-purple-600 dark:text-purple-400 uppercase tracking-wide mb-0.5">Other</p>
+                          <p className="text-sm text-gray-700 dark:text-gray-300">{n.content}</p>
+                          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{formatDateIST(n.createdAt)}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
                 <footer className="pt-4 border-t border-gray-200 dark:border-gray-700 text-xs text-gray-400 dark:text-gray-500">
-                  Generated by CareCompanion · {new Date().toLocaleString("en-IN")} · For informational purposes only. Always consult a qualified healthcare professional.
+                  Generated by CareCompanion · {formatIST(new Date().toISOString())} · For informational purposes only. Always consult a qualified healthcare professional.
                 </footer>
               </div>
             </div>
