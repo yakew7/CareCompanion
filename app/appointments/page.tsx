@@ -480,23 +480,26 @@ export default function AppointmentsPage() {
             {/* View toggle */}
             <div className="flex bg-gray-100 dark:bg-gray-700 rounded-xl p-0.5 gap-0.5">
               <button
+                type="button"
                 onClick={() => setViewMode("list")}
                 title="List view"
-                className={`p-1.5 rounded-lg transition-colors ${viewMode === "list" ? "bg-white dark:bg-gray-600 shadow-sm text-teal-600 dark:text-teal-400" : "text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"}`}
+                className={`p-2.5 rounded-lg transition-colors ${viewMode === "list" ? "bg-white dark:bg-gray-600 shadow-sm text-teal-600 dark:text-teal-400" : "text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"}`}
               >
                 <List className="w-3.5 h-3.5" />
               </button>
               <button
+                type="button"
                 onClick={() => { setViewMode("week"); setCalOffset(0); }}
                 title="Week view"
-                className={`p-1.5 rounded-lg transition-colors ${viewMode === "week" ? "bg-white dark:bg-gray-600 shadow-sm text-teal-600 dark:text-teal-400" : "text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"}`}
+                className={`p-2.5 rounded-lg transition-colors ${viewMode === "week" ? "bg-white dark:bg-gray-600 shadow-sm text-teal-600 dark:text-teal-400" : "text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"}`}
               >
                 <CalendarDays className="w-3.5 h-3.5" />
               </button>
               <button
+                type="button"
                 onClick={() => { setViewMode("month"); setCalOffset(0); }}
                 title="Month view"
-                className={`p-1.5 rounded-lg transition-colors ${viewMode === "month" ? "bg-white dark:bg-gray-600 shadow-sm text-teal-600 dark:text-teal-400" : "text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"}`}
+                className={`p-2.5 rounded-lg transition-colors ${viewMode === "month" ? "bg-white dark:bg-gray-600 shadow-sm text-teal-600 dark:text-teal-400" : "text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"}`}
               >
                 <LayoutGrid className="w-3.5 h-3.5" />
               </button>
@@ -506,8 +509,9 @@ export default function AppointmentsPage() {
             {appointments.length > 0 && (
               <div className="relative">
                 <button
+                  type="button"
                   onClick={() => setShowOverflow((v) => !v)}
-                  className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors"
+                  className="relative z-50 p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors"
                   title="More options"
                 >
                   <MoreVertical className="w-4 h-4" />
@@ -633,9 +637,14 @@ export default function AppointmentsPage() {
                 onChange={(e) => setForm({ ...form, specialty: e.target.value })} />
             </div>
             <div>
-              <label className="label">Date and time (IST) *</label>
+              <label className="label">Date and time *</label>
               <input type="datetime-local" className="input" value={form.datetime}
                 onChange={(e) => setForm({ ...form, datetime: e.target.value })} />
+              {form.datetime && (
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                  {new Date(form.datetime).toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: true })}
+                </p>
+              )}
             </div>
             <div>
               <label className="label">Location</label>

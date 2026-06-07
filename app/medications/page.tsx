@@ -349,8 +349,9 @@ export default function MedicationsPage() {
             {meds.length > 0 && (
               <div className="relative">
                 <button
+                  type="button"
                   onClick={() => setShowOverflow((v) => !v)}
-                  className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors"
+                  className="relative z-50 p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors"
                   title="More options"
                 >
                   <MoreVertical className="w-4 h-4" />
@@ -426,16 +427,18 @@ export default function MedicationsPage() {
           </div>
         )}
 
-        <div className="card">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">Today&apos;s Doses</span>
-            <span className="text-xs text-gray-500 dark:text-gray-400">{takenDoses.length} of {allDoses.length} taken</span>
+        {allDoses.length > 0 && (
+          <div className="card">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">Today&apos;s Doses</span>
+              <span className="text-xs text-gray-500 dark:text-gray-400">{takenDoses.length} of {allDoses.length} taken</span>
+            </div>
+            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+              <div className="bg-teal-500 h-2 rounded-full transition-all duration-300" style={{ width: `${progress}%` }} />
+            </div>
+            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{progress}% complete</p>
           </div>
-          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-            <div className="bg-teal-500 h-2 rounded-full transition-all duration-300" style={{ width: `${progress}%` }} />
-          </div>
-          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{progress}% complete</p>
-        </div>
+        )}
 
         {loading ? (
           <div className="flex justify-center py-12">

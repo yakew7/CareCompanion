@@ -365,7 +365,7 @@ export default function DashboardPage() {
                 className={`px-2.5 py-0.5 rounded-full whitespace-nowrap flex-shrink-0 transition-colors ${
                   activityFilter === f.value
                     ? "bg-teal-600 dark:bg-teal-700 text-white font-medium"
-                    : "text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
+                    : "bg-transparent text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
                 }`}
               >{f.label}</button>
             ))}

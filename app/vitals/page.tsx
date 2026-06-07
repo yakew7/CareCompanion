@@ -831,6 +831,11 @@ export default function VitalsPage() {
               <label className="label">Date and time</label>
               <input type="datetime-local" className="input" value={form.loggedAt}
                 onChange={(e) => setForm({ ...form, loggedAt: e.target.value })} />
+              {form.loggedAt && (
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                  {new Date(form.loggedAt).toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: true })}
+                </p>
+              )}
             </div>
 
             <div className="flex gap-3 pt-1">
