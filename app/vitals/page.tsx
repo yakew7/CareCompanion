@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from "uuid";
 import toast from "react-hot-toast";
 import { HeartPulse, Droplets, Scale, Heart, Gauge, Thermometer, Wind, TrendingUp, Plus, Trash2, Pencil, Check, X, ChevronDown, ChevronUp, Zap, BarChart2, SlidersHorizontal } from "lucide-react";
 import TopBar from "@/components/TopBar";
+import { nowIST } from "@/lib/time";
 import { api } from "@/lib/api";
 import { storage } from "@/lib/storage";
 import { usePersonContext } from "@/contexts/PersonContext";
@@ -144,7 +145,7 @@ export default function VitalsPage() {
   const [loading, setLoading] = useState(true);
   const [logType, setLogType] = useState<VitalType | null>(null);
   const [trendType, setTrendType] = useState<VitalType | null>(null);
-  const [form, setForm] = useState({ value: "", value2: "", notes: "" });
+  const [form, setForm] = useState({ value: "", value2: "", notes: "", loggedAt: "" });
   const [cholForm, setCholForm] = useState({ total: "", ldl: "", hdl: "", tg: "" });
   const [customRanges, setCustomRanges] = useState<Partial<Record<VitalType, CustomVitalRange>>>({});
   const [customRangeType, setCustomRangeType] = useState<VitalType | null>(null);
@@ -219,7 +220,7 @@ export default function VitalsPage() {
   function openLog(type: VitalType) {
     setLogType(type);
     const d = VITAL_DEFAULTS[type] ?? {};
-    setForm({ value: (d as { value?: string }).value || "", value2: (d as { value2?: string }).value2 || "", notes: "" });
+    setForm({ value: (d as { value?: string }).value || "", value2: (d as { value2?: string }).value2 || "", notes: "", loggedAt: nowIST() });
     setCholForm({ total: "", ldl: "", hdl: "", tg: "" });
   }
 
@@ -242,7 +243,7 @@ export default function VitalsPage() {
       notes = form.notes;
     }
 
-    const entry: VitalEntry = { id: uuidv4(), type: logType, value, value2, unit: def.unit, notes, loggedAt: new Date().toISOString() };
+    const entry: VitalEntry = { id: uuidv4(), type: logType, value, value2, unit: def.unit, notes, loggedAt: form.loggedAt ? new Date(form.loggedAt).toISOString() : new Date().toISOString() };
     await api.vitals.save(entry);
     api.activity.push({ type: "vital", label: `Logged ${def.label}: ${formatValue(entry)}`, at: entry.loggedAt });
     setEntries(await api.vitals.getAll());
@@ -825,6 +826,12 @@ export default function VitalsPage() {
                   onKeyDown={(e) => e.key === "Enter" && save()} />
               </div>
             )}
+
+            <div>
+              <label className="label">Date and time</label>
+              <input type="datetime-local" className="input" value={form.loggedAt}
+                onChange={(e) => setForm({ ...form, loggedAt: e.target.value })} />
+            </div>
 
             <div className="flex gap-3 pt-1">
               <button onClick={save} className="btn-primary flex-1">Save</button>

@@ -84,7 +84,7 @@ export default function TopBar({ reportName }: { reportName?: string }) {
         {persons.length > 0 && (
           <div className="relative md:hidden">
             <button
-              onClick={() => { setMenuOpen((o) => !o); setAddOpen(false); }}
+              onClick={(e) => { e.stopPropagation(); setMenuOpen((o) => !o); setAddOpen(false); }}
               title="Switch or add profile"
               aria-label="Switch or add profile"
               className="flex items-center gap-1.5 px-2 py-1.5 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"

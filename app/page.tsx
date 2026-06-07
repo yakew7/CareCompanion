@@ -13,7 +13,7 @@ import { getAppTimezone, formatDateIST, formatIST } from "@/lib/time";
 
 const ACTIVITY_FILTERS = [
   { value: "all",        label: "All"      },
-  { value: "active",     label: "Active"   },
+  { value: "active",     label: "Current"  },
   { value: "medication", label: "Meds"     },
   { value: "vital",      label: "Vitals"   },
   { value: "record",     label: "Reports"  },
@@ -203,7 +203,7 @@ export default function DashboardPage() {
 
   const summaryCards = [
     { label: "Medications tracked",   value: stats.medications,           icon: Pill,       href: "/medications",  color: neutral },
-    { label: "Symptoms this week",    value: stats.symptomsThisWeek,      icon: Thermometer, href: "/symptoms",    color: symptomColor },
+    { label: "Symptoms this week",    value: stats.symptomsThisWeek,      icon: Activity,    href: "/symptoms",    color: symptomColor },
     { label: "Upcoming appointments", value: stats.upcomingAppointments,  icon: Calendar,   href: "/appointments", color: neutral },
     { label: "Reports uploaded",      value: stats.records,               icon: FileText,   href: "/records",      color: neutral },
   ];
@@ -352,7 +352,7 @@ export default function DashboardPage() {
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Recent Activity</h3>
             {activity.length > 0 && (
               <button
-                onClick={async () => { await api.activity.clearAll(); setActivity([]); }}
+                onClick={async () => { if (!confirm("Clear all recent activity? This cannot be undone.")) return; await api.activity.clearAll(); setActivity([]); }}
                 className="text-xs text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 transition-colors"
               >Clear</button>
             )}
