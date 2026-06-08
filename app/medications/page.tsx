@@ -716,12 +716,12 @@ export default function MedicationsPage() {
                 </div>
                 {form.frequency === "Once daily" && form.times.length > 1 && (
                   <p className="text-xs text-amber-600 dark:text-amber-400 mt-1.5">
-                    ⚠ "Once daily" — select only 1 time slot. Pick the most appropriate one.
+                    ⚠ &quot;Once daily&quot; — select only 1 time slot. Pick the most appropriate one.
                   </p>
                 )}
                 {form.frequency === "Twice daily" && form.times.length !== 2 && form.times.length > 0 && (
                   <p className="text-xs text-blue-500 dark:text-blue-400 mt-1.5">
-                    Tip: "Twice daily" works best with 2 time slots (e.g. Morning + Evening).
+                    Tip: &quot;Twice daily&quot; works best with 2 time slots (e.g. Morning + Evening).
                   </p>
                 )}
               </div>
