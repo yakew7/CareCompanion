@@ -151,6 +151,21 @@ export default function ChatPage() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    if (!activePersonId) { setMessages([]); return; }
+    try {
+      const raw = localStorage.getItem(`cc_chat_messages__${activePersonId}`);
+      setMessages(raw ? (JSON.parse(raw) as Message[]) : []);
+    } catch { setMessages([]); }
+  }, [activePersonId]);
+
+  useEffect(() => {
+    if (!activePersonId || messages.length === 0) return;
+    try {
+      localStorage.setItem(`cc_chat_messages__${activePersonId}`, JSON.stringify(messages.slice(-50)));
+    } catch { /* ignore quota */ }
+  }, [activePersonId, messages]);
+
+  useEffect(() => {
     if (!activePersonId || !activePerson) return;
     Promise.all([
       api.medications.getAll(),

@@ -82,6 +82,7 @@ export default function AppointmentsPage() {
   const [followupSuggestion, setFollowupSuggestion] = useState<{
     appt: Appointment; daysFromNow: number; reason: string;
   } | null>(null);
+  const [isFollowup, setIsFollowup] = useState(false);
 
   useEffect(() => {
     if (!activePersonId) return;
@@ -107,6 +108,8 @@ export default function AppointmentsPage() {
     await api.appointments.save(appt);
     if (!editing) api.activity.push({ type: "appointment", label: `Added appointment: ${appt.doctor}`, at: new Date().toISOString() });
     setAppointments(await api.appointments.getAll());
+    setFollowupSuggestion(null);
+    setIsFollowup(false);
     setShowModal(false);
     toast.success(editing ? "Appointment updated" : "Appointment added");
   }
@@ -171,21 +174,19 @@ export default function AppointmentsPage() {
     }
   }
 
-  async function createFollowup() {
+  function openFollowupEdit() {
     if (!followupSuggestion) return;
-    const { appt, daysFromNow } = followupSuggestion;
-    const followupDate = new Date(appt.datetime);
-    followupDate.setDate(followupDate.getDate() + daysFromNow);
-    const newAppt: Appointment = {
-      id: uuidv4(), doctor: appt.doctor, specialty: appt.specialty,
-      datetime: followupDate.toISOString(), location: appt.location,
-      notes: `Follow-up: ${followupSuggestion.reason}`, status: "upcoming", postVisitNotes: "",
-    };
-    await api.appointments.save(newAppt);
-    await api.activity.push({ type: "appointment", label: `Follow-up created: ${appt.doctor}`, at: new Date().toISOString() });
-    setAppointments(await api.appointments.getAll());
-    setFollowupSuggestion(null);
-    toast.success("Follow-up appointment created");
+    const { appt, daysFromNow, reason } = followupSuggestion;
+    const followupDate = new Date(new Date(appt.datetime).getTime() + daysFromNow * 86400000);
+    setForm({
+      doctor: appt.doctor, specialty: appt.specialty,
+      datetime: formatForInput(followupDate.toISOString()),
+      location: appt.location, notes: `Follow-up: ${reason}`,
+      status: "upcoming", postVisitNotes: "",
+    });
+    setEditing(null);
+    setIsFollowup(true);
+    setShowModal(true);
   }
 
   const now = new Date();
@@ -614,7 +615,7 @@ export default function AppointmentsPage() {
               </div>
             </div>
             <div className="flex gap-2">
-              <button onClick={createFollowup} className="btn-primary flex-1 py-2">Create Appointment</button>
+              <button onClick={openFollowupEdit} className="btn-primary flex-1 py-2">Review &amp; Save</button>
               <button onClick={() => setFollowupSuggestion(null)} className="btn-secondary px-4 py-2">Dismiss</button>
             </div>
           </div>
@@ -625,7 +626,7 @@ export default function AppointmentsPage() {
         <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
           <div className="bg-white dark:bg-gray-800 rounded-t-2xl sm:rounded-2xl p-6 w-full sm:max-w-md shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
-              {editing ? "Edit Appointment" : "Add Appointment"}
+              {editing ? "Edit Appointment" : isFollowup ? "Review Follow-up" : "Add Appointment"}
             </h3>
             <div>
               <label className="label">Doctor / Facility *</label>
@@ -642,9 +643,14 @@ export default function AppointmentsPage() {
               <input type="datetime-local" className="input" value={form.datetime}
                 onChange={(e) => setForm({ ...form, datetime: e.target.value })} />
               {form.datetime && (
-                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                  {new Date(form.datetime).toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: true })}
-                </p>
+                <div className="mt-1 space-y-0.5">
+                  <p className="text-xs text-gray-400 dark:text-gray-500">
+                    {new Date(form.datetime).toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: true })}
+                  </p>
+                  {new Date(form.datetime) < new Date() && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400">⚠ This date is in the past</p>
+                  )}
+                </div>
               )}
             </div>
             <div>
@@ -670,7 +676,7 @@ export default function AppointmentsPage() {
               <button onClick={save} className="btn-primary flex-1">
                 {editing ? "Save Changes" : "Add Appointment"}
               </button>
-              <button onClick={() => setShowModal(false)} className="btn-secondary flex-1">Cancel</button>
+              <button onClick={() => { setShowModal(false); setIsFollowup(false); }} className="btn-secondary flex-1">Cancel</button>
             </div>
           </div>
         </div>

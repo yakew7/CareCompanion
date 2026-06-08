@@ -839,6 +839,12 @@ export default function VitalsPage() {
                 <h3 className="font-semibold text-gray-900 dark:text-gray-100">Doctor&apos;s Target — {def.label}</h3>
               </div>
               <p className="text-xs text-gray-500 dark:text-gray-400">Set a custom normal range as instructed by your doctor. Overrides the standard range for status badges and trend chart.</p>
+              {def.normalRange && (
+                <div className="text-xs bg-gray-50 dark:bg-gray-700/50 rounded-lg px-3 py-2">
+                  <span className="font-medium text-gray-500 dark:text-gray-400">Standard: </span>
+                  <span className="text-gray-400 dark:text-gray-500">{def.normalRange}</span>
+                </div>
+              )}
 
               {customRangeType === "bp" ? (
                 <div className="space-y-3">
