@@ -1,158 +1,64 @@
-# CareCompanion
+<div align="center">
 
-[![Version](https://img.shields.io/badge/version-1.3.0-blue)](CHANGELOG.md)
-[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+# 🫀 CareCompanion
 
-A health tracking app built for family caregivers. Upload medical reports, track medications, log symptoms, manage appointments, and store dietary and other notes — all in one place, with AI-powered summaries, pattern analysis, and a health assistant that knows the patient's full context.
+**A private, AI-powered health management platform for family caregivers**
 
----
+[![Version](https://img.shields.io/badge/version-2.0.0-0d9488?style=flat-square)](CHANGELOG.md)
+[![License](https://img.shields.io/badge/license-MIT-22c55e?style=flat-square)](LICENSE)
+[![Next.js](https://img.shields.io/badge/Next.js-14-000000?style=flat-square&logo=next.js&logoColor=white)](https://nextjs.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?style=flat-square&logo=typescript&logoColor=white)](https://typescriptlang.org)
+[![Groq](https://img.shields.io/badge/AI-Groq%20LLaMA%203.3-f97316?style=flat-square)](https://console.groq.com)
+[![Privacy](https://img.shields.io/badge/data-local%20only-8b5cf6?style=flat-square&logo=shield&logoColor=white)](SECURITY.md)
 
-## Features
+<br/>
 
-### Multi-person profiles
-- Track as many family members as you need, each with a colour-coded avatar
-- Switch between people in the sidebar (desktop) or top-bar dropdown (mobile) — all data is fully isolated per person **and per Google account**
-- **Rename or recolor** any profile at any time via the pencil icon in the sidebar People section
-- Each signed-in Google account sees only its own people and data; two accounts on the same browser never share records
-- Dashboard greeting uses the active profile's nickname ("Good morning, Mom") — updates instantly when you switch
+Upload medical reports &nbsp;·&nbsp; Track medications &nbsp;·&nbsp; Log vitals & symptoms  
+Manage appointments &nbsp;·&nbsp; Ask AI anything &nbsp;·&nbsp; 100% on your device
 
-### Medical reports
-- Upload PDF or TXT reports and get a plain-English AI summary split into three sections: **Summary**, **Dietary Notes**, and **Other Notes**
-- Chat with the report using the built-in health assistant — ask follow-up questions in plain language
-- Auto-extracts medications, appointments, symptoms, vitals, dietary notes, and patient profile directly from the report text; a confirmation panel lets you select exactly what to save
-- Report text is **never stored** — only the AI-generated summary is kept in your browser
+<br/>
 
-### Medications
-- Track daily, weekly (specific days of week), and monthly medications with customisable times (Morning / Afternoon / Evening / Night)
-- One-tap dose logging with a daily progress bar and adherence percentage
-- Dose log shows taken time in 12-hour format (e.g. "2:13 PM")
-- Adherence calendar and home % only count days from when the medication was first added — no false "missed dose" red marks for days before the med existed
-- Optional course duration — medication auto-removes itself after N days
-- Understands Indian prescription notation (1-0-1, 0-0-1, 1-1-1 etc.) when extracted from reports
-- Export recurring `.ics` calendar reminders with VALARM alerts — imports into Apple Calendar or Google Calendar with native pop-up alerts
-- Destructive "Clear all" is behind a three-dot overflow menu with a confirmation dialog that names the patient
-
-### Symptoms
-- Log symptoms with a severity scale of 1–5, with calibrated anchors:
-  - **1** — Barely noticeable, no impact on daily activity
-  - **2** — Mild, slightly uncomfortable
-  - **3** — Moderate, disrupting normal routine
-  - **4** — Severe, significant distress
-  - **5** — Emergency-level, seek medical attention
-- AI pattern analysis across recent entries to surface trends — AI is briefed on the 1–5 scale so it never asks "what does severity 3 mean?"
-- Colour-coded severity indicator updates in real time as you set the slider
-- **Edit any logged symptom** via the pencil icon — change severity, update notes, or correct the entry without deleting and re-adding
-
-### Appointments
-- Track upcoming and past/cancelled appointments; section boundary is start-of-today so same-day appointments always show as Upcoming, not Past
-- AI-suggested follow-up appointments generated from post-visit notes
-- Export any appointment or all appointments as `.ics` — opens in Apple Calendar, Google Calendar, and any standard calendar app
-
-### Notes
-- Dedicated **Dietary** and **Other** sections for doctor instructions and care notes
-- Auto-populated from uploaded reports; manual add supported
-- **Edit any note** via the pencil icon to fix typos or update instructions without deleting and re-adding
-- Notes from multiple reports accumulate over time
-
-### Vitals
-- Three sections:
-  - **Basic Info** — age, height, gender, blood type; BMI auto-calculated from latest weight with Normal / Overweight / Obese badge
-  - **At-Home Readings** — Blood Pressure and Blood Glucose pinned at top as featured cards; Weight, Heart Rate, Temperature in a regular grid; SpO₂ and Respiratory Rate in a collapsible "Additional readings" section
-  - **Lab Results** — 20 tests organised into seven groups:
-    - **Metabolic** — HbA1c, Total Cholesterol (with LDL/HDL/Triglycerides breakdown)
-    - **Blood Panel (CBC)** — Hemoglobin, WBC, RBC, Platelets
-    - **Liver (LFT)** — ALT/SGPT, AST/SGOT, ALP, Bilirubin, Albumin
-    - **Kidney / Renal** — Creatinine, BUN/Urea, Uric Acid, eGFR
-    - **Thyroid** — TSH, T3, T4
-    - **Electrolytes** — Sodium, Potassium, Calcium
-    - **Iron Studies** — Serum Iron, Ferritin
-- Sparkline trend graph per vital with normal-range band on the chart
-- Normal / Caution / Critical status badge per reading, shown as a coloured left-border accent on the card
-- Doctor's custom target range — overrides the standard range for any test
-- Auto-filled from uploaded reports — all 27 vital and lab types are extracted and inserted silently; handles Indian lab notation (Lakh/µL for platelets, mmol/L for glucose, °F for temperature)
-- Latest vitals passed to the AI health assistant for context-aware answers
-
-### Health Assistant (Ask AI)
-- Ask anything health-related in a conversational chat interface
-- Has full context of the patient's medications, symptoms, vitals, dietary notes, post-visit appointment notes, and other instructions — updated on every session
-- Suggested prompt chips are generated dynamically from the patient's actual data:
-  - If medications are tracked: drug interaction questions for those specific medications
-  - If a recent high-severity symptom exists: a cause-analysis question for that symptom
-  - If HbA1c, blood pressure, or glucose readings are logged: contextual questions about those results
-  - Falls back to general health prompts if no data is entered yet
-- Disclaimer shown on every session: responses are informational only, not a substitute for medical advice
-- Patient name is **never** sent to the AI — identified as `[anonymous]` in all contexts
-
-### Dashboard
-- Four stat cards: Medications tracked, Symptoms this week, Upcoming appointments, Reports uploaded
-- **Passive data overlays** on stat cards:
-  - Medication adherence % for the past 7 days shown directly on the Medications card
-  - 7-day symptom severity sparkline on the Symptoms card (when data exists)
-  - Flagged vitals banner below the cards whenever any reading is in Watch or High range — links directly to the Vitals page
-- Cards are semantically coloured: neutral when everything is normal; orange if any recent symptom reaches severity ≥ 4; red if severity 5
-- Recent Activity log with filter toggle (All / Active / Meds / Vitals / Reports / Symptoms); selected filter persists across reloads; type filters hide deleted entries
-- Quick Actions: Upload Report, Log Symptom, Add Medication, Add Appointment
-
-### Data backup and restore
-- **Export data** button in the sidebar — downloads a complete JSON backup of all people and health records to your device
-- **Import backup** button in the sidebar — restores from a previously exported file; reloads the app automatically
-- After 7 days of first use, a persistent (dismissible) reminder banner prompts you to back up your data
-- The backup JSON never touches any server — it lives only on your device
-
-### Reminders and notifications
-- Opt-in browser notifications for medication times (Morning 8 am, Afternoon 1 pm, Evening 6 pm, Night 9 pm) with per-user time customisation
-- Configurable daily symptom check-in reminder
-- Falls back to in-app toast alerts if browser notifications are not available
-
-### PWA support
-- Service Worker + Web App Manifest — installable on Android Chrome for home-screen access and near-native notifications
-
-### Timezone
-- User-selectable timezone (11 options covering IST, Gulf, Singapore, Tokyo, Sydney, London, Europe, US East/Central/West, Auckland)
-- Accessible on **both mobile** (More sheet in bottom nav) and desktop (sidebar)
-- Changing timezone live-updates all displayed timestamps on the current page without requiring a reload
-
-### Dark mode
-- Toggleable from the sidebar (desktop) or the top bar (mobile/all pages), persisted across sessions
-- Dark class applied before first paint to eliminate flash
-
-### Privacy-first design
-- All medical data stored in the browser's `localStorage` only — nothing is written to any server or database
-- Report text processed in-flight by Groq; never stored by the app
-- Patient name never sent to any AI service — identified as `[anonymous]` in all AI contexts
-- Each Google account's data is namespaced separately in localStorage — switching accounts shows only that account's people and data
-- See [SECURITY.md](SECURITY.md) for the full data handling breakdown
+</div>
 
 ---
 
-## Tech stack
+## Overview
 
-| Layer | Technology |
-|---|---|
-| Framework | Next.js 14 (App Router) |
-| Language | TypeScript |
-| Styling | Tailwind CSS |
-| Auth | NextAuth v4 (Google OAuth) |
-| AI | Groq API (`llama-3.3-70b-versatile`) |
-| PDF parsing | unpdf |
-| Storage | localStorage (client-only, per-account namespaced) |
-| Backend DB | Supabase (auth session only — no medical data) |
-| PWA | Service Worker + Web App Manifest |
-| Notifications | Web Notifications API |
-| Icons | Lucide React |
+CareCompanion is a browser-based health dashboard designed for people caring for aging parents, family members, or anyone managing complex medical needs. It brings everything into one place — reports, medications, vitals, symptoms, appointments, and notes — with AI to help make sense of it all.
+
+**Your data never leaves your device.** All health records are stored exclusively in your browser's `localStorage`. The only external calls are to an AI API for in-flight processing — and even then, no patient names or health records are transmitted.
 
 ---
 
-## Getting started
+## Feature Overview
+
+| | Feature | What it does |
+|:---:|---|---|
+| 📄 | **Medical Reports** | Upload PDFs, get plain-English summaries, auto-extract medications & appointments |
+| 💊 | **Medications** | Daily/weekly/monthly tracking, one-tap dose logging, `.ics` calendar reminders |
+| 📊 | **Vitals & Labs** | 27 vitals and lab tests across 7 groups, trend charts, normal-range indicators |
+| 🩺 | **Symptoms** | 1–5 severity logging, AI pattern analysis, week-over-week trend cards |
+| 📅 | **Appointments** | Full history, AI-suggested follow-ups (editable), `.ics` export |
+| 📝 | **Notes** | Dietary and care notes; auto-populated from reports, manually editable |
+| 🤖 | **Health Assistant** | Contextual AI chat with full patient context; patient name never transmitted |
+| 📡 | **Proactive Insights** | Auto-detected patterns: vital trends, symptom spikes, frequency surges |
+| 🔍 | **Global Search** | `⌘K` search across all data types from anywhere in the app |
+| 👥 | **Multi-person profiles** | Isolated data per family member, per Google account |
+| 🔔 | **Reminders** | Browser notifications for medications and daily symptom check-ins |
+| 💾 | **Backup & Restore** | Full JSON export/import — two-phase validation, never leaves your device |
+
+---
+
+## Quick Start
 
 ### Prerequisites
 
 - Node.js 24+
-- A [Groq API key](https://console.groq.com) (free tier is sufficient)
-- A Google OAuth client (via [Google Cloud Console](https://console.cloud.google.com))
-- A [Supabase](https://supabase.com) project (used for auth session storage only)
+- [Groq API key](https://console.groq.com) — free tier is sufficient
+- [Google OAuth client](https://console.cloud.google.com) — for user login
+- [Supabase project](https://supabase.com) — for auth session storage only; no medical data is ever written here
 
-### Setup
+### 1. Clone and install
 
 ```bash
 git clone https://github.com/yakew7/CareCompanion.git
@@ -160,20 +66,39 @@ cd CareCompanion
 npm install
 ```
 
-Create a `.env.local` file in the project root:
+### 2. Configure environment
+
+Create `.env.local` in the project root:
 
 ```env
+# Auth
 NEXTAUTH_URL=http://localhost:3000
-NEXTAUTH_SECRET=your-nextauth-secret
+NEXTAUTH_SECRET=                          # openssl rand -base64 32
 
-GOOGLE_CLIENT_ID=your-google-client-id
-GOOGLE_CLIENT_SECRET=your-google-client-secret
+# Google OAuth
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
 
-GROQ_API_KEY=your-groq-api-key
+# AI
+GROQ_API_KEY=
 
-NEXT_PUBLIC_SUPABASE_URL=your-supabase-project-url
-SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
+# Supabase (auth sessions only)
+NEXT_PUBLIC_SUPABASE_URL=
+SUPABASE_SERVICE_ROLE_KEY=
 ```
+
+### 3. Set up Supabase
+
+The only table required is a thin auth session tracker. No medical data is ever written here.
+
+```sql
+create table user_profiles (
+  user_id    text primary key,
+  created_at timestamptz default now()
+);
+```
+
+### 4. Run
 
 ```bash
 npm run dev
@@ -181,42 +106,178 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-> AI features (report upload, health chat, symptom analysis) require a valid Groq key. All other features work without one.
+> **Skip auth in development** — set `NEXT_PUBLIC_DEV_SKIP_AUTH=true` in `.env.local` to bypass Google login. The app auto-creates a "Demo" profile and uses a fixed local namespace.
 
-### Supabase setup
-
-The only table needed in Supabase is for auth session tracking. No medical data is ever written here.
-
-```sql
-create table user_profiles (
-  user_id text primary key,
-  created_at timestamptz default now()
-);
-```
-
-### Skip auth for local development
-
-Set `NEXT_PUBLIC_DEV_SKIP_AUTH=true` in `.env.local` to bypass Google login entirely. The app will auto-create a "Demo" person and use a fixed local namespace.
+> **AI features** (report upload, health chat, symptom analysis, drug interaction checks) require a valid Groq key. All other features work without one.
 
 ---
 
-## Data and privacy
+## Features
 
-All health data — medications, symptoms, appointments, reports, notes, vitals, and profile information — is stored exclusively in your browser's `localStorage`. It never leaves your device unless you explicitly export it.
+<details>
+<summary><strong>📄 Medical Reports</strong></summary>
+<br/>
 
-**What is sent to external services:**
+- Upload **PDF or TXT** files and receive a plain-English AI summary split into three sections: **Summary**, **Dietary Notes**, and **Other Notes**
+- **Auto-extraction** — medications, appointments, symptoms, vitals, dietary notes, and patient profile are identified and prepared for saving; a confirmation panel with per-item checkboxes gives you full control over what gets saved
+- A toast breakdown tells you exactly what was saved: *"Saved from report: 2 medications, 1 appointment, 3 notes"*
+- **Chat with any report** via the built-in health assistant — ask follow-up questions in plain language
+- Report text is **never stored** — only the AI-generated summary is kept in your browser
+- Clear, specific error messages: image-only PDFs, password-protected files, and corrupted uploads each produce a distinct, actionable message with a **Retry** button
 
-| Data | Service | Purpose | Stored? |
-|---|---|---|---|
-| Report text | Groq API | AI summarisation | No — processed in-flight only |
-| Chat messages | Groq API | Health assistant responses | No — processed in-flight only |
-| Google account (email, name) | NextAuth / Google OAuth | Login only | Session token only |
+</details>
 
-**What is never sent anywhere:** patient nicknames, medications, symptoms, appointments, vitals, notes, or any other health record.
+<details>
+<summary><strong>💊 Medications</strong></summary>
+<br/>
 
-The backup export (Export data) downloads a JSON file directly to your device. It is never uploaded to any server.
+- Track **daily**, **weekly** (specific days of week), and **monthly** medications with customisable time slots (Morning / Afternoon / Evening / Night)
+- **One-tap dose logging** with a daily progress bar and 7-day adherence percentage
+- Adherence calendar starts from the day the medication was first added — no false "missed dose" marks for days before it existed
+- Optional **course duration** — medication auto-removes itself after N days
+- Understands Indian prescription notation (`1-0-1`, `0-0-1`, `1-1-1`) when auto-extracted from reports
+- Export recurring **`.ics` calendar reminders** with VALARM alerts — imports into Apple Calendar or Google Calendar with native pop-up notifications
+- **Drug interaction check** powered by Groq; if the check is unavailable, a clear advisory appears instead of a silent result
+- Destructive "Clear all" is behind a three-dot overflow menu with a named confirmation dialog
 
-See [SECURITY.md](SECURITY.md) for the complete breakdown.
+</details>
+
+<details>
+<summary><strong>📊 Vitals & Lab Results</strong></summary>
+<br/>
+
+**27 readings across 7 groups:**
+
+| Group | Tests |
+|---|---|
+| **At-Home** | Blood Pressure, Blood Glucose, Weight, Heart Rate, Temperature, SpO₂, Respiratory Rate, Pain Level |
+| **Metabolic** | HbA1c, Total Cholesterol |
+| **Blood Panel (CBC)** | Hemoglobin, WBC, RBC, Platelets |
+| **Liver (LFT)** | ALT/SGPT, AST/SGOT, ALP, Bilirubin, Albumin |
+| **Kidney / Renal** | Creatinine, BUN/Urea, Uric Acid, eGFR |
+| **Thyroid** | TSH, T3, T4 |
+| **Electrolytes** | Sodium, Potassium, Calcium |
+| **Iron Studies** | Serum Iron, Ferritin |
+
+- **Sparkline trend chart** per vital with a green normal-range band on the chart
+- **Normal / Watch / High** status badge with a coloured left-border accent on each card
+- **Doctor's custom target range** overrides the standard range for any test; the standard range is shown as a hint inside the modal
+- **BMI** auto-calculated from latest weight and height with Normal / Overweight / Obese badge
+- Auto-filled from uploaded reports; handles Indian lab notation (Lakh/µL for platelets, mmol/L → mg/dL for glucose, °F → °C for temperature)
+
+</details>
+
+<details>
+<summary><strong>🩺 Symptoms</strong></summary>
+<br/>
+
+- Log with a calibrated **1–5 severity scale** — colour-coded chip updates in real time as you set the slider:
+
+  | Score | Label | Meaning |
+  |:---:|---|---|
+  | 1 | Barely noticeable | No impact on daily activity |
+  | 2 | Mild | Slightly uncomfortable |
+  | 3 | Moderate | Disrupting normal routine |
+  | 4 | Severe | Significant distress |
+  | 5 | Emergency-level | Seek medical attention |
+
+- **AI pattern analysis** across recent entries — the model is briefed on the full scale so it never asks "what does severity 3 mean?"
+- **Week-over-week severity trend** insight card surfaces automatically (▲/▼ with colour coding)
+- Edit any logged symptom via the pencil icon — update severity, notes, or correct the entry without deleting it
+
+</details>
+
+<details>
+<summary><strong>📅 Appointments</strong></summary>
+<br/>
+
+- Track **upcoming and past** appointments; the boundary is start-of-today so same-day appointments always appear in Upcoming
+- Post-visit notes trigger an **AI follow-up suggestion** — a card with the suggested doctor, date, and reason; clicking **"Review & Save"** opens an editable modal so you can adjust everything before creating the appointment
+- **Past-date warning** shown in amber when scheduling with a historical date
+- Export any single appointment or all appointments as **`.ics`** — compatible with Apple Calendar, Google Calendar, and any standard calendar app
+
+</details>
+
+<details>
+<summary><strong>🤖 Health Assistant</strong></summary>
+<br/>
+
+- Conversational AI chat with full patient context: medications, symptoms, vitals, dietary notes, post-visit appointment notes, and other instructions
+- **Suggested prompt chips** are generated from actual patient data:
+  - Drug interaction questions for the specific medications being tracked
+  - Cause-analysis questions for the most recently logged high-severity symptom
+  - Contextual questions for HbA1c, blood pressure, or glucose readings
+  - Falls back to general health prompts when no data is entered yet
+- **Conversation history persisted** per person (localStorage, capped at 50 messages) — resumes where you left off on every visit
+- Patient name is **never** sent to the AI — identified as `[anonymous]` in all contexts
+- Medical disclaimer shown on every session
+
+</details>
+
+<details>
+<summary><strong>📡 Proactive Insights</strong></summary>
+<br/>
+
+Patterns are detected automatically from stored data — no manual analysis required. Up to 4 insights are surfaced on the dashboard at a time, each linking to the relevant page.
+
+**What gets detected:**
+
+| Pattern | Example |
+|---|---|
+| Vital consecutive trend | *"HbA1c has trended up 4 readings in a row"* |
+| Day-of-week severity spike | *"Headache severity tends to be higher on Mondays"* |
+| Symptom frequency surge | *"Fatigue logged 4× this week — up from 1× last week"* |
+
+Detection runs entirely client-side — no API call needed. Insights disappear automatically when the underlying data pattern changes.
+
+</details>
+
+<details>
+<summary><strong>💾 Backup & Data Safety</strong></summary>
+<br/>
+
+- **Export** — one click downloads a complete JSON backup of all people and health records to your device
+- **Import** — two-phase restore: a preview step shows person count and record count before committing; `commitBackup()` snapshots current data and rolls back on any failure
+- Backup files are validated before import: structure, version compatibility, data key patterns, and person format are all checked
+- The backup JSON **never touches any server** — it lives only on your device
+- **localStorage quota monitoring** — if storage fills up, a persistent toast offers an immediate "Export backup & free space" action
+- **Concurrent-tab conflict detection** — if two tabs write to the same data simultaneously, a conflict toast with a reload option appears
+
+</details>
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Framework | Next.js 14 (App Router) |
+| Language | TypeScript — strict mode |
+| Styling | Tailwind CSS |
+| Auth | NextAuth v4 — Google OAuth |
+| AI | Groq API — `llama-3.3-70b-versatile` |
+| PDF parsing | unpdf |
+| Storage | `localStorage` — client-only, per-account namespaced |
+| Auth session DB | Supabase — auth only, no medical data stored |
+| PWA | Service Worker + Web App Manifest |
+| Notifications | Web Notifications API |
+| Icons | Lucide React |
+
+---
+
+## Privacy & Data Handling
+
+All health data is stored exclusively in your browser's `localStorage`. Nothing health-related is written to any server or database.
+
+| Data | Sent to | Purpose | Stored by service? |
+|---|---|---|:---:|
+| Report text | Groq API | AI summarisation | ❌ In-flight only |
+| Chat messages | Groq API | Health assistant responses | ❌ In-flight only |
+| Google account (email, name) | NextAuth / Google OAuth | Login | Session token only |
+
+**Never sent anywhere:** patient names, medications, symptoms, appointments, vitals, notes, or any other health record.
+
+See [SECURITY.md](SECURITY.md) for the full data handling breakdown and vulnerability reporting process.
 
 ---
 
@@ -226,13 +287,13 @@ See [SECURITY.md](SECURITY.md) for the complete breakdown.
 npx vercel
 ```
 
-Add all `.env.local` variables in the Vercel dashboard under **Settings → Environment Variables**. Set `NEXTAUTH_URL` to your production URL.
+Add all `.env.local` variables under **Settings → Environment Variables** in the Vercel dashboard. Set `NEXTAUTH_URL` to your production URL.
 
 ---
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions, coding conventions, and the privacy constraints that all contributions must uphold.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions, coding conventions, and the privacy constraints all contributions must uphold.
 
 ## License
 

@@ -1,7 +1,77 @@
 # Changelog
 
-All notable changes to CareCompanion are documented here.
+All notable changes to CareCompanion are documented here.  
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+
+---
+
+## [1.4.0] — 2026-06-08
+
+This is a major reliability, polish, and intelligence release. It lands five data-safety fixes, seven UX improvements, four polish items, and three new headline features.
+
+### ✨ New Features
+
+- **Proactive Insights** — The dashboard now surfaces health patterns automatically, without any user action. Detected patterns include:
+  - *Vital consecutive trends* — e.g. "HbA1c has trended up 4 readings in a row"
+  - *Day-of-week severity spikes* — e.g. "Headache severity tends to be higher on Mondays"
+  - *Symptom frequency surges* — e.g. "Fatigue logged 4× this week — up from 1× last week"
+  
+  Detection runs entirely client-side (no API call). Up to 4 insights are shown per person; each links to the relevant page and disappears automatically when the underlying data pattern changes.
+
+- **Global Search** — A `⌘K` shortcut and search icon in the top bar open a full-screen overlay that searches across medications, symptoms, appointments, and notes in real time. Fully keyboard-navigable (↑↓ Enter Escape). Available on all pages.
+
+- **Health chat persistence** — Conversation history is saved to `localStorage` per person (capped at 50 messages). Returning to the chat page resumes where you left off. History clears automatically when switching to a different profile.
+
+### 🛡️ Reliability (Tier 1)
+
+- **localStorage quota monitoring** — A new `StorageQuotaMonitor` component catches `QuotaExceededError` via a custom DOM event (`cc:quotaexceeded`) and shows a persistent toast with an "Export backup & free space" action button.
+
+- **Backup schema validation** — `previewBackup()` validates structure, version number, data key patterns, and person format before writing anything. Unsupported backup versions show a specific error ("Unsupported backup version (got 2)") rather than silently failing or corrupting data.
+
+- **Two-phase backup import** — The sidebar now shows a **preview step** (person count, record count) before committing a restore. `commitBackup()` snapshots current data and performs a full rollback if any write fails.
+
+- **AI retry buttons** — Report processing failures and health chat send failures now show a toast with a **Retry** button that re-submits the original request, instead of silently dropping it.
+
+- **Drug interaction transparency** — When Groq is unavailable during an interaction check, the response now explicitly says "Interaction check unavailable — verify manually with your pharmacist" instead of returning a silent "no interaction found" result.
+
+- **Concurrent-tab write detection** — `lib/storage.ts` tracks the last-seen serialised value per key using a module-level `Map`. When a write is attempted and another tab has modified the same key in the meantime, a conflict toast appears with a **Reload** button.
+
+### 🎯 UX Improvements (Tier 2)
+
+- **Post-save report summary** — After confirming extracted items, a toast summarises exactly what was saved: *"Saved from report: 2 medications, 1 appointment, 3 notes"* — no more guessing what was applied.
+
+- **Activity log cap label** — When the activity log reaches its 50-entry cap, a "Showing last 50 entries" label appears at the bottom of the list. (Cap also raised from 20 to 50.)
+
+- **Symptom severity trend card** — The Symptoms page shows a week-over-week severity comparison card for each symptom with directional arrows (▲/▼) and colour coding.
+
+- **Vitals empty state CTAs** — Each vital card with no readings now shows a "+ Log first reading" button that opens the relevant log modal directly, rather than leaving the card blank.
+
+- **Medication reminder persistence** — Notification fired-state is persisted to `localStorage` with a daily key (`cc_rem_YYYY-MM-DD`). Reminders fire within a 5-minute window after the scheduled time, so page reloads no longer cause missed reminders.
+
+- **PDF error messages** — Distinct, actionable errors for three failure modes: image-only PDF (422), password-protected file (422), and corrupted/invalid PDF (500). All include a **Retry** button that re-submits the original file.
+
+- **Global search** — Described in New Features above.
+
+### ✏️ Polish (Tier 3)
+
+- **Past-date appointment warning** — When a user picks a historical date in the appointment form, an amber "⚠ This date is in the past" message appears inline below the date picker. Saving is still allowed.
+
+- **Custom vital range hints** — The Doctor's Target modal now shows the standard reference range (e.g. *"Standard: 70–140 mg/dL"*) as a reference hint above the input fields, so users know what they are overriding.
+
+- **Editable follow-up suggestions** — The AI follow-up appointment card now opens a "Review Follow-up" modal pre-filled with the suggested doctor, date, specialty, and notes. All fields are editable before saving. The card previously created the appointment immediately on acceptance.
+
+- **Chat persistence** — Described in New Features above.
+
+### 🔧 Changed
+
+- Activity log cap raised from 20 → 50 entries.
+- Notification matching changed from exact-minute to a 5-minute window (`diff >= 0 && diff <= 4`) to survive page reloads near the scheduled time.
+- `lib/storage.ts` `setList` now uses a module-level `lastSeen` Map for concurrent-write detection; no change to the public API.
+
+### 🐛 Fixed
+
+- `lib/backup.ts` `reduce` callback TypeScript error (`'sum' is of type 'unknown'`) — resolved with an explicit `reduce<number>` generic.
+- `app/symptoms/page.tsx` Map-iteration TypeScript errors — replaced `Map<string, Symptom[]>` with `Record<string, Symptom[]>` and added explicit type annotations on reduce callbacks.
 
 ---
 
@@ -9,23 +79,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
-- **Comprehensive lab results** — Lab Results section now covers 20 tests across seven groups, up from 4:
+- **Comprehensive lab results** — Lab Results section expanded from 4 tests to 20 across seven groups:
   - **Metabolic** — HbA1c, Total Cholesterol (unchanged)
-  - **Blood Panel (CBC)** — WBC (leucocytes/TLC), RBC, Platelets — joined Hemoglobin which was already present
+  - **Blood Panel (CBC)** — WBC, RBC, Platelets (joined existing Hemoglobin)
   - **Liver (LFT)** — ALT/SGPT, AST/SGOT, ALP, Total Bilirubin, Albumin
   - **Kidney / Renal** — Creatinine (existing), BUN/Urea, Uric Acid, eGFR
   - **Thyroid (TFT)** — TSH, T3, T4
   - **Electrolytes** — Sodium, Potassium, Calcium
   - **Iron Studies** — Serum Iron, Ferritin
-- **Grouped Lab Results UI** — tests are displayed under labeled sub-headers within the collapsible Lab Results section instead of a flat grid; section stays collapsed by default until data exists in any group
-- **Trend chart normal bands** — all 27 vital and lab types now have numeric normal ranges used as the green band on the trend chart (previously only 9 core vitals had bands)
-- **Log modal placeholders** — input placeholder values are now shown for all new lab types so users know the typical order of magnitude
+- **Grouped Lab Results UI** — tests are displayed under labelled sub-headers within the collapsible Lab Results section; section stays collapsed by default until data exists in any group
+- **Trend chart normal bands** — all 27 vital and lab types now carry numeric normal ranges for the green band on the trend chart (previously only 9 core vitals had bands)
+- **Log modal placeholders** — input placeholder values shown for all new lab types so users know the typical order of magnitude
 
 ### Changed
 
-- **Lab Results extraction from reports** — AI extraction prompt expanded to cover all new types; handles common aliases (SGPT/ALT, SGOT/AST, TLC/WBC, Blood Urea/BUN), unit conversions (Lakh/µL → ×10³/µL for platelets, cells/µL → ×10³/µL for WBC, mmol/L → mg/dL for glucose), and Indian lab report formatting
-- **Extraction `max_tokens`** — increased from 1800 to 2400 to accommodate the richer vitals output
-- **`VitalType` union** — extended with 16 new literal types; existing localStorage data is unaffected
+- **Lab extraction from reports** — AI prompt expanded to cover all new types; handles common aliases (SGPT/ALT, SGOT/AST, TLC/WBC, Blood Urea/BUN) and unit conversions (Lakh/µL → ×10³/µL for platelets, mmol/L → mg/dL for glucose)
+- **Extraction `max_tokens`** raised from 1800 → 2400 to accommodate richer vitals output
+- **`VitalType` union** extended with 16 new literal types; existing localStorage data is unaffected
 
 ---
 
@@ -33,40 +103,36 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
-- **Rename / recolor profiles** — Pencil icon appears on hover next to each person in the sidebar People section; opens an inline form to change nickname and colour. No more being stuck with "Demo".
-- **Symptom edit dialog** — Pencil icon on every symptom card opens a modal to change severity, update notes, or correct the entry without deleting and re-adding.
-- **Note edit button** — Pencil icon on every note card (Dietary and Other) allows inline editing; replaces the note in-place on save.
-- **Timezone on mobile** — Timezone selector now appears in the More sheet of the bottom nav; previously only accessible in the desktop sidebar.
-- **Timezone live-update** — Changing timezone immediately re-renders all displayed timestamps on the current page without requiring navigation or a reload.
-- **Activity filter persistence** — Selected activity filter (All / Active / Meds / Vitals / Reports / Symptoms) is saved to localStorage and restored on next visit.
-- **Re-extract confirmation dialog** — Clicking ↺ on a report now opens a small modal explaining that the user needs to re-select the original PDF, instead of immediately opening a silent file picker. A filename-mismatch warning fires if the selected file differs from the record name.
-- **Reports page heading** — "Reports" heading added to the left panel, consistent with all other pages.
+- **Rename / recolor profiles** — Pencil icon on hover next to each person in the sidebar; opens an inline form to change nickname and colour
+- **Symptom edit dialog** — Pencil icon on every symptom card; opens a modal to change severity, update notes, or correct the entry
+- **Note edit button** — Pencil icon on every note card (Dietary and Other) for inline editing
+- **Timezone on mobile** — Timezone selector now available in the More sheet of the bottom nav
+- **Timezone live-update** — Changing timezone immediately re-renders all timestamps on the current page without a reload
+- **Activity filter persistence** — Selected filter (All / Active / Meds / Vitals / Reports / Symptoms) saved to localStorage and restored on next visit
+- **Re-extract confirmation dialog** — Clicking ↺ on a report now explains that the user needs to re-select the original PDF; a filename-mismatch warning fires if the file differs from the record name
+- **Reports page heading** — "Reports" heading added to the left panel, consistent with all other pages
 
 ### Changed
 
-- **Adherence calendar** — Days before a medication was added now show as grey "No doses scheduled" instead of red "None taken". Each medication records its creation date and the calendar only tracks from that day forward.
-- **Home adherence %** — Weekly adherence calculation now excludes days before each medication was added, preventing artificially low percentages for recently added medications.
-- **Appointments section boundary** — Upcoming vs Past split now uses start-of-today (midnight) instead of exact current time; same-day appointments always appear in Upcoming regardless of the scheduled hour.
-- **Dashboard greeting** — Shows the active profile's nickname ("Good afternoon, Mom") instead of the signed-in Google account's name or the fallback "there". Populates immediately on first render from cached localStorage.
-- **AI severity scale** — Health assistant system prompt now includes the full 1–5 severity scale definition so it never asks "what does severity 3 mean?" when discussing symptoms.
-- **Dose time format** — Taken-at time on medication dose buttons now displays in 12-hour format ("2:13 PM") consistent with the rest of the app.
-- **Vital log defaults** — Blood Pressure fields open pre-filled with 120 / 80; Heart Rate with 72; Temperature with 36.6; SpO₂ with 98; Respiratory Rate with 16; Pain with 3. Submitting without editing uses the pre-filled value.
-- **Activity filter pill** — Selected filter pill changed from teal-100/teal-700 (low contrast, ~4.6:1) to solid teal-600 background with white text for clear WCAG AA compliance at small size.
-- **Report button touch targets** — Re-extract (↺) and Delete (🗑) buttons now have `p-2.5` padding and `gap-2` separation, meeting the 44×44 px minimum touch target guideline.
-- **Notes + Add touch target** — Slightly larger padding (`px-4 py-2`) on the Dietary and Other "+ Add" buttons.
-- **Vitals range modal buttons** — When all three buttons (Save Target / Clear / Cancel) are present, each gets `flex-1` so they share space equally instead of Save stretching to fill the row.
-- **Sliders icon** — SlidersHorizontal icon on vital cards without a custom range upgraded from `text-gray-300 w-3 h-3` to `text-gray-400 w-3.5 h-3.5` for better discoverability.
-- **Onboarding step 1** — Text updated to "On mobile: tap the avatar in the top bar. On desktop: use the People section in the sidebar." — previously only described the mobile flow.
-- **Node.js** — CI and local dev now target Node.js 24 (up from 20); aligns with GitHub Actions deprecation timeline and the `pdfjs-dist ≥ 22` engine requirement.
+- **Adherence calendar** — Days before a medication was added now show as grey "No doses scheduled" instead of red "None taken"
+- **Home adherence %** — Weekly calculation excludes pre-creation days, preventing low percentages for recently added medications
+- **Appointments section boundary** — Upcoming vs Past split uses start-of-today (midnight) instead of exact current time
+- **Dashboard greeting** — Shows the active profile's nickname instead of the Google account name
+- **AI severity scale** — System prompt now includes the full 1–5 scale definition
+- **Dose time format** — Taken-at time displayed in 12-hour format ("2:13 PM")
+- **Vital log defaults** — Pre-filled with clinically typical values (BP: 120/80, HR: 72, Temp: 36.6, etc.)
+- **Activity filter pill** — Changed to solid `teal-600` + white text for WCAG AA compliance at small size
+- **Report button touch targets** — ↺ and 🗑 buttons meet the 44×44 px minimum touch target
+- **Node.js** — CI and local dev target Node.js 24 (up from 20)
 
 ### Fixed
 
-- **Profile data isolation** — Switching profiles now correctly re-scopes all API reads. Root cause: `api.ts` read the active person ID from the unscoped `activePerson` localStorage key while `PersonContext` wrote to a user-scoped key (`activePerson__u:email`); the two keys were never in sync. Fixed by syncing the unscoped key whenever the context updates.
-- **More sheet stays open after navigation** — Bottom nav More sheet now closes immediately when the pathname changes using a render-time derived state reset (avoids the React "setState during render" warning that the previous `useEffect` approach triggered).
-- **Appointments calendar crash** — `WeekView` and `MonthView` inner functions now declare their own `const now = new Date()` rather than relying on the outer-scope variable that was removed during the day-boundary refactor.
-- **TypeScript build error in vitals page** — `VITAL_DEFAULTS[type] || {}` produced a type error because `{}` was not assignable to the defaults shape; fixed with an explicit cast.
-- **CI dependency-review failure** — Removed `.github/workflows/dependency-review.yml`; the action requires GitHub Advanced Security which is not available on this repository.
-- **Dependabot PRs** — Merged all 7 open Dependabot PRs (Next.js 14.2.35, eslint-config-next 14.2.35, groq-sdk 0.37.0, actions/checkout v6, actions/setup-node v6, actions/stale v10, actions/dependency-review-action v5).
+- **Profile data isolation** — Switching profiles now correctly re-scopes all API reads (root cause: `api.ts` read from unscoped `activePerson` key while `PersonContext` wrote to a scoped `activePerson__u:email` key)
+- **More sheet stays open after navigation** — Uses render-time derived state reset instead of a `useEffect`, avoiding the "setState during render" warning
+- **Appointments calendar crash** — `WeekView` and `MonthView` now declare their own `const now` rather than relying on the outer-scope variable removed during refactor
+- **TypeScript build error in vitals page** — `VITAL_DEFAULTS[type] || {}` resolved with an explicit cast
+- **CI dependency-review failure** — Removed `.github/workflows/dependency-review.yml` (requires GitHub Advanced Security, unavailable on this repo)
+- **Dependabot PRs** — Merged all 7 open PRs (Next.js 14.2.35, eslint-config-next, groq-sdk, GitHub Actions v6)
 
 ---
 
@@ -74,35 +140,32 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
-- **Data export / import** — Export all data for all people as a single JSON backup file; import from a previous backup to restore everything. Backup lives only on the user's device and is never uploaded anywhere.
-- **Per-account data scoping** — Each Google account's people list and active-person pointer are namespaced by user email in localStorage. Signing in with a different account no longer shows another user's data. Existing data is migrated to the current user's namespace automatically on first login.
-- **7-day backup reminder** — A persistent, dismissible banner appears after 7 days of first use prompting the user to export a backup.
-- **Dashboard passive data overlays** — Medication adherence % for the past 7 days shown on the Medications stat card; 7-day symptom severity sparkline on the Symptoms card; a "Vitals needing attention" banner surfaces any Watch or High vital readings directly on the dashboard.
-- **Vitals page hierarchy** — Blood Pressure and Blood Glucose pinned at the top as larger featured cards. Weight, Heart Rate, and Temperature in a standard grid. SpO₂ and Respiratory Rate collapsed into an expandable "Additional readings" section.
-- **Vital card left-border accent** — When a reading exists, the card shows a green/amber/red left border matching the Normal/Watch/High status.
-- **Calibrated symptom severity anchors** — The 1–5 severity slider now shows a coloured description chip that updates in real time: 1 = Barely noticeable, 2 = Mild, 3 = Moderate, 4 = Severe, 5 = Emergency-level.
-- **Dynamic Health Assistant prompts** — Suggested prompt chips are generated from the patient's actual data (medications, recent high-severity symptoms, HbA1c, BP, glucose readings) instead of static generic questions.
-- **Records page 25/75 layout** — Left panel (upload + list) reduced to 25%; right panel (summary + chat) expanded to 75% with an improved empty state.
-- **Appointments single empty state** — When no appointments exist, a single empty state with a clear call-to-action is shown instead of the previous two stacked empty cards.
-- **Mobile bottom nav with More overflow** — Primary nav: Home, Meds, Symptoms, Ask AI, More. More sheet: Reports, Vitals, Appointments, Notes. Ask AI is directly accessible from the primary bar.
-- **Top bar shows active person** — The top bar on every page shows the active person's avatar and nickname instead of a repeated page title.
-- **Clear activity log** — A "Clear" button on the Recent Activity section wipes the log without navigating away.
-- **Export data / Import backup in sidebar** — One-click export and file-picker import available in the desktop sidebar for all users.
-- **ICS inline help** — The calendar import instructions now appear inline inside the `.ics` export panel on the Medications page, not buried in the dashboard Quick Help.
-- **Dark mode `aria-label`** — The dark mode toggle in the top bar now has an accessible `aria-label` and a smooth icon transition animation.
+- **Data export / import** — Export all data for all people as a single JSON backup file; import from a previous backup to restore everything; backup never uploaded anywhere
+- **Per-account data scoping** — Each Google account's people list and active-person pointer are namespaced by user email in localStorage; existing data migrated automatically on first login
+- **7-day backup reminder** — Persistent, dismissible banner after 7 days of first use prompting a data export
+- **Dashboard passive data overlays** — Medication adherence % on the Medications card; 7-day symptom severity sparkline on the Symptoms card; "Vitals needing attention" banner for Watch/High readings
+- **Vitals page hierarchy** — Blood Pressure and Blood Glucose pinned as larger featured cards; SpO₂ and Respiratory Rate in a collapsible "Additional readings" section
+- **Vital card left-border accent** — Green/amber/red border matching Normal/Watch/High status when a reading exists
+- **Calibrated symptom severity anchors** — Live colour chip on the 1–5 slider: 1 = Barely noticeable → 5 = Emergency-level
+- **Dynamic Health Assistant prompts** — Suggested chips generated from actual patient data instead of static generic questions
+- **Records page 25/75 layout** — Narrower left panel; wider right panel with improved empty state
+- **Mobile bottom nav with More overflow** — Primary nav: Home, Meds, Symptoms, Ask AI, More
+- **Top bar shows active person** — Avatar and nickname on every page
+- **Clear activity log** — "Clear" button wipes the log without navigating away
+- **Export data / Import backup in sidebar** — One-click access for desktop users
+- **ICS inline help** — Calendar import instructions appear inline on the Medications page
 
 ### Changed
 
-- Renamed **"Records & Chat"** to **"Reports"** everywhere (sidebar, top bar, bottom nav, page metadata).
-- Dashboard stat cards now use a single neutral colour by default; the Symptoms card turns orange (severity ≥ 4) or red (severity 5).
-- Medications **"Clear all"** moved from the main action row (adjacent to "+ Add") into a three-dot overflow menu with a named confirmation dialog ("Delete all medications for [Name]?").
-- Section label casing standardised — all section dividers now use the same `uppercase tracking-wide text-xs` style throughout the app.
-- **"Today's doses"** label in Medications now uses the same small muted uppercase style as other section labels.
+- Renamed **"Records & Chat"** → **"Reports"** throughout the app
+- Dashboard stat cards use a single neutral colour; Symptoms card turns orange (severity ≥ 4) or red (severity 5)
+- Medications "Clear all" moved to a three-dot overflow menu with a named confirmation dialog
+- Section label casing standardised to `uppercase tracking-wide text-xs` throughout
 
 ### Fixed
 
-- Two empty states stacking on the Appointments page when no appointments exist.
-- No mobile navigation on inner pages — the bottom nav is now rendered globally via the app shell.
+- Two empty states stacking on the Appointments page
+- No mobile navigation on inner pages — bottom nav now rendered globally via the app shell
 
 ---
 
@@ -112,49 +175,46 @@ First public stable release.
 
 ### Added
 
-- **Multi-person profiles** — track multiple family members, each with isolated data and a colour-coded avatar; 7 preset colours with an unlimited on-theme random pool
-- **Medical report upload** — upload PDF or TXT reports and get a plain-English AI summary split into Summary, Dietary Notes, and Other Notes sections
-- **AI health chat** — ask questions about any uploaded report in plain language; report text is never stored, only the summary
-- **Auto-extraction from reports** — medications, appointments, symptoms, vitals, dietary notes, and patient profile are extracted and saved automatically on upload; extracted medications and appointments shown in a confirmation panel with per-item checkboxes
-- **Medications tracker** — daily, weekly (day-of-week), and monthly frequencies; one-tap dose logging with a daily progress bar; optional course duration with auto-removal; understands Indian prescription notation (1-0-1, 0-0-1, 1-1-1 etc.)
-- **Medication `.ics` reminders** — export recurring calendar events with VALARM alerts to Apple Calendar or Google Calendar; time-of-day pickers appear inline at export time
-- **Vitals tracking** — three sections: Basic Info (age, height, gender, blood type with BMI auto-calculated), At-Home Readings (BP, glucose, weight, heart rate, SpO₂, temperature, respiratory rate), and Lab Results (HbA1c, cholesterol with LDL/HDL/TG breakdown, hemoglobin, creatinine); sparkline trend per vital; Normal/Watch/High status badge per reading; auto-filled from uploaded reports
-- **Latest vitals in AI context** — health assistant receives the latest reading per vital type for context-aware answers
-- **Appointments** — track upcoming and past appointments; AI-suggested follow-up questions from post-visit notes; export as `.ics`
-- **Symptoms log** — record symptoms with severity (1–5); AI pattern analysis across recent entries
-- **Notes page** — dedicated Dietary and Other sections; auto-populated from uploaded reports; manual add supported
-- **Activity history** — every add, delete, and clear-all is logged in Recent Activity with deleted items shown as strikethrough; filter toggle between All and Active Only
-- **Web Notifications** — opt-in browser notifications for medication times (Morning 8 am, Afternoon 1 pm, Evening 6 pm, Night 9 pm) and a configurable daily symptom check-in; falls back to in-app toast if unavailable
-- **PWA support** — service worker and Web App Manifest; installable on Android Chrome for home-screen access
-- **Dark mode** — toggleable from sidebar (desktop) or top bar (mobile), persisted across sessions
-- **Privacy-first design** — all health data stored in localStorage only; patient name is never sent to any AI service; report text processed in-flight and never stored
+- **Multi-person profiles** — Multiple family members with isolated data and colour-coded avatars
+- **Medical report upload** — PDF or TXT, plain-English AI summary, never stored
+- **AI health chat** — Conversational questions about any uploaded report
+- **Auto-extraction from reports** — Medications, appointments, symptoms, vitals, dietary notes, and patient profile extracted with a confirmation panel
+- **Medications tracker** — Daily, weekly, and monthly schedules; one-tap logging; course duration with auto-removal; Indian prescription notation
+- **Medication `.ics` reminders** — Recurring calendar events with VALARM alerts
+- **Vitals tracking** — Basic Info with BMI, At-Home Readings, and Lab Results; sparkline trends; Normal/Watch/High badges; auto-filled from reports
+- **Appointments** — Upcoming and past; AI follow-up suggestions; `.ics` export
+- **Symptoms log** — 1–5 severity with AI pattern analysis
+- **Notes page** — Dietary and Other sections; auto-populated from reports
+- **Activity history** — Full add/delete log with filter toggle
+- **Web Notifications** — Opt-in medication and symptom reminders
+- **PWA support** — Service worker and Web App Manifest
+- **Dark mode** — Persisted, flash-free via blocking inline script
+- **Privacy-first design** — All data in localStorage; patient name never sent to AI
 
 ### Fixed
 
-- PDF upload failing with a misleading "only TXT" error — replaced outdated `pdf-parse` (pdfjs 2018) with `unpdf`, which handles all modern PDF formats
-- Vitals and health profile not saved after report upload — the extract API was silently dropping those fields from its response
-- Duplicate dietary entries after report upload — the combined summary blob was being saved alongside individually extracted points
-- `.ics` export producing invalid calendar events when generated near midnight — DTSTART and DTEND now share a single date snapshot
-- Medication reminders set to midnight (`00:xx`) incorrectly parsed as `00:00` due to a falsy-zero check
-- Vitals history page crashing when a stored entry contains a type no longer in the current definitions
-- Dose-toggle save errors silently swallowed on the Medications page
-- Health assistant chat rendering markdown tables as raw pipe characters
+- PDF upload failing with a misleading "only TXT" error — replaced `pdf-parse` with `unpdf`
+- Vitals and health profile not saved after report upload
+- Duplicate dietary entries after report upload
+- `.ics` export producing invalid events when generated near midnight
+- Medication reminders set to midnight incorrectly parsed as `00:00`
+- Vitals history crashing when a stored entry contains a type no longer in current definitions
+- Health assistant rendering markdown tables as raw pipe characters
 - Follow-up appointment date calculated from today instead of the original appointment date
-- Report summary showing raw JSON when the AI returned structured output
-- Clear-all actions not logged in Recent Activity
-- Dietary and other note deletions not logged in Recent Activity
-- Patient nickname being sent to Groq — replaced with `[anonymous]` in all AI contexts
+- Patient nickname being sent to Groq — replaced with `[anonymous]`
 
 ---
 
 ## Prior development history
 
-Internal development versions (not publicly released):
+Internal versions (not publicly released):
 
-- **2.2.0** — Vitals tracking, sparklines, status badges, medication course duration, 1-0-1 notation, `.ics` medication reminders
-- **2.1.0** — Activity history feed with deletion tracking, Web Notifications, PWA support, `.ics` appointment export, SECURITY.md
-- **2.0.0** — Multi-person profiles, dark mode, Notes page, localStorage-only data model, mobile-responsive records page
-- **1.3.0** — Auto-extraction of medications/appointments/symptoms from reports with confirmation panel
-- **1.2.0** — AI follow-up suggestions, markdown rendering in chat
-- **1.1.0** — Google OAuth via NextAuth, Supabase integration, symptom log with AI analysis
-- **1.0.0-dev** — Initial hackathon prototype: dashboard, report upload with AI chat, medications tracker, appointments manager
+| Version | Highlights |
+|---|---|
+| **2.2.0** | Vitals tracking, sparklines, status badges, medication course duration, `.ics` reminders |
+| **2.1.0** | Activity history, Web Notifications, PWA, `.ics` appointment export, SECURITY.md |
+| **2.0.0** | Multi-person profiles, dark mode, Notes page, localStorage-only data model |
+| **1.3.0** | Auto-extraction with confirmation panel |
+| **1.2.0** | AI follow-up suggestions, markdown rendering in chat |
+| **1.1.0** | Google OAuth, Supabase, symptom log with AI analysis |
+| **1.0.0-dev** | Hackathon prototype: dashboard, report upload, medications, appointments |
