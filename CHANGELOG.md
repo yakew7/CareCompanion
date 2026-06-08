@@ -5,6 +5,30 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.3.0] — 2026-06-08
+
+### Added
+
+- **Comprehensive lab results** — Lab Results section now covers 20 tests across seven groups, up from 4:
+  - **Metabolic** — HbA1c, Total Cholesterol (unchanged)
+  - **Blood Panel (CBC)** — WBC (leucocytes/TLC), RBC, Platelets — joined Hemoglobin which was already present
+  - **Liver (LFT)** — ALT/SGPT, AST/SGOT, ALP, Total Bilirubin, Albumin
+  - **Kidney / Renal** — Creatinine (existing), BUN/Urea, Uric Acid, eGFR
+  - **Thyroid (TFT)** — TSH, T3, T4
+  - **Electrolytes** — Sodium, Potassium, Calcium
+  - **Iron Studies** — Serum Iron, Ferritin
+- **Grouped Lab Results UI** — tests are displayed under labeled sub-headers within the collapsible Lab Results section instead of a flat grid; section stays collapsed by default until data exists in any group
+- **Trend chart normal bands** — all 27 vital and lab types now have numeric normal ranges used as the green band on the trend chart (previously only 9 core vitals had bands)
+- **Log modal placeholders** — input placeholder values are now shown for all new lab types so users know the typical order of magnitude
+
+### Changed
+
+- **Lab Results extraction from reports** — AI extraction prompt expanded to cover all new types; handles common aliases (SGPT/ALT, SGOT/AST, TLC/WBC, Blood Urea/BUN), unit conversions (Lakh/µL → ×10³/µL for platelets, cells/µL → ×10³/µL for WBC, mmol/L → mg/dL for glucose), and Indian lab report formatting
+- **Extraction `max_tokens`** — increased from 1800 to 2400 to accommodate the richer vitals output
+- **`VitalType` union** — extended with 16 new literal types; existing localStorage data is unaffected
+
+---
+
 ## [1.2.0] — 2026-06-06
 
 ### Added

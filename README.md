@@ -1,6 +1,6 @@
 # CareCompanion
 
-[![Version](https://img.shields.io/badge/version-1.2.0-blue)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.3.0-blue)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 A health tracking app built for family caregivers. Upload medical reports, track medications, log symptoms, manage appointments, and store dietary and other notes — all in one place, with AI-powered summaries, pattern analysis, and a health assistant that knows the patient's full context.
@@ -58,10 +58,18 @@ A health tracking app built for family caregivers. Upload medical reports, track
 - Three sections:
   - **Basic Info** — age, height, gender, blood type; BMI auto-calculated from latest weight with Normal / Overweight / Obese badge
   - **At-Home Readings** — Blood Pressure and Blood Glucose pinned at top as featured cards; Weight, Heart Rate, Temperature in a regular grid; SpO₂ and Respiratory Rate in a collapsible "Additional readings" section
-  - **Lab Results** — HbA1c, Total Cholesterol (with LDL/HDL/Triglycerides breakdown), Hemoglobin, Creatinine
-- Sparkline trend graph per vital
-- Normal / Watch / High status badge per reading, shown as a coloured left-border accent on the card
-- Auto-filled from uploaded reports — vitals and patient profile are extracted and inserted silently
+  - **Lab Results** — 20 tests organised into seven groups:
+    - **Metabolic** — HbA1c, Total Cholesterol (with LDL/HDL/Triglycerides breakdown)
+    - **Blood Panel (CBC)** — Hemoglobin, WBC, RBC, Platelets
+    - **Liver (LFT)** — ALT/SGPT, AST/SGOT, ALP, Bilirubin, Albumin
+    - **Kidney / Renal** — Creatinine, BUN/Urea, Uric Acid, eGFR
+    - **Thyroid** — TSH, T3, T4
+    - **Electrolytes** — Sodium, Potassium, Calcium
+    - **Iron Studies** — Serum Iron, Ferritin
+- Sparkline trend graph per vital with normal-range band on the chart
+- Normal / Caution / Critical status badge per reading, shown as a coloured left-border accent on the card
+- Doctor's custom target range — overrides the standard range for any test
+- Auto-filled from uploaded reports — all 27 vital and lab types are extracted and inserted silently; handles Indian lab notation (Lakh/µL for platelets, mmol/L for glucose, °F for temperature)
 - Latest vitals passed to the AI health assistant for context-aware answers
 
 ### Health Assistant (Ask AI)
