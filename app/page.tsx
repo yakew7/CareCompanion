@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { Pill, Activity, Calendar, FileText, Upload, Thermometer, ClipboardList, ShieldCheck, ChevronRight, Printer, X } from "lucide-react";
+import { Pill, Activity, Calendar, FileText, Upload, Thermometer, ClipboardList, ShieldCheck, ChevronRight, Printer, X, Sparkles } from "lucide-react";
 import type { Medication, VitalEntry, Appointment, Symptom, CustomVitalRange, Note } from "@/lib/storage";
 import { storage } from "@/lib/storage";
 import TopBar from "@/components/TopBar";
@@ -431,6 +431,15 @@ export default function DashboardPage() {
           </p>
         </div>
       </main>
+
+      {/* ── Floating Ask AI button ──────────────────────────────────────────── */}
+      <Link
+        href="/chat"
+        className="fixed bottom-6 right-6 z-40 hidden md:flex items-center gap-2 px-4 py-2.5 bg-gradient-to-br from-teal-500 to-teal-600 hover:from-teal-400 hover:to-teal-500 text-white rounded-2xl shadow-lg shadow-teal-500/30 hover:shadow-xl hover:shadow-teal-500/40 hover:scale-105 active:scale-95 transition-all duration-150"
+      >
+        <Sparkles className="w-4 h-4 flex-shrink-0" />
+        <span className="text-sm font-semibold">Ask AI</span>
+      </Link>
 
       {/* ── Print Summary Modal ────────────────────────────────────────────── */}
       {showPrint && (
