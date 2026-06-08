@@ -201,7 +201,7 @@ export default function DashboardPage() {
   const summaryCards = [
     { label: "Medications tracked",   value: stats.medications,           icon: Pill,       href: "/medications",  color: neutral },
     { label: "Symptoms this week",    value: stats.symptomsThisWeek,      icon: Activity,    href: "/symptoms",    color: symptomColor },
-    { label: "Upcoming appointments", value: stats.upcomingAppointments,  icon: Calendar,   href: "/appointments", color: neutral },
+    { label: "Appointments",          value: stats.upcomingAppointments,  icon: Calendar,   href: "/appointments", color: neutral },
     { label: "Reports uploaded",      value: stats.records,               icon: FileText,   href: "/records",      color: neutral },
   ];
 

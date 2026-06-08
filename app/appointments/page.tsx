@@ -8,7 +8,7 @@ import TopBar from "@/components/TopBar";
 import { api } from "@/lib/api";
 import { usePersonContext } from "@/contexts/PersonContext";
 import type { Appointment } from "@/lib/storage";
-import { nowIST, formatIST } from "@/lib/time";
+import { nowIST, tomorrowMorningIST, formatIST } from "@/lib/time";
 
 function toDateStr(d: Date | string): string {
   const dt = typeof d === "string" ? new Date(d) : d;
@@ -60,7 +60,7 @@ function statusColor(status: Appointment["status"]) {
 }
 
 const emptyForm = (): Omit<Appointment, "id"> => ({
-  doctor: "", specialty: "", datetime: nowIST(), location: "", notes: "",
+  doctor: "", specialty: "", datetime: tomorrowMorningIST(), location: "", notes: "",
   status: "upcoming", postVisitNotes: "",
 });
 

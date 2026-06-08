@@ -422,17 +422,18 @@ export default function VitalsPage() {
               <button
                 onClick={() => openCustomRange(def.type)}
                 title="Set doctor's target range"
+                aria-label={`Set target range for ${def.label}`}
                 className={`p-1 rounded-lg transition-colors ${hasCustomRange ? "text-teal-600 dark:text-teal-400" : "text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-teal-600 dark:hover:text-teal-400"}`}
               >
                 <SlidersHorizontal className="w-3.5 h-3.5" />
               </button>
             )}
-            {list.length >= 2 && (
-              <button onClick={() => setTrendType(def.type)} className="p-1 rounded-lg text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-teal-600 dark:hover:text-teal-400 transition-colors">
+            {list.length >= 1 && (
+              <button onClick={() => setTrendType(def.type)} aria-label={`Show ${def.label} history`} className="p-1 rounded-lg text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-teal-600 dark:hover:text-teal-400 transition-colors">
                 <BarChart2 className="w-3 h-3" />
               </button>
             )}
-            <button onClick={() => openLog(def.type)} className="p-1 rounded-lg text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/30 transition-colors">
+            <button onClick={() => openLog(def.type)} aria-label={`Log ${def.label}`} className="p-1 rounded-lg text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/30 transition-colors">
               <Plus className="w-3.5 h-3.5" />
             </button>
           </div>

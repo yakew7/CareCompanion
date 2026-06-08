@@ -4,6 +4,21 @@ export function getAppTimezone(): string {
   return localStorage.getItem("cc_timezone") || "Asia/Kolkata";
 }
 
+// Returns tomorrow at 09:00 in the user's preferred timezone — default for new appointments so they land in "Upcoming" rather than "Past"
+export function tomorrowMorningIST(): string {
+  const tz = getAppTimezone();
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(tomorrow);
+  const g = (t: string) => parts.find((p) => p.type === t)?.value ?? "00";
+  return `${g("year")}-${g("month")}-${g("day")}T09:00`;
+}
+
 // Returns current time in user's preferred timezone formatted for datetime-local inputs (YYYY-MM-DDTHH:MM)
 export function nowIST(): string {
   const tz = getAppTimezone();
