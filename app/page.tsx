@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { Pill, Activity, Calendar, FileText, Upload, Thermometer, ClipboardList, ShieldCheck, ChevronRight, Printer, X, Sparkles } from "lucide-react";
+import { Pill, Activity, Calendar, FileText, Upload, Thermometer, ClipboardList, ShieldCheck, ChevronRight, Printer, X, Sparkles, TrendingUp, TrendingDown } from "lucide-react";
 import type { Medication, VitalEntry, Appointment, Symptom, CustomVitalRange, Note } from "@/lib/storage";
 import { storage } from "@/lib/storage";
 import TopBar from "@/components/TopBar";
@@ -10,6 +10,89 @@ import { api } from "@/lib/api";
 import { usePersonContext } from "@/contexts/PersonContext";
 import type { ActivityEntry, VitalType } from "@/lib/storage";
 import { getAppTimezone, formatDateIST, formatIST } from "@/lib/time";
+
+interface Insight {
+  type: "trend_up" | "trend_down" | "day_spike" | "freq_increase";
+  message: string;
+  href: string;
+}
+
+const DOW = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const VITAL_LABEL_MAP: Partial<Record<VitalType, string>> = {
+  bp: "Blood pressure", glucose: "Blood glucose", heart_rate: "Heart rate",
+  spo2: "SpO₂", temperature: "Temperature", hba1c: "HbA1c", weight: "Weight",
+  cholesterol: "Cholesterol",
+};
+
+function computeInsights(vitals: VitalEntry[], symptoms: Symptom[]): Insight[] {
+  const out: Insight[] = [];
+  const now = Date.now();
+
+  // 1. Vital consecutive trend — 3+ readings all going same direction
+  for (const type of Object.keys(VITAL_LABEL_MAP) as VitalType[]) {
+    const sorted = vitals
+      .filter((v) => v.type === type)
+      .sort((a, b) => new Date(a.loggedAt).getTime() - new Date(b.loggedAt).getTime());
+    if (sorted.length < 3) continue;
+    let streak = 1, dir = 0;
+    for (let i = sorted.length - 1; i > 0 && streak < 6; i--) {
+      const d = sorted[i].value > sorted[i - 1].value ? 1 : sorted[i].value < sorted[i - 1].value ? -1 : 0;
+      if (d === 0) break;
+      if (dir === 0) dir = d;
+      else if (d !== dir) break;
+      streak++;
+    }
+    if (streak >= 3) {
+      const label = VITAL_LABEL_MAP[type]!;
+      out.push({ type: dir > 0 ? "trend_up" : "trend_down", message: `${label} has trended ${dir > 0 ? "up" : "down"} ${streak} readings in a row`, href: "/vitals" });
+    }
+  }
+
+  // 2. Day-of-week symptom spike — one day has ≥1.5× mean severity over 28 days
+  const recent28 = symptoms.filter((s) => new Date(s.loggedAt).getTime() >= now - 28 * 86400000);
+  const bySymptom: Record<string, Symptom[]> = {};
+  for (const s of recent28) {
+    const k = s.symptom.toLowerCase().trim();
+    (bySymptom[k] = bySymptom[k] || []).push(s);
+  }
+  for (const [name, entries] of Object.entries(bySymptom)) {
+    if (entries.length < 4) continue;
+    const buckets: number[][] = Array.from({ length: 7 }, () => []);
+    for (const e of entries) buckets[new Date(e.loggedAt).getDay()].push(e.severity);
+    const dayAvgs = buckets.map((b) => b.length ? b.reduce((a, v) => a + v, 0) / b.length : 0);
+    const overall = entries.reduce((a, e) => a + e.severity, 0) / entries.length;
+    let peakDay = -1, peakAvg = 0;
+    for (let d = 0; d < 7; d++) {
+      if (buckets[d].length >= 2 && dayAvgs[d] > peakAvg) { peakDay = d; peakAvg = dayAvgs[d]; }
+    }
+    if (peakDay !== -1 && overall > 0 && peakAvg / overall >= 1.5) {
+      const display = name.charAt(0).toUpperCase() + name.slice(1);
+      out.push({ type: "day_spike", message: `${display} severity tends to be higher on ${DOW[peakDay]}s`, href: "/symptoms" });
+    }
+  }
+
+  // 3. Symptom frequency surge — 3+ times this week and ≥2× last week's count
+  const countWeek = (from: number, to: number) => {
+    const c: Record<string, number> = {};
+    for (const s of symptoms) {
+      const t = new Date(s.loggedAt).getTime();
+      if (t >= from && t < to) { const k = s.symptom.toLowerCase().trim(); c[k] = (c[k] || 0) + 1; }
+    }
+    return c;
+  };
+  const thisWeek = countWeek(now - 7 * 86400000, now);
+  const prevWeek = countWeek(now - 14 * 86400000, now - 7 * 86400000);
+  for (const [name, n] of Object.entries(thisWeek)) {
+    const p = prevWeek[name] || 0;
+    if (n >= 3 && n >= Math.max(2, p * 2)) {
+      const display = name.charAt(0).toUpperCase() + name.slice(1);
+      const msg = p > 0 ? `${display} logged ${n}× this week — up from ${p}× last week` : `${display} has been logged ${n} times this week`;
+      out.push({ type: "freq_increase", message: msg, href: "/symptoms" });
+    }
+  }
+
+  return out.slice(0, 4);
+}
 
 const ACTIVITY_FILTERS = [
   { value: "all",        label: "All"      },
@@ -79,6 +162,7 @@ export default function DashboardPage() {
   const [medAdherence, setMedAdherence] = useState<number | null>(null);
   const [symptomSparkline, setSymptomSparkline] = useState<number[]>([]);
   const [flaggedVitals, setFlaggedVitals] = useState<{ label: string; reading: string; status: "warning" | "danger" }[]>([]);
+  const [insights, setInsights] = useState<Insight[]>([]);
   const [hour] = useState(new Date().getHours());
   const [showPrint, setShowPrint] = useState(false);
   const [reengageDismissed, setReengageDismissed] = useState(false);
@@ -170,6 +254,7 @@ export default function DashboardPage() {
         }
       });
       setFlaggedVitals(flagged);
+      setInsights(computeInsights(vitals, symptoms));
     });
   }, [activePersonId]);
 
@@ -321,6 +406,39 @@ export default function DashboardPage() {
               </span>
             ))}
           </Link>
+        )}
+
+        {insights.length > 0 && (
+          <div className="card">
+            <div className="flex items-center gap-2 mb-3">
+              <Sparkles className="w-4 h-4 text-teal-500" />
+              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Insights</h3>
+              <span className="ml-auto text-xs text-gray-400 dark:text-gray-500">Auto-detected patterns</span>
+            </div>
+            <ul className="space-y-1.5">
+              {insights.map((ins, i) => {
+                const Icon = ins.type === "trend_up" ? TrendingUp : ins.type === "trend_down" ? TrendingDown : ins.type === "day_spike" ? Calendar : Activity;
+                const iconClass = ins.type === "trend_up"
+                  ? "bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400"
+                  : ins.type === "trend_down"
+                  ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400"
+                  : ins.type === "day_spike"
+                  ? "bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400"
+                  : "bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400";
+                return (
+                  <li key={i}>
+                    <Link href={ins.href} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-700/40 hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-colors group">
+                      <span className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${iconClass}`}>
+                        <Icon className="w-3.5 h-3.5" />
+                      </span>
+                      <p className="text-sm text-gray-700 dark:text-gray-300 flex-1 leading-snug group-hover:text-teal-700 dark:group-hover:text-teal-300 transition-colors">{ins.message}</p>
+                      <ChevronRight className="w-4 h-4 text-gray-300 dark:text-gray-600 group-hover:text-teal-500 transition-colors flex-shrink-0" />
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
         )}
 
         <div className="card">
