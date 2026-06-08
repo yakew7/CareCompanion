@@ -136,10 +136,16 @@ export function getNextPersonColor(existingColors: PersonColor[]): PersonColor {
 
 // ─── Storage helpers ─────────────────────────────────────────────────────────
 
+// Tracks the last-read serialised value per key so we can detect concurrent writes
+// from another tab that occurred between our read and write.
+const lastSeen = new Map<string, string>();
+
 function getList<T>(key: string): T[] {
   if (typeof window === "undefined") return [];
   try {
-    return JSON.parse(localStorage.getItem(key) || "[]");
+    const raw = localStorage.getItem(key) || "[]";
+    lastSeen.set(key, raw);
+    return JSON.parse(raw);
   } catch {
     return [];
   }
@@ -147,7 +153,26 @@ function getList<T>(key: string): T[] {
 
 function setList<T>(key: string, data: T[]): void {
   if (typeof window === "undefined") return;
-  localStorage.setItem(key, JSON.stringify(data));
+
+  // If the current storage value differs from what we last read, another tab
+  // wrote to this key in the meantime — the user's change will overwrite it.
+  const current = localStorage.getItem(key);
+  const seen = lastSeen.get(key);
+  if (seen !== undefined && current !== null && current !== seen) {
+    window.dispatchEvent(new CustomEvent("cc:writeconflict", { detail: { key } }));
+  }
+
+  const serialised = JSON.stringify(data);
+  try {
+    localStorage.setItem(key, serialised);
+    lastSeen.set(key, serialised);
+  } catch (err) {
+    if (err instanceof DOMException && (err.name === "QuotaExceededError" || err.code === 22)) {
+      window.dispatchEvent(new CustomEvent("cc:quotaexceeded"));
+      // Don't re-throw — the dispatched event surfaces a toast; a thrown error
+      // would otherwise go unhandled in components that don't wrap saves.
+    }
+  }
 }
 
 function upsert<T extends { id: string }>(key: string, item: T, prepend = false): void {

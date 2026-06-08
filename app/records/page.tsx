@@ -55,6 +55,7 @@ export default function RecordsPage() {
   const [mobileView, setMobileView] = useState<"list" | "chat">("list");
   const fileRef = useRef<HTMLInputElement>(null);
   const reExtractFileRef = useRef<HTMLInputElement>(null);
+  const lastFailedFileRef = useRef<File | null>(null);
   const [reExtractRecordId, setReExtractRecordId] = useState<string | null>(null);
   const [reExtractConfirmRecord, setReExtractConfirmRecord] = useState<MedicalRecord | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -174,7 +175,21 @@ export default function RecordsPage() {
       if (items.length > 0) setExtractedItems(items);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      toast.error(`Failed to process file: ${msg}`);
+      lastFailedFileRef.current = file;
+      toast.custom(
+        (t) => (
+          <div className={`flex items-center gap-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-4 py-3 rounded-xl shadow-lg max-w-sm transition-all ${t.visible ? "opacity-100" : "opacity-0"}`}>
+            <span className="text-sm text-gray-700 dark:text-gray-300 flex-1">Failed: {msg}</span>
+            <button
+              onClick={() => { toast.dismiss(t.id); if (lastFailedFileRef.current) processFile(lastFailedFileRef.current); }}
+              className="font-semibold text-teal-600 dark:text-teal-400 underline whitespace-nowrap text-sm flex-shrink-0"
+            >
+              Retry
+            </button>
+          </div>
+        ),
+        { duration: 15000 }
+      );
     } finally {
       setUploading(false);
     }
@@ -315,7 +330,12 @@ export default function RecordsPage() {
         aiContent += decoder.decode(value, { stream: true });
         setMessages((prev) => { const u = [...prev]; u[u.length - 1] = { role: "assistant", content: aiContent }; return u; });
       }
-    } catch { toast.error("Response failed. Try again."); }
+    } catch {
+      // Restore the message so the user can resend without retyping.
+      setInput(userMsg.content);
+      setMessages(messages);
+      toast.error("Response failed — message restored. Try again.");
+    }
     finally { setStreaming(false); }
   }
 

@@ -205,8 +205,10 @@ export default function MedicationsPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ newMed: `${med.name}${med.dosage ? ` ${med.dosage}` : ""}`, existingMeds: existingNames }),
         });
-        const data = await res.json() as { hasInteraction: boolean; message: string };
-        if (data.hasInteraction && data.message) {
+        const data = await res.json() as { hasInteraction: boolean; message: string; checkFailed?: boolean };
+        if (data.checkFailed) {
+          toast("Interaction check unavailable right now — verify manually with your pharmacist.", { icon: "⚠️", duration: 8000 });
+        } else if (data.hasInteraction && data.message) {
           toast.custom(
             (t) => (
               <div className={`flex items-start gap-3 bg-amber-50 border border-amber-200 dark:bg-amber-900/30 dark:border-amber-700 px-4 py-3 rounded-xl shadow-lg max-w-sm transition-all ${t.visible ? "opacity-100" : "opacity-0"}`}>
@@ -222,7 +224,9 @@ export default function MedicationsPage() {
             { duration: 12000 }
           );
         }
-      } catch { /* non-critical */ }
+      } catch {
+        toast("Interaction check unavailable right now — verify manually with your pharmacist.", { icon: "⚠️", duration: 8000 });
+      }
     }
   }
 

@@ -9,7 +9,8 @@ import {
   Heart, LogOut, Sun, Moon, Plus, X, Check, NotebookPen, MessageCircleHeart, HeartPulse,
   Download, Upload, Globe, Pencil,
 } from "lucide-react";
-import { exportAllData, importBackup } from "@/lib/backup";
+import { exportAllData, previewBackup, commitBackup } from "@/lib/backup";
+import type { BackupPreview } from "@/lib/backup";
 import { dispatchTimezoneChange } from "@/lib/useTimezoneRefresh";
 import toast from "react-hot-toast";
 import { usePersonContext } from "@/contexts/PersonContext";
@@ -37,6 +38,7 @@ export default function Sidebar() {
   const [addError, setAddError] = useState("");
   const [removeConfirmId, setRemoveConfirmId] = useState<string | null>(null);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
+  const [pendingImport, setPendingImport] = useState<BackupPreview | null>(null);
   const [editPersonId, setEditPersonId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<{ nickname: string; color: string }>({ nickname: "", color: "teal" });
   const [timezone, setTimezone] = useState(() => {
@@ -266,12 +268,11 @@ export default function Sidebar() {
             onChange={async (e) => {
               const file = e.target.files?.[0];
               if (!file) return;
-              try {
-                const { personsRestored } = await importBackup(file);
-                toast.success(`Restored ${personsRestored} person${personsRestored !== 1 ? "s" : ""} — reloading…`);
-                setTimeout(() => window.location.reload(), 1200);
-              } catch {
-                toast.error("Could not read backup file");
+              const preview = await previewBackup(file);
+              if (!preview.isValid) {
+                toast.error(preview.error || "Invalid backup file");
+              } else {
+                setPendingImport(preview);
               }
               e.target.value = "";
             }}
@@ -356,6 +357,48 @@ export default function Sidebar() {
           </div>
         );
       })()}
+      {/* Import backup confirmation modal */}
+      {pendingImport && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-sm shadow-xl space-y-4">
+            <div>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">Restore backup?</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                This will replace your current data with:
+              </p>
+              <ul className="mt-2 space-y-1 text-sm text-gray-700 dark:text-gray-300">
+                <li>• <span className="font-semibold">{pendingImport.personsCount}</span> person{pendingImport.personsCount !== 1 ? "s" : ""}</li>
+                <li>• <span className="font-semibold">{pendingImport.recordsCount}</span> total records</li>
+              </ul>
+              <p className="text-xs text-amber-600 dark:text-amber-400 mt-3">Your existing data will be overwritten. Export a backup first if needed.</p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  try {
+                    const { personsRestored } = commitBackup(pendingImport.backup!);
+                    setPendingImport(null);
+                    toast.success(`Restored ${personsRestored} person${personsRestored !== 1 ? "s" : ""} — reloading…`);
+                    setTimeout(() => window.location.reload(), 1200);
+                  } catch {
+                    toast.error("Restore failed — not enough storage space");
+                    setPendingImport(null);
+                  }
+                }}
+                className="btn-primary flex-1"
+              >
+                Restore
+              </button>
+              <button
+                onClick={() => setPendingImport(null)}
+                className="btn-secondary flex-1"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </aside>
   );
 }

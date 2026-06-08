@@ -26,6 +26,6 @@ Do not give dosing advice. Do not add disclaimers. Be direct.`;
 
     return Response.json({ hasInteraction, message });
   } catch {
-    return Response.json({ hasInteraction: false, message: "" });
+    return Response.json({ hasInteraction: false, message: "", checkFailed: true });
   }
 }

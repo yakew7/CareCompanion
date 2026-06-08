@@ -7,6 +7,7 @@ import { PersonProvider } from "@/contexts/PersonContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { Toaster } from "react-hot-toast";
 import TabSyncProvider from "@/components/TabSyncProvider";
+import StorageQuotaMonitor from "@/components/StorageQuotaMonitor";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -42,6 +43,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <PersonProvider>
             <NotificationProvider>
               <TabSyncProvider />
+              <StorageQuotaMonitor />
           <AuthGate>{children}</AuthGate>
             </NotificationProvider>
           </PersonProvider>

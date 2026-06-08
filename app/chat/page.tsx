@@ -211,7 +211,10 @@ export default function ChatPage() {
         setMessages((prev) => { const u = [...prev]; u[u.length - 1] = { role: "assistant", content: ai }; return u; });
       }
     } catch {
-      toast.error("Response failed. Try again.");
+      // Restore message so user can resend without retyping.
+      setInput(userMsg.content);
+      setMessages(messages);
+      toast.error("Response failed — message restored. Try again.");
     } finally {
       setStreaming(false);
       inputRef.current?.focus();
