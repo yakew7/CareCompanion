@@ -319,7 +319,7 @@ export const storage = {
     push: (entry: ActivityEntry, personId: string) => {
       const list = getList<ActivityEntry>(pk("activity", personId));
       list.unshift(entry);
-      setList(pk("activity", personId), list.slice(0, 20));
+      setList(pk("activity", personId), list.slice(0, 50));
     },
     clearAll: (personId: string) => setList(pk("activity", personId), []),
   },

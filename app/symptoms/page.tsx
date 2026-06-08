@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import ReactMarkdown from "react-markdown";
 import { v4 as uuidv4 } from "uuid";
@@ -65,6 +65,29 @@ function computeCoOccurrences(symptoms: Symptom[]): { a: string; b: string; coun
     .slice(0, 3);
 }
 
+function computeSeverityTrends(symptoms: Symptom[]): { name: string; avgNow: number; avgPrev: number; delta: number }[] {
+  const now = Date.now();
+  const weekMs = 7 * 86400000;
+  const byName: Record<string, Symptom[]> = {};
+  for (const s of symptoms) {
+    const name = s.symptom.toLowerCase().trim();
+    if (!byName[name]) byName[name] = [];
+    byName[name].push(s);
+  }
+  const results: { name: string; avgNow: number; avgPrev: number; delta: number }[] = [];
+  for (const name of Object.keys(byName)) {
+    const entries = byName[name];
+    const current  = entries.filter((s: Symptom) => now - new Date(s.loggedAt).getTime() < weekMs);
+    const previous = entries.filter((s: Symptom) => { const age = now - new Date(s.loggedAt).getTime(); return age >= weekMs && age < 2 * weekMs; });
+    if (current.length < 2 || previous.length < 1) continue;
+    const avgNow  = current.reduce((acc: number, e: Symptom) => acc + e.severity, 0) / current.length;
+    const avgPrev = previous.reduce((acc: number, e: Symptom) => acc + e.severity, 0) / previous.length;
+    const delta   = avgNow - avgPrev;
+    if (Math.abs(delta) >= 0.3) results.push({ name, avgNow, avgPrev, delta });
+  }
+  return results.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)).slice(0, 3);
+}
+
 // Feature 16: Swipe-to-delete for mobile
 function SwipeCard({ onDelete, children }: { onDelete: () => void; children: React.ReactNode }) {
   const innerRef = useRef<HTMLDivElement>(null);
@@ -108,6 +131,7 @@ export default function SymptomsPage() {
   const [form, setForm] = useState({ symptom: "", severity: 3, notes: "", loggedAt: nowIST() });
   const [editSymptom, setEditSymptom] = useState<Symptom | null>(null);
   const [editLoggedAt, setEditLoggedAt] = useState("");
+  const severityTrends = useMemo(() => computeSeverityTrends(symptoms), [symptoms]);
 
   useEffect(() => {
     if (!activePersonId) return;
@@ -290,6 +314,30 @@ export default function SymptomsPage() {
                     <span className="px-2 py-0.5 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 rounded-lg text-xs font-medium capitalize truncate">{b}</span>
                   </div>
                   <span className="text-xs text-indigo-500 dark:text-indigo-400 flex-shrink-0 font-medium">{count}×</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Severity trend insight card */}
+        {severityTrends.length > 0 && (
+          <div className="card border border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-900/20">
+            <div className="flex items-center gap-2 mb-2">
+              <TrendingUp className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+              <h3 className="text-sm font-semibold text-orange-700 dark:text-orange-300">Severity Trends</h3>
+            </div>
+            <p className="text-xs text-orange-600/70 dark:text-orange-400/70 mb-3">This week vs last week:</p>
+            <div className="space-y-2.5">
+              {severityTrends.map(({ name, avgNow, avgPrev, delta }) => (
+                <div key={name} className="flex items-center gap-3">
+                  <span className="flex-1 text-sm text-gray-700 dark:text-gray-300 capitalize truncate">{name}</span>
+                  <span className="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0 tabular-nums">
+                    {avgPrev.toFixed(1)} → {avgNow.toFixed(1)}
+                  </span>
+                  <span className={`text-xs font-semibold flex-shrink-0 ${delta > 0 ? "text-red-500 dark:text-red-400" : "text-green-600 dark:text-green-400"}`}>
+                    {delta > 0 ? "▲" : "▼"} {Math.abs(delta).toFixed(1)}
+                  </span>
                 </div>
               ))}
             </div>

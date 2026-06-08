@@ -474,9 +474,8 @@ export default function VitalsPage() {
           </>
         ) : (
           <>
-            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">No readings yet</p>
             {hasCustomRange ? (
-              <p className="text-[10px] text-teal-600 dark:text-teal-400 leading-tight font-medium">
+              <p className="text-[10px] text-teal-600 dark:text-teal-400 leading-tight font-medium mt-1">
                 {"Doctor's target: "}
                 {custom!.low}–{custom!.high}
                 {def.type === "bp" && custom!.low2 !== undefined ? ` / ${custom!.low2}–${custom!.high2}` : ""}
@@ -484,9 +483,15 @@ export default function VitalsPage() {
               </p>
             ) : (
               "normalRange" in def && def.normalRange && (
-                <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-tight">Normal: {def.normalRange}</p>
+                <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-tight mt-1">Normal: {def.normalRange}</p>
               )
             )}
+            <button
+              onClick={() => openLog(def.type)}
+              className="mt-2 text-xs text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 font-medium transition-colors"
+            >
+              + Log first reading
+            </button>
           </>
         )}
       </div>

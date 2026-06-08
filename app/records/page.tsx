@@ -362,8 +362,20 @@ export default function RecordsPage() {
           await api.other.save({ id: uuidv4(), content: item.label, source: activeRecord?.name || "Report", createdAt: new Date().toISOString() });
         }
       }
+      // Build per-type counts for the summary toast
+      const counts: Partial<Record<ExtractedItemType, number>> = {};
+      for (const item of selected) counts[item.type] = (counts[item.type] || 0) + 1;
+      const LABEL: Record<ExtractedItemType, [string, string]> = {
+        medication:  ["medication",   "medications"],
+        symptom:     ["symptom",      "symptoms"],
+        appointment: ["appointment",  "appointments"],
+        dietary:     ["dietary note", "dietary notes"],
+        other:       ["note",         "notes"],
+      };
+      const summary = (Object.entries(counts) as [ExtractedItemType, number][])
+        .map(([k, n]) => `${n} ${n === 1 ? LABEL[k][0] : LABEL[k][1]}`).join(", ");
       await api.activity.push({ type: "record", label: `Added ${selected.length} items from report`, at: new Date().toISOString() });
-      toast.success(`Added ${selected.length} item${selected.length > 1 ? "s" : ""} from report`);
+      toast.success(`Saved from report: ${summary}`);
       setExtractedItems([]);
     } catch {
       toast.error("Failed to add some items");

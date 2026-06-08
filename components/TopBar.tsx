@@ -1,7 +1,8 @@
 "use client";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { Sun, Moon, Users, Check, Plus, X, Pencil, Trash2 } from "lucide-react";
+import { Sun, Moon, Users, Check, Plus, X, Pencil, Trash2, Search } from "lucide-react";
+import GlobalSearch from "@/components/GlobalSearch";
 import { usePersonContext } from "@/contexts/PersonContext";
 import { personColorHex, PRESET_COLORS, getNextPersonColor } from "@/lib/storage";
 import { useTheme } from "@/lib/theme";
@@ -30,6 +31,7 @@ export default function TopBar({ reportName }: { reportName?: string }) {
   const [editPersonId, setEditPersonId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<{ nickname: string; color: string }>({ nickname: "", color: "teal" });
   const [removeConfirmId, setRemoveConfirmId] = useState<string | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   const activeHex = activePerson ? personColorHex(activePerson.color) : null;
 
@@ -73,6 +75,15 @@ export default function TopBar({ reportName }: { reportName?: string }) {
             {reportName}
           </span>
         )}
+
+        <button
+          onClick={() => setSearchOpen(true)}
+          className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors"
+          title="Search (⌘K)"
+          aria-label="Search"
+        >
+          <Search className="w-4 h-4" />
+        </button>
 
         <button
           onClick={toggle}
@@ -232,6 +243,8 @@ export default function TopBar({ reportName }: { reportName?: string }) {
         )}
       </div>
     </header>
+
+    <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
 
     {/* Remove person confirm modal — rendered outside header to avoid z-index issues */}
     {removeConfirmId && (() => {

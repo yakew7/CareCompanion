@@ -55,11 +55,34 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
       const now = new Date();
       const todayNum = now.getDate();
+      const todayStr = now.toISOString().split("T")[0];
 
       if (lastResetDay.current !== todayNum) {
         shownToday.current = new Set();
         lastResetDay.current = todayNum;
       }
+
+      // Merge persisted fired keys so reloads don't duplicate notifications.
+      const persistKey = `cc_rem_${todayStr}`;
+      try {
+        const raw = localStorage.getItem(persistKey);
+        if (raw) {
+          for (const k of JSON.parse(raw) as string[]) shownToday.current.add(k);
+        }
+      } catch { /* ignore */ }
+
+      function markShown(key: string) {
+        shownToday.current.add(key);
+        try {
+          const keys = JSON.parse(localStorage.getItem(persistKey) || "[]") as string[];
+          if (!keys.includes(key)) {
+            keys.push(key);
+            localStorage.setItem(persistKey, JSON.stringify(keys));
+          }
+        } catch { /* ignore */ }
+      }
+
+      const nowMin = now.getHours() * 60 + now.getMinutes();
 
       if (settings.medicationReminders) {
         const meds = await api.medications.getAll();
@@ -81,11 +104,14 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
             }
 
             if (!slot) continue;
-            if (now.getHours() !== slot.h || now.getMinutes() !== slot.m) continue;
+            // Fire within a 5-minute window after the slot so reloads don't miss reminders.
+            const slotMin = slot.h * 60 + slot.m;
+            const diff = nowMin - slotMin;
+            if (diff < 0 || diff > 4) continue;
 
-            const key = `med_${med.id}_${timeEntry}_${todayNum}`;
+            const key = `med_${med.id}_${timeEntry}_${todayStr}`;
             if (!shownToday.current.has(key)) {
-              shownToday.current.add(key);
+              markShown(key);
               fire(
                 "Medication Reminder",
                 `Time to take ${med.name}${med.dosage ? ` (${med.dosage})` : ""}`
@@ -106,10 +132,12 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
       if (settings.symptomReminder) {
         const [rH, rM] = settings.symptomReminderTime.split(":").map(Number);
-        if (now.getHours() === rH && now.getMinutes() === rM) {
-          const key = `symptom_checkin_${todayNum}`;
+        const slotMin = rH * 60 + rM;
+        const diff = nowMin - slotMin;
+        if (diff >= 0 && diff <= 4) {
+          const key = `symptom_checkin_${todayStr}`;
           if (!shownToday.current.has(key)) {
-            shownToday.current.add(key);
+            markShown(key);
             fire("Symptom Check-in", "Don't forget to log today's symptoms.");
           }
         }

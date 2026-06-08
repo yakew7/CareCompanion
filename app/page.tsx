@@ -115,7 +115,7 @@ export default function DashboardPage() {
         upcomingAppointments: appts.filter((a) => a.status === "upcoming" && new Date(a.datetime) >= now).length,
         records: records.length,
       });
-      setActivity(acts.slice(0, 20));
+      setActivity(acts.slice(0, 50));
       setPrintData({ meds, vitals, appts, symptoms, dietary, other });
 
       // Days since last logged entry
@@ -384,24 +384,29 @@ export default function DashboardPage() {
               <p className="text-sm text-gray-400 dark:text-gray-500 py-4 text-center">No entries for this filter. Try &quot;All&quot; to see everything.</p>
             );
             return (
-              <ul className="divide-y divide-gray-100 dark:divide-gray-700">
-                {filtered.map((entry, i) => (
-                  <li key={i} className={`py-2.5 flex items-center gap-3 text-sm ${entry.deleted ? "opacity-60" : ""}`}>
-                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${entry.deleted ? "bg-red-400" : "bg-teal-400"}`} />
-                    <span className={`flex-1 ${entry.deleted ? "line-through text-gray-400 dark:text-gray-500" : "text-gray-700 dark:text-gray-300"}`}>
-                      {entry.label}
-                    </span>
-                    {entry.deleted && (
-                      <span className="text-xs px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-medium flex-shrink-0">
-                        Deleted
+              <>
+                <ul className="divide-y divide-gray-100 dark:divide-gray-700">
+                  {filtered.map((entry, i) => (
+                    <li key={i} className={`py-2.5 flex items-center gap-3 text-sm ${entry.deleted ? "opacity-60" : ""}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${entry.deleted ? "bg-red-400" : "bg-teal-400"}`} />
+                      <span className={`flex-1 ${entry.deleted ? "line-through text-gray-400 dark:text-gray-500" : "text-gray-700 dark:text-gray-300"}`}>
+                        {entry.label}
                       </span>
-                    )}
-                    <span className="text-gray-400 dark:text-gray-500 text-xs flex-shrink-0">
-                      {formatDateIST(entry.at)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+                      {entry.deleted && (
+                        <span className="text-xs px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-medium flex-shrink-0">
+                          Deleted
+                        </span>
+                      )}
+                      <span className="text-gray-400 dark:text-gray-500 text-xs flex-shrink-0">
+                        {formatDateIST(entry.at)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                {activity.length >= 50 && (
+                  <p className="text-xs text-gray-400 dark:text-gray-500 text-center pt-3">Showing last 50 entries</p>
+                )}
+              </>
             );
           })()}
         </div>
