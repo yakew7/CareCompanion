@@ -168,8 +168,14 @@ function pk(base: string, personId: string) {
 }
 
 export type VitalType =
-  | "bp" | "glucose" | "weight" | "heart_rate" | "spo2" | "temperature" | "respiratory_rate"
-  | "hba1c" | "cholesterol" | "hemoglobin" | "creatinine" | "pain";
+  | "bp" | "glucose" | "weight" | "heart_rate" | "spo2" | "temperature" | "respiratory_rate" | "pain"
+  | "hba1c" | "cholesterol" | "hemoglobin" | "creatinine"
+  | "alt" | "ast" | "alp" | "bilirubin" | "albumin"
+  | "tsh" | "t3" | "t4"
+  | "wbc" | "rbc" | "platelets"
+  | "bun" | "uric_acid" | "egfr"
+  | "sodium" | "potassium" | "calcium"
+  | "serum_iron" | "ferritin";
 
 export interface HealthProfile {
   age?: number;

@@ -41,16 +41,52 @@ PATIENT PROFILE — extract if mentioned in the report:
 Only include fields that are EXPLICITLY stated. Omit the rest.
 
 VITAL SIGNS & LAB VALUES — extract any of the following if EXPLICITLY present with a numeric value:
-- Blood Pressure → type "bp", value=systolic (number), value2=diastolic (number), unit="mmHg"
-- Blood Glucose / Blood Sugar → type "glucose", unit="mg/dL" (convert from mmol/L if needed: ×18)
+
+Core vitals:
+- Blood Pressure → type "bp", value=systolic, value2=diastolic, unit="mmHg"
+- Blood Glucose / Blood Sugar / FBS / PPBS → type "glucose", unit="mg/dL" (convert from mmol/L ×18)
 - SpO₂ / Oxygen Saturation → type "spo2", unit="%"
 - Heart Rate / Pulse → type "heart_rate", unit="bpm"
 - Temperature → type "temperature", unit="°C" (convert from °F: (F−32)×5/9)
 - Respiratory Rate → type "respiratory_rate", unit="breaths/min"
+
+Metabolic:
 - HbA1c / Glycated Haemoglobin → type "hba1c", unit="%"
 - Total Cholesterol → type "cholesterol", unit="mg/dL", notes="LDL: X mg/dL · HDL: Y mg/dL · TG: Z mg/dL" (include breakdown if present)
-- Haemoglobin → type "hemoglobin", unit="g/dL"
-- Creatinine → type "creatinine", unit="mg/dL"
+
+Blood Panel (CBC):
+- Haemoglobin / Hb → type "hemoglobin", unit="g/dL"
+- WBC / Leucocytes / TLC / Total WBC → type "wbc", unit="×10³/µL" (if given as cells/µL divide by 1000; if given as ×10³ keep as-is)
+- RBC / Red Blood Cells / Red Cell Count → type "rbc", unit="×10⁶/µL" (if given as cells/µL divide by 1000000)
+- Platelets / Thrombocytes / PLT → type "platelets", unit="×10³/µL" (if given as cells/µL divide by 1000; if given as Lakh/µL multiply by 100)
+
+Liver (LFT):
+- ALT / SGPT / Alanine Aminotransferase → type "alt", unit="U/L"
+- AST / SGOT / Aspartate Aminotransferase → type "ast", unit="U/L"
+- ALP / Alkaline Phosphatase → type "alp", unit="U/L"
+- Total Bilirubin / Serum Bilirubin → type "bilirubin", unit="mg/dL"
+- Albumin / Serum Albumin → type "albumin", unit="g/dL"
+
+Kidney / Renal:
+- Creatinine / Serum Creatinine → type "creatinine", unit="mg/dL"
+- BUN / Blood Urea Nitrogen / Blood Urea / Urea → type "bun", unit="mg/dL"
+- Uric Acid / Serum Uric Acid → type "uric_acid", unit="mg/dL"
+- eGFR / Estimated GFR / Creatinine Clearance → type "egfr", unit="mL/min"
+
+Thyroid (TFT):
+- TSH / Thyroid Stimulating Hormone → type "tsh", unit="mIU/L"
+- T3 / Total T3 / Triiodothyronine → type "t3", unit="ng/dL"
+- T4 / Total T4 / Thyroxine → type "t4", unit="µg/dL"
+
+Electrolytes:
+- Sodium / Na / Serum Sodium → type "sodium", unit="mEq/L"
+- Potassium / K / Serum Potassium → type "potassium", unit="mEq/L"
+- Calcium / Ca / Serum Calcium → type "calcium", unit="mg/dL"
+
+Iron Studies:
+- Serum Iron / Iron → type "serum_iron", unit="µg/dL"
+- Ferritin / Serum Ferritin → type "ferritin", unit="ng/mL"
+
 Do NOT invent values. Only include what is explicitly stated with a number.
 
 DURATION — extract if stated:
@@ -74,7 +110,7 @@ Return ONLY valid JSON:
           content: `Extract from this report — only what is explicitly stated:\n\n${text.slice(0, 12000)}`,
         },
       ],
-      max_tokens: 1800,
+      max_tokens: 2400,
       temperature: 0,
     });
 

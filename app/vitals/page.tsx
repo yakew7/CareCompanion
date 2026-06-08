@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 import toast from "react-hot-toast";
-import { HeartPulse, Droplets, Scale, Heart, Gauge, Thermometer, Wind, TrendingUp, Plus, Trash2, Pencil, Check, X, ChevronDown, ChevronUp, Zap, BarChart2, SlidersHorizontal } from "lucide-react";
+import { HeartPulse, Droplets, Scale, Heart, Gauge, Thermometer, Wind, TrendingUp, Plus, Trash2, Pencil, Check, X, ChevronDown, ChevronUp, Zap, BarChart2, SlidersHorizontal, FlaskConical, Microscope, Activity, Filter } from "lucide-react";
 import TopBar from "@/components/TopBar";
 import { nowIST } from "@/lib/time";
 import { api } from "@/lib/api";
@@ -23,14 +23,48 @@ const HOME_VITALS = [
   { type: "pain"             as VitalType, label: "Pain Level",        unit: "/10",         icon: Zap,         hasDual: false, normalRange: "1–3 mild · 4–6 moderate · 7–10 severe", priority: "secondary" as const },
 ];
 
-const LAB_VITALS = [
-  { type: "hba1c"       as VitalType, label: "HbA1c",              unit: "%",     icon: Droplets,   hasDual: false, normalRange: "< 5.7% (normal) · 5.7–6.4% (pre-diabetic) · ≥ 6.5% (diabetic)" },
-  { type: "cholesterol" as VitalType, label: "Total Cholesterol",  unit: "mg/dL", icon: TrendingUp,  hasDual: false, normalRange: "< 200 mg/dL (optimal)" },
-  { type: "hemoglobin"  as VitalType, label: "Hemoglobin",         unit: "g/dL",  icon: HeartPulse,  hasDual: false, normalRange: "M: 13.5–17.5 · F: 12–15.5 g/dL" },
-  { type: "creatinine"  as VitalType, label: "Creatinine",         unit: "mg/dL", icon: Gauge,       hasDual: false, normalRange: "M: 0.7–1.3 · F: 0.6–1.1 mg/dL" },
+const LAB_GROUPS = [
+  { key: "metabolic", title: "Metabolic", defs: [
+    { type: "hba1c"       as VitalType, label: "HbA1c",            unit: "%",        icon: Droplets,     hasDual: false, normalRange: "< 5.7% normal · 5.7–6.4% pre-diabetic · ≥ 6.5% diabetic" },
+    { type: "cholesterol" as VitalType, label: "Total Cholesterol", unit: "mg/dL",    icon: TrendingUp,   hasDual: false, normalRange: "< 200 mg/dL (optimal)" },
+  ]},
+  { key: "cbc", title: "Blood Panel (CBC)", defs: [
+    { type: "hemoglobin"  as VitalType, label: "Hemoglobin",        unit: "g/dL",     icon: HeartPulse,   hasDual: false, normalRange: "M: 13.5–17.5 · F: 12–15.5 g/dL" },
+    { type: "wbc"         as VitalType, label: "WBC",               unit: "×10³/µL",  icon: Microscope,   hasDual: false, normalRange: "4.5–11.0 ×10³/µL" },
+    { type: "rbc"         as VitalType, label: "RBC",               unit: "×10⁶/µL", icon: Microscope,   hasDual: false, normalRange: "M: 4.7–6.1 · F: 4.2–5.4 ×10⁶/µL" },
+    { type: "platelets"   as VitalType, label: "Platelets",         unit: "×10³/µL",  icon: Microscope,   hasDual: false, normalRange: "150–400 ×10³/µL" },
+  ]},
+  { key: "lft", title: "Liver (LFT)", defs: [
+    { type: "alt"         as VitalType, label: "ALT (SGPT)",        unit: "U/L",      icon: Activity,     hasDual: false, normalRange: "< 56 U/L" },
+    { type: "ast"         as VitalType, label: "AST (SGOT)",        unit: "U/L",      icon: Activity,     hasDual: false, normalRange: "< 40 U/L" },
+    { type: "alp"         as VitalType, label: "ALP",               unit: "U/L",      icon: Activity,     hasDual: false, normalRange: "44–147 U/L" },
+    { type: "bilirubin"   as VitalType, label: "Bilirubin (Total)", unit: "mg/dL",    icon: Activity,     hasDual: false, normalRange: "0.1–1.2 mg/dL" },
+    { type: "albumin"     as VitalType, label: "Albumin",           unit: "g/dL",     icon: Activity,     hasDual: false, normalRange: "3.5–5.0 g/dL" },
+  ]},
+  { key: "kidney", title: "Kidney / Renal", defs: [
+    { type: "creatinine"  as VitalType, label: "Creatinine",        unit: "mg/dL",    icon: Filter,       hasDual: false, normalRange: "M: 0.7–1.3 · F: 0.6–1.1 mg/dL" },
+    { type: "bun"         as VitalType, label: "BUN / Urea",        unit: "mg/dL",    icon: Filter,       hasDual: false, normalRange: "7–20 mg/dL" },
+    { type: "uric_acid"   as VitalType, label: "Uric Acid",         unit: "mg/dL",    icon: Filter,       hasDual: false, normalRange: "M: 3.4–7.0 · F: 2.4–6.0 mg/dL" },
+    { type: "egfr"        as VitalType, label: "eGFR",              unit: "mL/min",   icon: Filter,       hasDual: false, normalRange: "≥ 60 mL/min/1.73m²" },
+  ]},
+  { key: "thyroid", title: "Thyroid", defs: [
+    { type: "tsh"         as VitalType, label: "TSH",               unit: "mIU/L",    icon: Activity,     hasDual: false, normalRange: "0.4–4.0 mIU/L" },
+    { type: "t3"          as VitalType, label: "T3 (Total)",        unit: "ng/dL",    icon: Activity,     hasDual: false, normalRange: "80–200 ng/dL" },
+    { type: "t4"          as VitalType, label: "T4 (Total)",        unit: "µg/dL",    icon: Activity,     hasDual: false, normalRange: "5.1–14.1 µg/dL" },
+  ]},
+  { key: "electrolytes", title: "Electrolytes", defs: [
+    { type: "sodium"      as VitalType, label: "Sodium",            unit: "mEq/L",    icon: Zap,          hasDual: false, normalRange: "136–145 mEq/L" },
+    { type: "potassium"   as VitalType, label: "Potassium",         unit: "mEq/L",    icon: Zap,          hasDual: false, normalRange: "3.5–5.1 mEq/L" },
+    { type: "calcium"     as VitalType, label: "Calcium",           unit: "mg/dL",    icon: Zap,          hasDual: false, normalRange: "8.5–10.5 mg/dL" },
+  ]},
+  { key: "iron", title: "Iron Studies", defs: [
+    { type: "serum_iron"  as VitalType, label: "Serum Iron",        unit: "µg/dL",    icon: FlaskConical, hasDual: false, normalRange: "60–170 µg/dL" },
+    { type: "ferritin"    as VitalType, label: "Ferritin",          unit: "ng/mL",    icon: FlaskConical, hasDual: false, normalRange: "M: 12–300 · F: 12–150 ng/mL" },
+  ]},
 ];
 
-const ALL_DEFS = [...HOME_VITALS, ...LAB_VITALS];
+const LAB_ALL_DEFS = LAB_GROUPS.flatMap((g) => g.defs);
+const ALL_DEFS = [...HOME_VITALS, ...LAB_ALL_DEFS];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -43,17 +77,42 @@ function getStatus(type: VitalType, value: number, value2?: number, custom?: Cus
     return inRange ? "normal" : "warning";
   }
   switch (type) {
-    case "bp":          return value <= 120 && (value2 ?? 0) <= 80 ? "normal" : value <= 140 && (value2 ?? 0) <= 90 ? "warning" : "danger";
-    case "glucose":     return value >= 70 && value <= 140 ? "normal" : value <= 200 ? "warning" : "danger";
-    case "spo2":        return value >= 95 ? "normal" : value >= 90 ? "warning" : "danger";
-    case "heart_rate":  return value >= 60 && value <= 100 ? "normal" : value >= 40 && value <= 120 ? "warning" : "danger";
-    case "temperature": return value >= 36.1 && value <= 37.2 ? "normal" : value <= 38.0 ? "warning" : "danger";
+    case "bp":           return value <= 120 && (value2 ?? 0) <= 80 ? "normal" : value <= 140 && (value2 ?? 0) <= 90 ? "warning" : "danger";
+    case "glucose":      return value >= 70 && value <= 140 ? "normal" : value <= 200 ? "warning" : "danger";
+    case "spo2":         return value >= 95 ? "normal" : value >= 90 ? "warning" : "danger";
+    case "heart_rate":   return value >= 60 && value <= 100 ? "normal" : value >= 40 && value <= 120 ? "warning" : "danger";
+    case "temperature":  return value >= 36.1 && value <= 37.2 ? "normal" : value <= 38.0 ? "warning" : "danger";
     case "respiratory_rate": return value >= 12 && value <= 20 ? "normal" : value <= 25 ? "warning" : "danger";
-    case "hba1c":       return value < 5.7 ? "normal" : value < 6.5 ? "warning" : "danger";
-    case "cholesterol": return value < 200 ? "normal" : value < 240 ? "warning" : "danger";
-    case "hemoglobin":  return value >= 12 && value <= 17.5 ? "normal" : "warning";
-    case "creatinine":  return value >= 0.6 && value <= 1.3 ? "normal" : "warning";
-    case "pain":        return value <= 3 ? "normal" : value <= 6 ? "warning" : "danger";
+    case "hba1c":        return value < 5.7 ? "normal" : value < 6.5 ? "warning" : "danger";
+    case "cholesterol":  return value < 200 ? "normal" : value < 240 ? "warning" : "danger";
+    case "hemoglobin":   return value >= 12 && value <= 17.5 ? "normal" : "warning";
+    case "creatinine":   return value >= 0.6 && value <= 1.3 ? "normal" : "warning";
+    case "pain":         return value <= 3 ? "normal" : value <= 6 ? "warning" : "danger";
+    // LFT
+    case "alt":          return value < 56 ? "normal" : value < 100 ? "warning" : "danger";
+    case "ast":          return value < 40 ? "normal" : value < 80 ? "warning" : "danger";
+    case "alp":          return value >= 44 && value <= 147 ? "normal" : value <= 200 ? "warning" : "danger";
+    case "bilirubin":    return value <= 1.2 ? "normal" : value <= 2.0 ? "warning" : "danger";
+    case "albumin":      return value >= 3.5 && value <= 5.0 ? "normal" : value >= 3.0 ? "warning" : "danger";
+    // Thyroid
+    case "tsh":          return value >= 0.4 && value <= 4.0 ? "normal" : value >= 0.1 && value <= 10 ? "warning" : "danger";
+    case "t3":           return value >= 80 && value <= 200 ? "normal" : "warning";
+    case "t4":           return value >= 5.1 && value <= 14.1 ? "normal" : "warning";
+    // CBC
+    case "wbc":          return value >= 4.5 && value <= 11.0 ? "normal" : value >= 3.0 && value <= 15 ? "warning" : "danger";
+    case "rbc":          return value >= 4.2 && value <= 6.1 ? "normal" : "warning";
+    case "platelets":    return value >= 150 && value <= 400 ? "normal" : value >= 100 && value <= 600 ? "warning" : "danger";
+    // Kidney
+    case "bun":          return value >= 7 && value <= 20 ? "normal" : value <= 40 ? "warning" : "danger";
+    case "uric_acid":    return value >= 2.4 && value <= 7.0 ? "normal" : value <= 9.0 ? "warning" : "danger";
+    case "egfr":         return value >= 60 ? "normal" : value >= 30 ? "warning" : "danger";
+    // Electrolytes
+    case "sodium":       return value >= 136 && value <= 145 ? "normal" : value >= 125 && value <= 155 ? "warning" : "danger";
+    case "potassium":    return value >= 3.5 && value <= 5.1 ? "normal" : value >= 3.0 && value <= 6.0 ? "warning" : "danger";
+    case "calcium":      return value >= 8.5 && value <= 10.5 ? "normal" : value >= 7.5 && value <= 11.5 ? "warning" : "danger";
+    // Iron
+    case "serum_iron":   return value >= 50 && value <= 170 ? "normal" : "warning";
+    case "ferritin":     return value >= 12 && value <= 300 ? "normal" : "warning";
     default: return "normal";
   }
 }
@@ -99,7 +158,7 @@ const BLOOD_TYPES = ["A+", "A−", "B+", "B−", "AB+", "AB−", "O+", "O−"];
 
 // Numeric normal ranges for trend chart bands [low, high]
 const NUMERIC_RANGES: Partial<Record<VitalType, [number, number]>> = {
-  bp:               [90, 120],   // systolic
+  bp:               [90, 120],
   glucose:          [70, 140],
   heart_rate:       [60, 100],
   temperature:      [36.1, 37.2],
@@ -108,6 +167,27 @@ const NUMERIC_RANGES: Partial<Record<VitalType, [number, number]>> = {
   hba1c:            [0, 5.7],
   cholesterol:      [0, 200],
   pain:             [1, 3],
+  hemoglobin:       [12, 17.5],
+  wbc:              [4.5, 11.0],
+  rbc:              [4.2, 6.1],
+  platelets:        [150, 400],
+  alt:              [0, 56],
+  ast:              [0, 40],
+  alp:              [44, 147],
+  bilirubin:        [0.1, 1.2],
+  albumin:          [3.5, 5.0],
+  creatinine:       [0.6, 1.3],
+  bun:              [7, 20],
+  uric_acid:        [2.4, 7.0],
+  egfr:             [60, 120],
+  tsh:              [0.4, 4.0],
+  t3:               [80, 200],
+  t4:               [5.1, 14.1],
+  sodium:           [136, 145],
+  potassium:        [3.5, 5.1],
+  calcium:          [8.5, 10.5],
+  serum_iron:       [50, 170],
+  ferritin:         [12, 300],
 };
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -207,6 +287,16 @@ export default function VitalsPage() {
     setCustomRangeType(null);
     toast.success("Custom range cleared");
   }
+
+  const VITAL_PLACEHOLDERS: Partial<Record<VitalType, string>> = {
+    temperature: "36.6", spo2: "98", hba1c: "5.4", creatinine: "0.9",
+    alt: "25", ast: "20", alp: "90", bilirubin: "0.8", albumin: "4.2",
+    tsh: "2.0", t3: "130", t4: "8.0",
+    wbc: "7.0", rbc: "5.0", platelets: "250",
+    bun: "12", uric_acid: "5.0", egfr: "80",
+    sodium: "140", potassium: "4.0", calcium: "9.5",
+    serum_iron: "100", ferritin: "80",
+  };
 
   const VITAL_DEFAULTS: Partial<Record<VitalType, { value: string; value2?: string }>> = {
     bp:             { value: "120", value2: "80" },
@@ -517,10 +607,17 @@ export default function VitalsPage() {
           <CollapsibleSection
             title="Lab Results"
             summary={sectionSummary(["hba1c", "cholesterol"] as VitalType[], 1)}
-            defaultOpen={LAB_VITALS.some((d) => byType(d.type).length > 0)}
+            defaultOpen={LAB_ALL_DEFS.some((d) => byType(d.type).length > 0)}
           >
-            <div className="grid grid-cols-2 gap-3">
-              {LAB_VITALS.map((def) => <VitalCard key={def.type} def={def} />)}
+            <div className="space-y-5">
+              {LAB_GROUPS.map((group) => (
+                <div key={group.key}>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-2 pl-0.5">{group.title}</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {group.defs.map((def) => <VitalCard key={def.type} def={def} />)}
+                  </div>
+                </div>
+              ))}
             </div>
           </CollapsibleSection>
         </section>
@@ -812,7 +909,7 @@ export default function VitalsPage() {
               <div>
                 <label className="label">{logDef.label} ({logDef.unit})</label>
                 <input className="input" type="number" step="0.1"
-                  placeholder={logType === "temperature" ? "36.6" : logType === "spo2" ? "98" : logType === "hba1c" ? "5.4" : logType === "creatinine" ? "0.9" : ""}
+                  placeholder={logType ? (VITAL_PLACEHOLDERS[logType] ?? "") : ""}
                   value={form.value} onChange={(e) => setForm({ ...form, value: e.target.value })} autoFocus />
                 {logDef.normalRange && <p className="text-xs text-gray-400 mt-1">Normal: {logDef.normalRange}</p>}
               </div>
