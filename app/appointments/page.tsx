@@ -8,7 +8,7 @@ import TopBar from "@/components/TopBar";
 import { api } from "@/lib/api";
 import { usePersonContext } from "@/contexts/PersonContext";
 import type { Appointment } from "@/lib/storage";
-import { nowIST, tomorrowMorningIST, formatIST } from "@/lib/time";
+import { nowIST, tomorrowMorningIST, formatIST, formatForInput } from "@/lib/time";
 
 function toDateStr(d: Date | string): string {
   const dt = typeof d === "string" ? new Date(d) : d;
@@ -94,7 +94,7 @@ export default function AppointmentsPage() {
     setEditing(appt);
     setForm({
       doctor: appt.doctor, specialty: appt.specialty,
-      datetime: appt.datetime ? new Date(appt.datetime).toISOString().slice(0, 16) : nowIST(),
+      datetime: appt.datetime ? formatForInput(appt.datetime) : nowIST(),
       location: appt.location, notes: appt.notes, status: appt.status, postVisitNotes: appt.postVisitNotes,
     });
     setShowModal(true);
@@ -114,6 +114,7 @@ export default function AppointmentsPage() {
   function deleteAppt(id: string) {
     const appt = appointments.find((a) => a.id === id);
     if (!appt) return;
+    if (!confirm(`Delete appointment with ${appt.doctor}? You can undo this for a few seconds.`)) return;
     const prevAppts = [...appointments];
     setAppointments((prev) => prev.filter((a) => a.id !== id));
     let undone = false;
@@ -130,14 +131,14 @@ export default function AppointmentsPage() {
           </button>
         </div>
       ),
-      { id: tid, duration: 5000 }
+      { id: tid, duration: 8000 }
     );
     setTimeout(async () => {
       if (!undone) {
         await api.appointments.delete(id);
         api.activity.push({ type: "appointment", label: `Deleted appointment: ${appt.doctor}`, at: new Date().toISOString(), deleted: true });
       }
-    }, 5100);
+    }, 8100);
   }
 
   async function clearAll() {

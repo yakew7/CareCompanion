@@ -36,6 +36,7 @@ export default function Sidebar() {
   const [addForm, setAddForm] = useState<{ nickname: string; color: string }>({ nickname: "", color: "purple" });
   const [addError, setAddError] = useState("");
   const [removeConfirmId, setRemoveConfirmId] = useState<string | null>(null);
+  const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const [editPersonId, setEditPersonId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<{ nickname: string; color: string }>({ nickname: "", color: "teal" });
   const [timezone, setTimezone] = useState(() => {
@@ -43,10 +44,8 @@ export default function Sidebar() {
     return "Asia/Kolkata";
   });
 
-  async function handleSignOut() {
-    if (confirm("Sign out?")) {
-      signOut({ callbackUrl: "/signin" });
-    }
+  function handleSignOut() {
+    setShowSignOutConfirm(true);
   }
 
   function handleAddPerson() {
@@ -75,7 +74,7 @@ export default function Sidebar() {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+      <nav className="flex-1 min-h-0 p-4 space-y-1 overflow-y-auto">
         {nav.map(({ href, label, icon: Icon }) => (
           <Link
             key={href}
@@ -303,6 +302,29 @@ export default function Sidebar() {
           Sign out
         </button>
       </div>
+      {/* Sign out confirm modal */}
+      {showSignOutConfirm && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-sm shadow-xl space-y-4">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">Sign out?</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Your data is saved locally and will still be here when you sign back in.</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setShowSignOutConfirm(false); signOut({ callbackUrl: "/signin" }); }}
+                className="btn-danger flex-1"
+              >
+                Sign out
+              </button>
+              <button
+                onClick={() => setShowSignOutConfirm(false)}
+                className="btn-secondary flex-1"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Remove person confirm modal */}
       {removeConfirmId && (() => {
         const target = persons.find((p) => p.id === removeConfirmId);

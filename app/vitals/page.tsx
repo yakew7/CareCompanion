@@ -239,6 +239,18 @@ export default function VitalsPage() {
     setCustomRanges(storage.customVitalRanges.get(activePersonId));
   }, [activePersonId]);
 
+  // Bug 4: Close any open modal on Escape
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== "Escape") return;
+      if (trendType) { setTrendType(null); return; }
+      if (customRangeType) { setCustomRangeType(null); return; }
+      if (logType) { setLogType(null); }
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [trendType, customRangeType, logType]);
+
   function openEditProfile() { setProfileDraft({ ...profile }); setEditingProfile(true); }
 
   async function saveProfile() {
@@ -587,11 +599,11 @@ export default function VitalsPage() {
                 </div>
               </CollapsibleSection>
 
-              {/* Secondary vitals — collapsed by default */}
+              {/* Secondary vitals — expanded by default for elderly-care visibility */}
               <CollapsibleSection
                 title="Additional Readings"
                 summary={sectionSummary(["spo2", "pain"] as VitalType[], 1)}
-                defaultOpen={false}
+                defaultOpen
               >
                 <div className="grid grid-cols-2 gap-3">
                   {HOME_VITALS.filter((d) => d.priority === "secondary").map((def) => (
@@ -717,7 +729,7 @@ export default function VitalsPage() {
           };
 
           return (
-            <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setTrendType(null)}>
+            <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={(e) => { e.stopPropagation(); setTrendType(null); }}>
               <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-lg p-5 space-y-4" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">

@@ -4,6 +4,24 @@ export function getAppTimezone(): string {
   return localStorage.getItem("cc_timezone") || "Asia/Kolkata";
 }
 
+// Converts any ISO datetime string to the datetime-local input format in the user's timezone.
+// Use this when pre-filling an edit form — avoids the "05:22 AM" UTC display bug.
+export function formatForInput(iso: string): string {
+  const tz = getAppTimezone();
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(new Date(iso));
+  const g = (t: string) => parts.find((p) => p.type === t)?.value ?? "00";
+  const h = g("hour") === "24" ? "00" : g("hour");
+  return `${g("year")}-${g("month")}-${g("day")}T${h}:${g("minute")}`;
+}
+
 // Returns tomorrow at 09:00 in the user's preferred timezone — default for new appointments so they land in "Upcoming" rather than "Past"
 export function tomorrowMorningIST(): string {
   const tz = getAppTimezone();

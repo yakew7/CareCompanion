@@ -8,7 +8,7 @@ import TopBar from "@/components/TopBar";
 import { api } from "@/lib/api";
 import { usePersonContext } from "@/contexts/PersonContext";
 import type { Symptom } from "@/lib/storage";
-import { nowIST, formatIST } from "@/lib/time";
+import { nowIST, formatIST, formatForInput } from "@/lib/time";
 import { useTimezoneRefresh } from "@/lib/useTimezoneRefresh";
 
 const SEVERITY_LABELS = [
@@ -107,6 +107,7 @@ export default function SymptomsPage() {
   const [search, setSearch] = useState("");
   const [form, setForm] = useState({ symptom: "", severity: 3, notes: "", loggedAt: nowIST() });
   const [editSymptom, setEditSymptom] = useState<Symptom | null>(null);
+  const [editLoggedAt, setEditLoggedAt] = useState("");
 
   useEffect(() => {
     if (!activePersonId) return;
@@ -146,7 +147,10 @@ export default function SymptomsPage() {
 
   async function saveEdit() {
     if (!editSymptom) return;
-    const updated = { ...editSymptom };
+    const updated = {
+      ...editSymptom,
+      loggedAt: editLoggedAt ? new Date(editLoggedAt).toISOString() : editSymptom.loggedAt,
+    };
     await api.symptoms.save(updated);
     setSymptoms(await api.symptoms.getAll());
     setEditSymptom(null);
@@ -156,6 +160,7 @@ export default function SymptomsPage() {
   function deleteSymptom(id: string) {
     const sym = symptoms.find((s) => s.id === id);
     if (!sym) return;
+    if (!confirm(`Delete "${sym.symptom}"? You can undo this for a few seconds.`)) return;
     const prevSymptoms = [...symptoms];
     setSymptoms((prev) => prev.filter((s) => s.id !== id));
     let undone = false;
@@ -172,14 +177,14 @@ export default function SymptomsPage() {
           </button>
         </div>
       ),
-      { id: tid, duration: 5000 }
+      { id: tid, duration: 8000 }
     );
     setTimeout(async () => {
       if (!undone) {
         await api.symptoms.delete(id);
         api.activity.push({ type: "symptom", label: `Deleted symptom: ${sym.symptom}`, at: new Date().toISOString(), deleted: true });
       }
-    }, 5100);
+    }, 8100);
   }
 
   async function clearAll() {
@@ -254,10 +259,10 @@ export default function SymptomsPage() {
         <div className="flex items-center gap-2 flex-wrap">
           {(["all", "week", "month"] as Filter[]).map((f) => (
             <button key={f} onClick={() => setFilter(f)}
-              className={`px-3 py-1.5 rounded-xl text-sm font-medium border transition-colors ${
+              className={`px-3 py-1.5 rounded-xl text-sm font-medium border ${
                 filter === f
                   ? "bg-teal-600 border-teal-600 text-white"
-                  : "bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-teal-400"
+                  : "bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-teal-400 transition-colors"
               }`}>
               {f === "all" ? "All" : f === "week" ? "This week" : "This month"}
             </button>
@@ -366,7 +371,7 @@ export default function SymptomsPage() {
                         <p className="text-xs text-gray-400 dark:text-gray-500 mt-1.5">{formatIST(s.loggedAt)}</p>
                       </div>
                       <div className="flex gap-1 flex-shrink-0">
-                        <button onClick={() => setEditSymptom({ ...s })}
+                        <button onClick={() => { setEditSymptom({ ...s }); setEditLoggedAt(formatForInput(s.loggedAt)); }}
                           className="p-1.5 text-gray-300 dark:text-gray-600 hover:text-teal-500 transition-colors rounded-lg hover:bg-teal-50 dark:hover:bg-teal-900/20">
                           <Pencil className="w-4 h-4" />
                         </button>
@@ -453,6 +458,16 @@ export default function SymptomsPage() {
               <label className="label">Notes (optional)</label>
               <textarea className="input resize-none" rows={2} value={editSymptom.notes}
                 onChange={(e) => setEditSymptom({ ...editSymptom, notes: e.target.value })} />
+            </div>
+            <div>
+              <label className="label">Date and time</label>
+              <input type="datetime-local" className="input" value={editLoggedAt}
+                onChange={(e) => setEditLoggedAt(e.target.value)} />
+              {editLoggedAt && (
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                  {new Date(editLoggedAt).toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: true })}
+                </p>
+              )}
             </div>
             <div className="flex gap-3 pt-2">
               <button onClick={saveEdit} className="btn-primary flex-1">Save</button>

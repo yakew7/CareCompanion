@@ -24,6 +24,7 @@ function NoteSection({
   onEdit,
   onClearAll,
   accentClass,
+  emptyHint,
 }: {
   title: string;
   icon: React.FC<{ className?: string }>;
@@ -34,6 +35,7 @@ function NoteSection({
   onEdit: (id: string, content: string) => void;
   onClearAll: () => void;
   accentClass: string;
+  emptyHint?: string;
 }) {
   const [showForm, setShowForm] = useState(false);
   const [draft, setDraft] = useState("");
@@ -89,7 +91,7 @@ function NoteSection({
       ) : notes.length === 0 ? (
         <div className="card text-center py-8 text-gray-400 dark:text-gray-500">
           <p className="text-sm">No {title.toLowerCase()} notes yet</p>
-          <p className="text-xs mt-1">Notes from uploaded reports appear here automatically</p>
+          {emptyHint && <p className="text-xs mt-1">{emptyHint}</p>}
         </div>
       ) : (
         <div className="space-y-2">
@@ -300,6 +302,7 @@ export default function NotesPage() {
             onEdit={editDietary}
             onClearAll={clearDietary}
             accentClass="text-green-600 dark:text-green-400"
+            emptyHint="Use + Add to log dietary restrictions, meal plans, or nutrition notes."
           />
           <NoteSection
             title="Other"
@@ -311,6 +314,7 @@ export default function NotesPage() {
             onEdit={editOther}
             onClearAll={clearOther}
             accentClass="text-orange-500 dark:text-orange-400"
+            emptyHint="Notes extracted from uploaded reports appear here automatically. You can also add your own with + Add."
           />
         </div>
 
@@ -327,6 +331,7 @@ export default function NotesPage() {
               onEdit={editDietary}
               onClearAll={clearDietary}
               accentClass="text-green-600 dark:text-green-400"
+              emptyHint="Use + Add to log dietary restrictions, meal plans, or nutrition notes."
             />
           ) : (
             <NoteSection
@@ -339,6 +344,7 @@ export default function NotesPage() {
               onEdit={editOther}
               onClearAll={clearOther}
               accentClass="text-orange-500 dark:text-orange-400"
+              emptyHint="Notes extracted from uploaded reports appear here automatically. You can also add your own with + Add."
             />
           )}
         </div>
