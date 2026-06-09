@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
+import toast from "react-hot-toast";
 import { Pill, Activity, Calendar, FileText, Upload, Thermometer, ClipboardList, ShieldCheck, ChevronRight, Printer, X, Sparkles, TrendingUp, TrendingDown, AlertTriangle } from "lucide-react";
 import type { Medication, VitalEntry, Appointment, Symptom, CustomVitalRange, Note } from "@/lib/storage";
 import { storage } from "@/lib/storage";
@@ -171,8 +172,8 @@ export default function DashboardPage() {
   const [daysSinceLast, setDaysSinceLast] = useState<number | null>(null);
   const [printData, setPrintData] = useState<{
     meds: Medication[]; vitals: VitalEntry[]; appts: Appointment[]; symptoms: Symptom[];
-    dietary: Note[]; other: Note[];
-  }>({ meds: [], vitals: [], appts: [], symptoms: [], dietary: [], other: [] });
+    dietary: Note[]; other: Note[]; emergencyInfo: import("@/lib/storage").EmergencyInfo;
+  }>({ meds: [], vitals: [], appts: [], symptoms: [], dietary: [], other: [], emergencyInfo: { allergies: [], emergencyContacts: [] } });
   const [onboardingDismissed, setOnboardingDismissed] = useState(() => {
     if (typeof window !== "undefined") return localStorage.getItem("onboarding_dismissed") === "1";
     return false;
@@ -202,7 +203,7 @@ export default function DashboardPage() {
         records: records.length,
       });
       setActivity(acts.slice(0, 50));
-      setPrintData({ meds, vitals, appts, symptoms, dietary, other });
+      setPrintData({ meds, vitals, appts, symptoms, dietary, other, emergencyInfo: storage.emergencyInfo.get(activePersonId) });
 
       // Days since last logged entry
       const lastEntry = acts[0];
@@ -294,6 +295,95 @@ export default function DashboardPage() {
     setOnboardingDismissed(true);
   }
 
+  async function loadDemoData() {
+    if (!activePersonId) return;
+    const now = new Date();
+    const iso = (offsetDays: number) => {
+      const d = new Date(now);
+      d.setDate(d.getDate() + offsetDays);
+      return d.toISOString();
+    };
+    const dateStr = (offsetDays: number) => iso(offsetDays).split("T")[0];
+
+    // Health profile
+    storage.healthProfile.set({ age: 68, heightCm: 162, gender: "female" }, activePersonId);
+
+    // Medications
+    const medsData = [
+      { id: "demo-m1", name: "Metformin", dosage: "500mg", frequency: "Twice daily", times: ["Morning", "Evening"], notes: "Take with food", log: { [dateStr(0)]: { Morning: "08:12" } }, createdAt: dateStr(-60) },
+      { id: "demo-m2", name: "Lisinopril", dosage: "10mg", frequency: "Once daily", times: ["Morning"], notes: "", log: { [dateStr(0)]: { Morning: "08:15" } }, createdAt: dateStr(-90) },
+      { id: "demo-m3", name: "Atorvastatin", dosage: "20mg", frequency: "Once daily", times: ["Night"], notes: "Take at bedtime", log: {}, createdAt: dateStr(-90) },
+    ];
+    for (const m of medsData) {
+      await api.medications.save(m as import("@/lib/storage").Medication);
+      api.activity.push({ type: "medication", label: `Added medication: ${m.name}`, at: iso(-90) });
+    }
+
+    // Vitals (bp, glucose, hba1c, weight, heart_rate)
+    const vitalsData = [
+      { id: "demo-v1", type: "bp" as const, value: 138, value2: 88, unit: "mmHg", notes: "", loggedAt: iso(-14) },
+      { id: "demo-v2", type: "bp" as const, value: 132, value2: 84, unit: "mmHg", notes: "", loggedAt: iso(-7) },
+      { id: "demo-v3", type: "bp" as const, value: 128, value2: 82, unit: "mmHg", notes: "After morning walk", loggedAt: iso(-1) },
+      { id: "demo-v4", type: "glucose" as const, value: 126, unit: "mg/dL", notes: "Fasting", loggedAt: iso(-7) },
+      { id: "demo-v5", type: "hba1c" as const, value: 7.1, unit: "%", notes: "", loggedAt: iso(-30) },
+      { id: "demo-v6", type: "weight" as const, value: 64, unit: "kg", notes: "", loggedAt: iso(-7) },
+      { id: "demo-v7", type: "heart_rate" as const, value: 76, unit: "bpm", notes: "", loggedAt: iso(-3) },
+    ];
+    for (const v of vitalsData) {
+      await api.vitals.save(v as import("@/lib/storage").VitalEntry);
+      api.activity.push({ type: "vital", label: `Logged ${v.type}`, at: v.loggedAt });
+    }
+
+    // Symptoms
+    const symptomsData = [
+      { id: "demo-s1", symptom: "Headache", severity: 3, notes: "After lunch", loggedAt: iso(-5), linkedMedication: "Lisinopril" },
+      { id: "demo-s2", symptom: "Fatigue", severity: 2, notes: "", loggedAt: iso(-4) },
+      { id: "demo-s3", symptom: "Fatigue", severity: 3, notes: "Worse in the afternoon", loggedAt: iso(-2) },
+      { id: "demo-s4", symptom: "Dizziness", severity: 2, notes: "Upon standing", loggedAt: iso(-1), linkedMedication: "Lisinopril" },
+    ];
+    for (const s of symptomsData) {
+      await api.symptoms.save(s as import("@/lib/storage").Symptom);
+      api.activity.push({ type: "symptom", label: `Logged symptom: ${s.symptom}`, at: s.loggedAt });
+    }
+
+    // Appointments
+    const upcomingAppt: import("@/lib/storage").Appointment = {
+      id: "demo-a1",
+      doctor: "Dr. Priya Sharma",
+      specialty: "Endocrinologist",
+      datetime: iso(12),
+      location: "Apollo Hospital, Mumbai",
+      notes: "3-month HbA1c follow-up",
+      status: "upcoming",
+      postVisitNotes: "",
+    };
+    const pastAppt: import("@/lib/storage").Appointment = {
+      id: "demo-a2",
+      doctor: "Dr. Rakesh Mehta",
+      specialty: "Cardiologist",
+      datetime: iso(-21),
+      location: "Fortis Hospital",
+      notes: "",
+      status: "completed",
+      postVisitNotes: "BP improving. Continue Lisinopril.",
+      visitDoctorSaid: "Blood pressure improving on current dose. Target below 130/80.",
+      visitMedsChanged: "No changes. Continue Lisinopril 10mg.",
+      visitActionItems: "Monitor BP daily. Return in 3 months. Schedule echo if BP stays elevated.",
+    };
+    await api.appointments.save(upcomingAppt);
+    await api.appointments.save(pastAppt);
+    api.activity.push({ type: "appointment", label: `Added appointment: Dr. Priya Sharma`, at: iso(-1) });
+
+    // Notes
+    await api.dietary.save({ id: "demo-n1", content: "Low sodium diet — avoid processed foods and canned goods. Limit salt to 1500mg/day.", source: "manual", createdAt: iso(-30), tags: ["cardiologist"] });
+    await api.other.save({ id: "demo-n2", content: "Allergic to sulfa drugs. Check with pharmacist before any new prescriptions.", source: "manual", createdAt: iso(-30), tags: ["allergy", "important"] });
+
+    toast.success("Demo data loaded!");
+    dismissOnboarding();
+    // Reload to pick up all state
+    window.location.reload();
+  }
+
   const showReengage = !isFirstUse && !reengageDismissed && daysSinceLast !== null && daysSinceLast >= 2;
   const hasAnyData = activity.length > 0 || stats.medications > 0 || stats.records > 0;
 
@@ -369,6 +459,12 @@ export default function DashboardPage() {
                 </Link>
               ))}
             </div>
+            <button
+              onClick={loadDemoData}
+              className="w-full text-xs text-center text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 py-1 transition-colors"
+            >
+              Or try with demo data →
+            </button>
           </div>
         )}
 
@@ -641,6 +737,21 @@ export default function DashboardPage() {
               </div>
 
               <div className="px-6 py-5 space-y-6">
+                {/* Patient context */}
+                {(printData.emergencyInfo.bloodType || printData.emergencyInfo.allergies.length > 0 || printData.emergencyInfo.primaryDoctor) && (
+                  <section className="flex flex-wrap gap-4 pb-4 border-b border-gray-200 dark:border-gray-700">
+                    {printData.emergencyInfo.bloodType && (
+                      <div><p className="text-[10px] text-gray-400 uppercase tracking-wide">Blood Type</p><p className="text-sm font-bold text-red-600 dark:text-red-400">{printData.emergencyInfo.bloodType}</p></div>
+                    )}
+                    {printData.emergencyInfo.allergies.length > 0 && (
+                      <div><p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">Allergies</p><div className="flex flex-wrap gap-1">{printData.emergencyInfo.allergies.map((a, i) => <span key={i} className="text-xs px-2 py-0.5 rounded bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800">{a}</span>)}</div></div>
+                    )}
+                    {printData.emergencyInfo.primaryDoctor && (
+                      <div><p className="text-[10px] text-gray-400 uppercase tracking-wide">Primary Doctor</p><p className="text-sm font-medium">{printData.emergencyInfo.primaryDoctor}{printData.emergencyInfo.primaryDoctorPhone ? ` · ${printData.emergencyInfo.primaryDoctorPhone}` : ""}</p></div>
+                    )}
+                  </section>
+                )}
+
                 {/* Medications */}
                 <section>
                   <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-3">Current Medications ({printData.meds.length})</h3>
@@ -715,7 +826,10 @@ export default function DashboardPage() {
                             <div className="flex-1">
                               <p className="text-sm font-medium">{a.doctor}{a.specialty ? ` — ${a.specialty}` : ""}</p>
                               <p className="text-xs text-gray-500 dark:text-gray-400">{formatIST(a.datetime)}{a.location ? ` · ${a.location}` : ""}</p>
-                              {a.postVisitNotes && <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5 italic">{a.postVisitNotes}</p>}
+                              {a.visitDoctorSaid && <p className="text-xs text-teal-700 dark:text-teal-400 mt-0.5"><span className="font-medium">Said:</span> {a.visitDoctorSaid}</p>}
+                              {a.visitMedsChanged && <p className="text-xs text-purple-700 dark:text-purple-400 mt-0.5"><span className="font-medium">Meds:</span> {a.visitMedsChanged}</p>}
+                              {a.visitActionItems && <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5"><span className="font-medium">Actions:</span> {a.visitActionItems}</p>}
+                              {!a.visitDoctorSaid && !a.visitMedsChanged && a.postVisitNotes && <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5 italic">{a.postVisitNotes}</p>}
                             </div>
                             <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 font-medium flex-shrink-0">Completed</span>
                           </div>

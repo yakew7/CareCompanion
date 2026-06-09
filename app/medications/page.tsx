@@ -335,10 +335,6 @@ export default function MedicationsPage() {
   const takenDoses = meds.flatMap((m) => m.times.filter((t) => m.log[today]?.[t]));
   const progress = allDoses.length > 0 ? Math.round((takenDoses.length / allDoses.length) * 100) : 0;
 
-  const filteredMeds = search.trim()
-    ? meds.filter((m) => m.name.toLowerCase().includes(search.toLowerCase().trim()))
-    : meds;
-
   const getDayAdherence = (dateStr: string): { taken: number; expected: number } => {
     const dayName = new Date(dateStr + "T12:00:00").toLocaleDateString("en-US", { weekday: "long" });
     let exp = 0, tak = 0;
@@ -356,6 +352,42 @@ export default function MedicationsPage() {
     }
     return { expected: exp, taken: tak };
   };
+
+  // 30-day adherence
+  const thirtyDayDates = Array.from({ length: 30 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (29 - i));
+    return d.toISOString().split("T")[0];
+  });
+  const thirtyDayStats = thirtyDayDates.reduce<{ taken: number; expected: number }>(
+    (acc, day) => {
+      const { taken, expected } = getDayAdherence(day);
+      return { taken: acc.taken + taken, expected: acc.expected + expected };
+    },
+    { taken: 0, expected: 0 }
+  );
+  const thirtyDayPct = thirtyDayStats.expected > 0
+    ? Math.round((thirtyDayStats.taken / thirtyDayStats.expected) * 100)
+    : null;
+
+  // Most-missed daily slot in last 30 days
+  const slotMisses: Record<string, number> = {};
+  for (const day of thirtyDayDates) {
+    for (const med of meds) {
+      if (med.frequency === "As needed" || isWeekly(med.frequency) || isMonthly(med.frequency)) continue;
+      if (med.createdAt && day < med.createdAt) continue;
+      for (const time of med.times) {
+        if (!med.log[day]?.[time]) {
+          slotMisses[time] = (slotMisses[time] || 0) + 1;
+        }
+      }
+    }
+  }
+  const mostMissedEntry = Object.entries(slotMisses).sort((a, b) => b[1] - a[1])[0];
+
+  const filteredMeds = search.trim()
+    ? meds.filter((m) => m.name.toLowerCase().includes(search.toLowerCase().trim()))
+    : meds;
 
   const weekly = isWeekly(form.frequency);
   const monthly = isMonthly(form.frequency);
@@ -461,7 +493,17 @@ export default function MedicationsPage() {
             <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
               <div className="bg-teal-500 h-2 rounded-full transition-all duration-300" style={{ width: `${progress}%` }} />
             </div>
-            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{progress}% complete</p>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1">
+              <p className="text-xs text-gray-400 dark:text-gray-500">{progress}% complete today</p>
+              {thirtyDayPct !== null && (
+                <p className="text-xs text-gray-400 dark:text-gray-500">
+                  30-day: <span className={`font-medium ${thirtyDayPct >= 80 ? "text-green-600 dark:text-green-400" : thirtyDayPct >= 50 ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400"}`}>{thirtyDayPct}%</span>
+                  {mostMissedEntry && mostMissedEntry[1] > 3 && (
+                    <span className="ml-2 text-amber-500 dark:text-amber-400">· Most missed: {mostMissedEntry[0]} ({mostMissedEntry[1]}×)</span>
+                  )}
+                </p>
+              )}
+            </div>
           </div>
         )}
 
