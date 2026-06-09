@@ -43,11 +43,12 @@ export default function BottomNav() {
 
   return (
     <>
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 flex z-30">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 flex z-50">
         {primary.map(({ href, label, icon: Icon }) => (
           <Link
             key={href}
             href={href}
+            onClick={() => setOpen(false)}
             className={`flex-1 flex flex-col items-center py-2 text-[10px] gap-0.5 transition-colors ${
               pathname === href
                 ? "text-teal-600 dark:text-teal-400 font-semibold"
@@ -67,8 +68,8 @@ export default function BottomNav() {
               : "text-gray-500 dark:text-gray-400"
           }`}
         >
-          {open ? <X className="w-5 h-5" /> : activeOverflow ? <activeOverflow.icon className="w-5 h-5" /> : <MoreHorizontal className="w-5 h-5" />}
-          {open ? "More" : activeOverflow ? activeOverflow.label : "More"}
+          {open ? <X className="w-5 h-5" /> : <MoreHorizontal className="w-5 h-5" />}
+          More
         </button>
       </nav>
 
