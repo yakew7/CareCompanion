@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
 STRICT RULES:
 - Medications: ONLY if a medication name is explicitly prescribed or listed. dosage/frequency/times must be exactly as written. If times of day are not mentioned, use []. Do NOT infer or guess.
 - Appointments: ONLY if a specific follow-up visit is explicitly recommended. Do NOT create appointments for every doctor mentioned.
-- Symptoms: ONLY symptoms the patient is explicitly described as experiencing. Do NOT include test results or diagnoses as symptoms.
+- Symptoms: ONLY symptoms the patient is explicitly described as experiencing. Do NOT include test results or diagnoses as symptoms. If a specific date is mentioned for a symptom, set daysAgo to how many days before TODAY (2026-06-09) that date was. If no date is mentioned, use daysAgo: 0.
 - Dietary: ONLY explicit dietary instructions (e.g. "avoid salt", "low-fat diet", "drink 2L water daily"). Not general health advice.
 - Other: Other explicit instructions not covered above (e.g. "bed rest for 1 week", "avoid heavy lifting", "monitor blood pressure daily").
 - If something is NOT directly stated, do NOT include it.
@@ -44,11 +44,12 @@ VITAL SIGNS & LAB VALUES — extract any of the following if EXPLICITLY present 
 
 Core vitals:
 - Blood Pressure → type "bp", value=systolic, value2=diastolic, unit="mmHg"
-- Blood Glucose / Blood Sugar / FBS / PPBS → type "glucose", unit="mg/dL" (convert from mmol/L ×18)
+- Blood Glucose / Blood Sugar / FBS / PPBS / RBS → type "glucose", unit="mg/dL" (convert from mmol/L ×18)
 - SpO₂ / Oxygen Saturation → type "spo2", unit="%"
 - Heart Rate / Pulse → type "heart_rate", unit="bpm"
 - Temperature → type "temperature", unit="°C" (convert from °F: (F−32)×5/9)
 - Respiratory Rate → type "respiratory_rate", unit="breaths/min"
+- Weight / Body Weight → type "weight", unit="kg" (convert from lbs: lbs × 0.453592)
 
 Metabolic:
 - HbA1c / Glycated Haemoglobin → type "hba1c", unit="%"
@@ -98,7 +99,7 @@ Return ONLY valid JSON:
 {
   "medications": [{ "name": "...", "dosage": "...", "frequency": "...", "times": [], "notes": "...", "durationDays": 0 }],
   "appointments": [{ "doctor": "...", "specialty": "...", "notes": "...", "daysFromNow": 30 }],
-  "symptoms": [{ "symptom": "...", "severity": 3, "notes": "..." }],
+  "symptoms": [{ "symptom": "...", "severity": 3, "notes": "...", "daysAgo": 0 }],
   "dietary": [{ "advice": "exact dietary instruction from report" }],
   "other": [{ "note": "exact other instruction from report" }],
   "vitals": [{ "type": "bp", "value": 120, "value2": 80, "unit": "mmHg", "notes": "" }],
@@ -110,7 +111,7 @@ Return ONLY valid JSON:
           content: `Extract from this report — only what is explicitly stated:\n\n${text.slice(0, 12000)}`,
         },
       ],
-      max_tokens: 2400,
+      max_tokens: 4000,
       temperature: 0,
     });
 

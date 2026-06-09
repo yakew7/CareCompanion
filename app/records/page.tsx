@@ -348,10 +348,14 @@ export default function RecordsPage() {
         if (item.type === "medication") {
           const m = item.data;
           const durationDays = (m.durationDays as number) || 0;
-          await api.medications.save({ id: uuidv4(), name: m.name as string, dosage: (m.dosage as string) || "", frequency: (m.frequency as string) || "As needed", times: (m.times as string[]) || [], notes: (m.notes as string) || "", log: {}, expiresAt: durationDays > 0 ? new Date(Date.now() + durationDays * 86400000).toISOString() : undefined });
+          const rawTimes = (m.times as string[]) || [];
+          const cleanTimes = rawTimes.filter((t: string) => t && t !== "[]" && t.trim() !== "");
+          await api.medications.save({ id: uuidv4(), name: m.name as string, dosage: (m.dosage as string) || "", frequency: (m.frequency as string) || "As needed", times: cleanTimes, notes: (m.notes as string) || "", log: {}, createdAt: new Date().toISOString(), expiresAt: durationDays > 0 ? new Date(Date.now() + durationDays * 86400000).toISOString() : undefined });
         } else if (item.type === "symptom") {
           const s = item.data;
-          await api.symptoms.save({ id: uuidv4(), symptom: s.symptom as string, severity: (s.severity as number) || 3, notes: (s.notes as string) || "", loggedAt: new Date().toISOString() });
+          const daysAgo = (s.daysAgo as number) || 0;
+          const symptomLoggedAt = daysAgo > 0 ? new Date(Date.now() - daysAgo * 86400000).toISOString() : new Date().toISOString();
+          await api.symptoms.save({ id: uuidv4(), symptom: s.symptom as string, severity: (s.severity as number) || 3, notes: (s.notes as string) || "", loggedAt: symptomLoggedAt });
         } else if (item.type === "appointment") {
           const a = item.data;
           const days = (a.daysFromNow as number) || 30;

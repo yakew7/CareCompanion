@@ -376,20 +376,26 @@ export default function MedicationsPage() {
     ? Math.round((thirtyDayStats.taken / thirtyDayStats.expected) * 100)
     : null;
 
-  // Most-missed daily slot in last 30 days
-  const slotMisses: Record<string, number> = {};
+  // Most-missed daily slot in last 30 days (as miss-rate %)
+  const slotStats: Record<string, { misses: number; total: number }> = {};
   for (const day of thirtyDayDates) {
     for (const med of meds) {
       if (med.frequency === "As needed" || isWeekly(med.frequency) || isMonthly(med.frequency)) continue;
       if (med.createdAt && day < med.createdAt) continue;
       for (const time of med.times) {
-        if (!med.log[day]?.[time]) {
-          slotMisses[time] = (slotMisses[time] || 0) + 1;
-        }
+        if (!slotStats[time]) slotStats[time] = { misses: 0, total: 0 };
+        slotStats[time].total++;
+        if (!med.log[day]?.[time]) slotStats[time].misses++;
       }
     }
   }
-  const mostMissedEntry = Object.entries(slotMisses).sort((a, b) => b[1] - a[1])[0];
+  // Only surface a slot if it has ≥5 expected doses AND miss rate >30%
+  const mostMissedEntry = Object.entries(slotStats)
+    .filter(([, s]) => s.total >= 5 && s.misses / s.total > 0.3)
+    .sort((a, b) => b[1].misses / b[1].total - a[1].misses / a[1].total)[0];
+  const mostMissedPct = mostMissedEntry
+    ? Math.round((mostMissedEntry[1].misses / mostMissedEntry[1].total) * 100)
+    : null;
 
   const filteredMeds = search.trim()
     ? meds.filter((m) => m.name.toLowerCase().includes(search.toLowerCase().trim()))
@@ -504,8 +510,8 @@ export default function MedicationsPage() {
               {thirtyDayPct !== null && (
                 <p className="text-xs text-gray-400 dark:text-gray-500">
                   30-day: <span className={`font-medium ${thirtyDayPct >= 80 ? "text-green-600 dark:text-green-400" : thirtyDayPct >= 50 ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400"}`}>{thirtyDayPct}%</span>
-                  {mostMissedEntry && mostMissedEntry[1] > 3 && (
-                    <span className="ml-2 text-amber-500 dark:text-amber-400">· Most missed: {mostMissedEntry[0]} ({mostMissedEntry[1]}×)</span>
+                  {mostMissedEntry && mostMissedPct !== null && (
+                    <span className="ml-2 text-amber-500 dark:text-amber-400">· Most missed: {mostMissedEntry[0]} ({mostMissedPct}% skip rate)</span>
                   )}
                 </p>
               )}
