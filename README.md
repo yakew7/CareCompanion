@@ -1,8 +1,6 @@
 <div align="center">
 
-<img src="public/icon-192.png" alt="CareCompanion" width="96" height="96" />
-
-# CareCompanion
+# 🫀 CareCompanion
 
 **The private health dashboard built for family caregivers**
 
