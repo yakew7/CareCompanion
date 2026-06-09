@@ -5,6 +5,79 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.5.0] — 2026-06-09
+
+A comprehensive caregiver-intelligence release. Adds four P1 safety & prep features, two P2 workflow improvements, three P3 depth features, and resolves nine UX bugs found during audit.
+
+### ✨ New Features
+
+#### 🛡️ Emergency Info Card
+A dedicated `/emergency` page accessible from the sidebar and the "More" bottom-nav sheet. Displays blood type (large red chip), allergy chips, tap-to-call emergency contacts, and primary doctor info — everything a first responder or ER needs at a glance.
+
+Edit mode includes:
+- Eight blood type preset buttons (A+, A−, B+, B−, AB+, AB−, O+, O−) + free-text fallback
+- Add/remove allergies
+- Add/remove emergency contacts (name, phone, relation) with tap-to-call on the view screen
+- Primary doctor name and phone
+- General medical notes textarea
+
+Data stored under `emergencyInfo` key in `localStorage`, scoped per person.
+
+#### 💊 Medication Refill Countdown
+Medications with an `expiresAt` date set now surface an amber warning card on the dashboard when expiry is 1–7 days away. Shows medication name, days remaining, and links directly to the Medications page. Card disappears automatically once the medication is removed or the date passes.
+
+#### 🏥 Doctor Visit Prep Modal
+A full-screen pre- and post-visit workflow accessible from any upcoming appointment card via a clipboard icon.
+
+**Pre-visit panel:**
+- Current medications list (extracted from active meds)
+- Recent symptoms summary (last 10 days)
+- Latest vitals snapshot (last reading per vital type)
+- AI-generated question suggestions (Groq streaming) — tailored to the specific appointment's doctor specialty and the patient's data profile
+- One-click clipboard copy of all questions
+
+**Post-visit structured notes (4 fields):**
+- What the doctor said
+- Medication changes
+- Action items / follow-ups
+- Appointment outcome summary
+
+Post-visit notes are saved back to the appointment record and displayed on the appointment card with colour-coded labels (teal = doctor said, purple = med changes, amber = action items).
+
+#### 🔗 Symptom–Medication Linking
+A "Related medication" dropdown in the symptom log and edit forms lets caregivers associate a symptom with any tracked medication. On each medication card, a "Reported side effects" section lists linked symptoms as amber pills with a *"First reported N days after starting"* calculation — helping doctors identify adverse reactions during visits.
+
+#### 📊 Symptom Duration Tracking *(P3)*
+Each symptom can be marked "Still ongoing" at log time. Ongoing symptoms show an amber "Ongoing" badge on their card with a running day count (e.g. *"Day 4"*). A "Mark resolved" button sets `resolvedAt` to the current timestamp. Duration data is preserved in the edit form.
+
+#### 🏷️ Notes Tagging & Filtering *(P3)*
+An inline tag input (press Enter or `,` to add a tag) appears on the Dietary and Other note forms. Tags render as small chips on each note card. An active tag filter banner appears when a tag chip is clicked, showing only matching notes across both sections. Clicking the banner clears the filter. Tags are stored as `string[]` on the `Note` interface.
+
+#### 📱 iOS Push Reliability Banner *(P2)*
+A one-time, session-dismissible banner on the Medications page detects iOS Safari (non-standalone) and explains that background notifications require the app to be installed as a PWA. Includes expandable step-by-step "Add to Home Screen" instructions. Implemented as a standalone `IOSPushBanner` component using `sessionStorage` for dismissal state.
+
+### 🐛 Bug Fixes
+
+| # | Location | Fix |
+|:---:|---|---|
+| 1 | Symptoms | "Clear all" now shows a named confirmation modal before deleting |
+| 2 | Dashboard | Onboarding screen no longer flashes briefly on first load for returning users (`dataLoaded` gate) |
+| 3 | Symptoms / Notes | Edit/notes icon buttons raised from `text-gray-300` to `text-gray-400` for sufficient contrast |
+| 4 | Sidebar export | Toast now reads *"Backup saved to Downloads"* (was generic "Exported") |
+| 5 | Medications | "Late" amber badge now correctly appears on dose cards when taken significantly after the scheduled time slot |
+| 6 | Appointments | New appointment form defaults to today's date instead of tomorrow |
+| 7 | Dashboard | Insights placeholder only appears when there is existing data but no patterns detected yet |
+| 8 | Symptoms | Clear-all confirmation dialog uses patient-specific wording |
+| 9 | General | Verified no pre-existing regressions across all pages after P1–P3 changes |
+
+### 🔧 Changed
+
+- `lib/storage.ts`: Added `linkedMedication?: string`, `ongoing?: boolean`, `resolvedAt?: string` to `Symptom`; `tags?: string[]` to `Note`; `visitDoctorSaid?`, `visitMedsChanged?`, `visitActionItems?` to `Appointment`; new `EmergencyContact` and `EmergencyInfo` interfaces; `"emergencyInfo"` added to `DATA_KEYS`
+- Sidebar: Emergency Info link added (ShieldAlert icon)
+- Bottom nav More sheet: Emergency added to overflow items
+
+---
+
 ## [1.4.0] — 2026-06-08
 
 This is a major reliability, polish, and intelligence release. It lands five data-safety fixes, seven UX improvements, four polish items, and three new headline features.
