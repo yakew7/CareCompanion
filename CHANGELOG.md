@@ -5,6 +5,58 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.6.0] — 2026-06-09
+
+Four new caregiver-utility features plus three bug fixes.
+
+### ✨ New Features
+
+#### 📔 Daily Caregiver Journal
+A new `/journal` page for free-form daily observations — things that don't fit neatly into medications, vitals, or symptoms. Accessible from the sidebar and bottom-nav "More" sheet.
+
+- Date-grouped entries with timestamps
+- Optional **mood marker** per entry: Good day / Neutral / Tough day — colour-coded chip
+- Full add / edit / delete with a modal form
+- Descriptive empty state that explains the page's purpose
+- Data scoped per person, stored in `localStorage` under `journal__<personId>`
+
+#### 💊 Pill Count / Inventory Tracking
+Medications now have an optional **"Pills remaining"** field.
+
+- Entering a count shows an inline *"~N days of doses remaining"* hint in the form
+- Every logged dose **automatically decrements** the count by 1
+- Card badges: grey (≥8 days), amber (≤7 days), red (≤3 days), red "Out of pills" at 0
+- Low pill count medications surface in the **dashboard refill reminders card** alongside expiry-date alerts — deduplicated by name, sorted by urgency
+
+#### 🔔 Appointment Reminders
+Appointments now have a **"Reminder"** select in the add/edit form: None, 1h, 2h, 12h, 24h, or 48h before.
+
+- On page load, checks every upcoming appointment with `reminderHours` set
+- If the reminder window has been reached, fires a **browser notification** (requires notification permission)
+- Fires once per appointment per device — stamped in `localStorage` as `cc_appt_rem_<id>` to prevent duplicates
+- A 🔔 chip on the appointment card shows the configured reminder time
+
+#### 📊 Vital Targets — % In-Range Stat
+Every vital card with at least 3 readings in the last 90 days now shows a **% readings in target** line.
+
+- Uses the doctor's custom range if set, otherwise the standard clinical normal range
+- Colour-coded: green ≥80%, amber ≥50%, red <50%
+- Shown on both at-home vitals and lab result cards
+- Weight excluded (no clinically universal target range)
+
+### 🐛 Bug Fixes
+
+- **Emergency page**: Removed nonsensical "custom blood type" free-text input — only the 8 standard ABO/Rh blood types + "Unknown" are valid
+- **Bottom nav z-index**: The More sheet backdrop (`z-40`) was sitting on top of the primary nav bar (`z-30`), making Home / Reports / Meds / Symptoms / Vitals untappable while the sheet was open. Nav raised to `z-50`; primary links now also call `setOpen(false)` to dismiss the sheet on navigate
+- **More button label**: The More button was replacing its icon and label with the active overflow page (e.g. showing "Appts" as a 6th primary tab). It now always shows the MoreHorizontal icon and "More" label — highlighted teal when on an overflow page
+
+### 🔧 Changed
+
+- `lib/storage.ts`: Added `reminderHours?: number` to `Appointment`; `pillCount?: number` to `Medication`; new `JournalEntry` interface; `"journal"` added to `DATA_KEYS`; `storage.journal` CRUD methods added
+- `lib/api.ts`: `api.journal` accessor added
+
+---
+
 ## [1.5.0] — 2026-06-09
 
 A comprehensive caregiver-intelligence release. Adds four P1 safety & prep features, two P2 workflow improvements, three P3 depth features, and resolves nine UX bugs found during audit.

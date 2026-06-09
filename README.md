@@ -4,7 +4,7 @@
 
 **The private health dashboard built for family caregivers**
 
-[![Version](https://img.shields.io/badge/version-1.5.0-0d9488?style=for-the-badge)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.6.0-0d9488?style=for-the-badge)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/license-MIT-22c55e?style=for-the-badge)](LICENSE)
 [![Next.js](https://img.shields.io/badge/Next.js-14-000000?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?style=for-the-badge&logo=typescript&logoColor=white)](https://typescriptlang.org)
@@ -202,6 +202,72 @@ Dietary restrictions and care notes — manually written or auto-extracted from 
 - **Inline editing** — pencil icon on every card for quick updates
 - **Tags** — add custom tags to any note (press Enter or `,` to add); tags render as chips on the card
 - **Tag filtering** — click any tag chip to filter both sections to matching notes; an active-filter banner shows what's applied and clears with one tap
+
+</details>
+
+---
+
+### 📔 Caregiver Journal
+A private daily log for observations that don't fit structured fields.
+
+<details>
+<summary>What's included</summary>
+<br/>
+
+- Free-form daily entries grouped by date
+- **Mood marker** — Good day / Neutral / Tough day with colour-coded chip per entry
+- Full add / edit / delete via a modal; edit preserves the original timestamp
+- Empty state explains the purpose: *"observations, moods, how the day went — stays private on your device"*
+- Accessible from the sidebar and bottom-nav "More" sheet
+
+</details>
+
+---
+
+### 💊 Pill Count & Inventory
+Never run out of a medication mid-course.
+
+<details>
+<summary>What's included</summary>
+<br/>
+
+- Optional **"Pills remaining"** field on every medication — enter current stock when adding or editing
+- Form shows an inline *"~N days of doses remaining"* hint based on the medication's frequency and time slots
+- Every logged dose **automatically decrements** the count
+- Card badges by urgency: grey (plenty), amber (≤7 days), red (≤3 days or out)
+- Low-stock medications surface in the **dashboard refill reminder card** alongside expiry-date alerts
+
+</details>
+
+---
+
+### 🔔 Appointment Reminders
+Get a notification before every appointment.
+
+<details>
+<summary>What's included</summary>
+<br/>
+
+- **"Reminder"** dropdown in the appointment form: No reminder, 1h, 2h, 12h, 24h, or 48h before
+- On page load, checks all upcoming appointments — fires a **browser push notification** if the reminder window has been reached (requires notification permission)
+- Each reminder fires exactly once per device, tracked via `localStorage`
+- A 🔔 chip on the appointment card confirms what's set
+
+</details>
+
+---
+
+### 📊 Vital Targets
+See how often readings actually hit the target.
+
+<details>
+<summary>What's included</summary>
+<br/>
+
+- Every vital card with 3+ readings in the last 90 days shows **"X% in target (N readings)"**
+- Uses the **doctor's custom range** if set; otherwise the standard clinical normal range
+- Colour-coded: green ≥80%, amber ≥50%, red <50%
+- Applies to all 27 at-home and lab vitals (weight excluded — no universal target)
 
 </details>
 
