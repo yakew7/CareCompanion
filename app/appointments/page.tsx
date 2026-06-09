@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { v4 as uuidv4 } from "uuid";
-import { Pencil, Trash2, CalendarDays, MapPin, Sparkles, Download, MoreVertical, Search, ChevronLeft, ChevronRight, List, LayoutGrid } from "lucide-react";
+import { Pencil, Trash2, CalendarDays, MapPin, Sparkles, Download, MoreVertical, Search, ChevronLeft, ChevronRight, List, LayoutGrid, ClipboardList, Printer, X } from "lucide-react";
 import { downloadICS } from "@/lib/ics";
 import TopBar from "@/components/TopBar";
 import { api } from "@/lib/api";
@@ -83,6 +83,17 @@ export default function AppointmentsPage() {
     appt: Appointment; daysFromNow: number; reason: string;
   } | null>(null);
   const [isFollowup, setIsFollowup] = useState(false);
+
+  // Visit Prep state
+  const [showVisitPrep, setShowVisitPrep] = useState(false);
+  const [prepAppt, setPrepAppt] = useState<Appointment | null>(null);
+  const [prepMeds, setPrepMeds] = useState<import("@/lib/storage").Medication[]>([]);
+  const [prepSymptoms, setPrepSymptoms] = useState<import("@/lib/storage").Symptom[]>([]);
+  const [prepVitals, setPrepVitals] = useState<import("@/lib/storage").VitalEntry[]>([]);
+  const [prepQuestions, setPrepQuestions] = useState<string>("");
+  const [prepQuestionsLoading, setPrepQuestionsLoading] = useState(false);
+  const [prepPostNotes, setPrepPostNotes] = useState("");
+  const [prepSavingNotes, setPrepSavingNotes] = useState(false);
 
   useEffect(() => {
     if (!activePersonId) return;
@@ -189,6 +200,96 @@ export default function AppointmentsPage() {
     setShowModal(true);
   }
 
+  async function openVisitPrep(appt: Appointment) {
+    setPrepAppt(appt);
+    setShowVisitPrep(true);
+    setPrepPostNotes(appt.postVisitNotes || "");
+    setPrepQuestions("");
+    setPrepQuestionsLoading(false);
+
+    const [meds, allSymptoms, allVitals] = await Promise.all([
+      api.medications.getAll(),
+      api.symptoms.getAll(),
+      api.vitals.getAll(),
+    ]);
+
+    // Find the most recent prior completed appointment date
+    const completedBefore = appointments
+      .filter((a) => a.status === "completed" && new Date(a.datetime) < new Date(appt.datetime))
+      .sort((a, b) => new Date(b.datetime).getTime() - new Date(a.datetime).getTime());
+    const cutoffDate = completedBefore.length > 0
+      ? new Date(completedBefore[0].datetime)
+      : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    const filteredSymptoms = allSymptoms.filter((s) => new Date(s.loggedAt) > cutoffDate);
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const filteredVitals = allVitals.filter((v) => new Date(v.loggedAt) > thirtyDaysAgo);
+
+    // Keep only the latest reading per vital type
+    const latestVitalsMap = new Map<string, import("@/lib/storage").VitalEntry>();
+    for (const v of filteredVitals.sort((a, b) => new Date(a.loggedAt).getTime() - new Date(b.loggedAt).getTime())) {
+      latestVitalsMap.set(v.type, v);
+    }
+    const latestVitals = Array.from(latestVitalsMap.values());
+
+    setPrepMeds(meds);
+    setPrepSymptoms(filteredSymptoms);
+    setPrepVitals(latestVitals);
+
+    // Generate AI questions
+    setPrepQuestionsLoading(true);
+    try {
+      const medsContext = meds.length > 0
+        ? `Medications: ${meds.map((m) => `${m.name} ${m.dosage} ${m.frequency}`).join(", ")}.`
+        : "No current medications.";
+      const symptomsContext = filteredSymptoms.length > 0
+        ? `Recent symptoms: ${filteredSymptoms.map((s) => `${s.symptom} (severity ${s.severity}/5)`).join(", ")}.`
+        : "No recent symptoms logged.";
+      const vitalsContext = latestVitals.length > 0
+        ? `Recent vitals: ${latestVitals.map((v) => `${v.type} ${v.value}${v.value2 !== undefined ? `/${v.value2}` : ""} ${v.unit}`).join(", ")}.`
+        : "No recent vitals.";
+
+      const prompt = `Generate 4-5 concise questions a caregiver should ask Dr. ${appt.doctor}${appt.specialty ? ` (${appt.specialty})` : ""} at their upcoming appointment. Patient context: ${medsContext} ${symptomsContext} ${vitalsContext} Format as a simple numbered list.`;
+
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: [{ role: "user", content: prompt }] }),
+      });
+      if (res.body) {
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let result = "";
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          result += decoder.decode(value, { stream: true });
+          setPrepQuestions(result);
+        }
+      }
+    } catch {
+      setPrepQuestions("Could not generate questions. Please try again.");
+    } finally {
+      setPrepQuestionsLoading(false);
+    }
+  }
+
+  async function saveVisitPrepNotes() {
+    if (!prepAppt) return;
+    setPrepSavingNotes(true);
+    try {
+      const updated = { ...prepAppt, postVisitNotes: prepPostNotes };
+      await api.appointments.save(updated);
+      setAppointments((prev) => prev.map((a) => a.id === updated.id ? updated : a));
+      setPrepAppt(updated);
+      toast.success("Notes saved");
+    } catch {
+      toast.error("Failed to save notes");
+    } finally {
+      setPrepSavingNotes(false);
+    }
+  }
+
   const now = new Date();
   const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
   const q = search.toLowerCase().trim();
@@ -238,6 +339,15 @@ export default function AppointmentsPage() {
             )}
           </div>
           <div className="flex gap-0.5 flex-shrink-0">
+            {appt.status === "upcoming" && new Date(appt.datetime) >= now && (
+              <button
+                onClick={() => openVisitPrep(appt)}
+                title="Visit Prep"
+                className="p-1.5 text-gray-400 hover:text-teal-600 dark:hover:text-teal-400 transition-colors rounded-lg hover:bg-teal-50 dark:hover:bg-teal-900/30"
+              >
+                <ClipboardList className="w-4 h-4" />
+              </button>
+            )}
             <button
               onClick={() => downloadICS([appt], `${appt.doctor.replace(/\s+/g, "_")}.ics`)}
               title="Add to calendar"
@@ -696,6 +806,198 @@ export default function AppointmentsPage() {
             <div className="flex gap-3">
               <button onClick={clearAll} className="btn-danger flex-1">Delete all</button>
               <button onClick={() => setShowClearConfirm(false)} className="btn-secondary flex-1">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Visit Prep Modal */}
+      {showVisitPrep && prepAppt && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-start justify-center overflow-y-auto print:bg-white">
+          <div className="bg-white dark:bg-gray-900 w-full min-h-screen sm:min-h-0 sm:my-6 sm:rounded-2xl sm:max-w-2xl shadow-2xl flex flex-col print:shadow-none print:my-0 print:rounded-none">
+            {/* Sticky header */}
+            <div className="sticky top-0 z-10 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-5 py-4 print:hidden">
+              <div className="flex items-center gap-2">
+                <ClipboardList className="w-5 h-5 text-teal-600 dark:text-teal-400" />
+                <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Visit Prep</h2>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => window.print()}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <Printer className="w-4 h-4" />
+                  Print
+                </button>
+                <button
+                  onClick={() => setShowVisitPrep(false)}
+                  className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Scrollable content */}
+            <div className="flex-1 overflow-y-auto px-5 py-6 space-y-6 print:px-8 print:py-6">
+
+              {/* 1. Appointment header */}
+              <section>
+                <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Appointment</h3>
+                <div className="bg-teal-50 dark:bg-teal-900/20 rounded-xl p-4 space-y-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-bold text-lg text-gray-900 dark:text-gray-100">{prepAppt.doctor}</span>
+                    {prepAppt.specialty && <span className="badge-purple">{prepAppt.specialty}</span>}
+                  </div>
+                  <p className="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400">
+                    <CalendarDays className="w-4 h-4 flex-shrink-0 text-teal-600 dark:text-teal-400" />
+                    {formatIST(prepAppt.datetime)}
+                  </p>
+                  {prepAppt.location && (
+                    <p className="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400">
+                      <MapPin className="w-4 h-4 flex-shrink-0 text-teal-600 dark:text-teal-400" />
+                      {prepAppt.location}
+                    </p>
+                  )}
+                </div>
+              </section>
+
+              {/* 2. Symptoms */}
+              <section>
+                <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
+                  Symptoms Since Last Appointment
+                </h3>
+                {prepSymptoms.length === 0 ? (
+                  <p className="text-sm text-gray-400 dark:text-gray-500 italic">No symptoms logged in this period.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-left text-xs text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-700">
+                          <th className="pb-2 font-medium">Symptom</th>
+                          <th className="pb-2 font-medium">Severity</th>
+                          <th className="pb-2 font-medium">Date</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
+                        {prepSymptoms.map((s) => (
+                          <tr key={s.id}>
+                            <td className="py-2 pr-4 text-gray-800 dark:text-gray-200 font-medium">{s.symptom}</td>
+                            <td className="py-2 pr-4">
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${
+                                s.severity >= 4 ? "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400" :
+                                s.severity === 3 ? "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400" :
+                                "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400"
+                              }`}>
+                                {s.severity}/5
+                              </span>
+                            </td>
+                            <td className="py-2 text-gray-500 dark:text-gray-400 text-xs">
+                              {new Date(s.loggedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </section>
+
+              {/* 3. Current medications */}
+              <section>
+                <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Current Medications</h3>
+                {prepMeds.length === 0 ? (
+                  <p className="text-sm text-gray-400 dark:text-gray-500 italic">No medications on record.</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {prepMeds.map((m) => (
+                      <li key={m.id} className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800/60 rounded-xl">
+                        <div className="flex-1 min-w-0">
+                          <span className="font-semibold text-sm text-gray-900 dark:text-gray-100">{m.name}</span>
+                          {(m.dosage || m.frequency) && (
+                            <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
+                              {[m.dosage, m.frequency].filter(Boolean).join(" · ")}
+                            </span>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+
+              {/* 4. Recent vitals */}
+              <section>
+                <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Recent Vitals (Last 30 Days)</h3>
+                {prepVitals.length === 0 ? (
+                  <p className="text-sm text-gray-400 dark:text-gray-500 italic">No vitals logged in the last 30 days.</p>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {prepVitals.map((v) => {
+                      const VITAL_LABELS: Record<string, string> = {
+                        bp: "Blood Pressure", glucose: "Blood Glucose", weight: "Weight",
+                        heart_rate: "Heart Rate", temperature: "Temperature", spo2: "SpO₂",
+                        hba1c: "HbA1c", cholesterol: "Cholesterol", hemoglobin: "Hemoglobin",
+                      };
+                      return (
+                        <div key={v.id} className="bg-gray-50 dark:bg-gray-800/60 rounded-xl p-3">
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{VITAL_LABELS[v.type] || v.type}</p>
+                          <p className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                            {v.value}{v.value2 !== undefined ? `/${v.value2}` : ""}
+                            <span className="text-xs font-normal text-gray-400 ml-1">{v.unit}</span>
+                          </p>
+                          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                            {new Date(v.loggedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+
+              {/* 5. Suggested questions */}
+              <section>
+                <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3 flex items-center gap-2">
+                  <Sparkles className="w-3.5 h-3.5 text-teal-500" />
+                  Suggested Questions for Doctor
+                </h3>
+                {prepQuestionsLoading ? (
+                  <div className="space-y-2">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="h-4 bg-gray-200 dark:bg-gray-700 rounded-full animate-pulse" style={{ width: `${60 + i * 10}%` }} />
+                    ))}
+                  </div>
+                ) : prepQuestions ? (
+                  <div className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">
+                    {prepQuestions}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-400 dark:text-gray-500 italic">No questions generated.</p>
+                )}
+              </section>
+
+              {/* 6. Post-visit notes */}
+              <section className="print:hidden">
+                <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Post-Visit Notes</h3>
+                <div className="space-y-3">
+                  <textarea
+                    className="input resize-none text-sm w-full"
+                    rows={4}
+                    placeholder="Add notes after the visit..."
+                    value={prepPostNotes}
+                    onChange={(e) => setPrepPostNotes(e.target.value)}
+                  />
+                  <button
+                    onClick={saveVisitPrepNotes}
+                    disabled={prepSavingNotes}
+                    className="btn-primary text-sm py-2 px-4 disabled:opacity-60"
+                  >
+                    {prepSavingNotes ? "Saving..." : "Save Notes"}
+                  </button>
+                </div>
+              </section>
+
             </div>
           </div>
         </div>

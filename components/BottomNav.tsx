@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
   LayoutDashboard, FileText, Pill, Activity,
-  HeartPulse, Calendar, NotebookPen, MessageCircleHeart, MoreHorizontal, X, Globe,
+  HeartPulse, Calendar, NotebookPen, MessageCircleHeart, MoreHorizontal, X, Globe, ShieldAlert,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { dispatchTimezoneChange } from "@/lib/useTimezoneRefresh";
@@ -21,6 +21,7 @@ const overflow = [
   { href: "/chat", label: "Ask AI", icon: MessageCircleHeart },
   { href: "/appointments", label: "Appts", icon: Calendar },
   { href: "/notes", label: "Notes", icon: NotebookPen },
+  { href: "/emergency", label: "Emergency", icon: ShieldAlert },
 ];
 
 export default function BottomNav() {

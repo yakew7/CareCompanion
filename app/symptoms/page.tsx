@@ -128,7 +128,8 @@ export default function SymptomsPage() {
   const [analyzing, setAnalyzing] = useState(false);
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [search, setSearch] = useState("");
-  const [form, setForm] = useState({ symptom: "", severity: 3, notes: "", loggedAt: nowIST() });
+  const [form, setForm] = useState({ symptom: "", severity: 3, notes: "", loggedAt: nowIST(), linkedMedication: "" as string });
+  const [medications, setMedications] = useState<string[]>([]);
   const [editSymptom, setEditSymptom] = useState<Symptom | null>(null);
   const [editLoggedAt, setEditLoggedAt] = useState("");
   const [showClearConfirm, setShowClearConfirm] = useState(false);
@@ -138,6 +139,7 @@ export default function SymptomsPage() {
     if (!activePersonId) return;
     setLoading(true);
     api.symptoms.getAll().then((data) => { setSymptoms(data); setLoading(false); });
+    api.medications.getAll().then((meds) => setMedications(meds.map((m) => m.name)));
   }, [activePersonId]);
 
   function filtered() {
@@ -161,12 +163,13 @@ export default function SymptomsPage() {
       severity: form.severity,
       notes: form.notes,
       loggedAt: new Date(form.loggedAt).toISOString(),
+      linkedMedication: form.linkedMedication || undefined,
     };
     await api.symptoms.save(s);
     await api.activity.push({ type: "symptom", label: `Logged symptom: ${s.symptom} (severity ${s.severity})`, at: s.loggedAt });
     setSymptoms(await api.symptoms.getAll());
     setShowForm(false);
-    setForm({ symptom: "", severity: 3, notes: "", loggedAt: nowIST() });
+    setForm({ symptom: "", severity: 3, notes: "", loggedAt: nowIST(), linkedMedication: "" });
     toast.success("Symptom logged");
   }
 
@@ -470,6 +473,15 @@ export default function SymptomsPage() {
               <textarea className="input resize-none" rows={2} value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })} />
             </div>
+            {medications.length > 0 && (
+              <div>
+                <label className="label">Related medication <span className="text-gray-400 font-normal">(optional)</span></label>
+                <select value={form.linkedMedication} onChange={e => setForm({...form, linkedMedication: e.target.value})} className="input">
+                  <option value="">— None —</option>
+                  {medications.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </div>
+            )}
             <div>
               <label className="label">Date and time</label>
               <input type="datetime-local" className="input" value={form.loggedAt}

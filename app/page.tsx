@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { Pill, Activity, Calendar, FileText, Upload, Thermometer, ClipboardList, ShieldCheck, ChevronRight, Printer, X, Sparkles, TrendingUp, TrendingDown } from "lucide-react";
+import { Pill, Activity, Calendar, FileText, Upload, Thermometer, ClipboardList, ShieldCheck, ChevronRight, Printer, X, Sparkles, TrendingUp, TrendingDown, AlertTriangle } from "lucide-react";
 import type { Medication, VitalEntry, Appointment, Symptom, CustomVitalRange, Note } from "@/lib/storage";
 import { storage } from "@/lib/storage";
 import TopBar from "@/components/TopBar";
@@ -164,6 +164,7 @@ export default function DashboardPage() {
   const [flaggedVitals, setFlaggedVitals] = useState<{ label: string; reading: string; status: "warning" | "danger" }[]>([]);
   const [insights, setInsights] = useState<Insight[]>([]);
   const [dataLoaded, setDataLoaded] = useState(false);
+  const [expiringMeds, setExpiringMeds] = useState<{name: string; daysLeft: number}[]>([]);
   const [hour] = useState(new Date().getHours());
   const [showPrint, setShowPrint] = useState(false);
   const [reengageDismissed, setReengageDismissed] = useState(false);
@@ -256,6 +257,23 @@ export default function DashboardPage() {
       });
       setFlaggedVitals(flagged);
       setInsights(computeInsights(vitals, symptoms));
+
+      // Expiring medications: expiresAt set, daysLeft > 0 and <= 7
+      const nowMs = Date.now();
+      setExpiringMeds(
+        meds
+          .filter((m) => {
+            if (!m.expiresAt) return false;
+            const daysLeft = Math.ceil((new Date(m.expiresAt).getTime() - nowMs) / 86400000);
+            return daysLeft > 0 && daysLeft <= 7;
+          })
+          .map((m) => ({
+            name: m.name,
+            daysLeft: Math.ceil((new Date(m.expiresAt!).getTime() - nowMs) / 86400000),
+          }))
+          .sort((a, b) => a.daysLeft - b.daysLeft)
+      );
+
       setDataLoaded(true);
     });
   }, [activePersonId]);
@@ -395,6 +413,27 @@ export default function DashboardPage() {
             </Link>
           ))}
         </div>
+
+        {/* Refill reminder */}
+        {expiringMeds.length > 0 && dataLoaded && (
+          <div className="card border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/10">
+            <div className="flex items-center gap-2 mb-2">
+              <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+              <h3 className="text-sm font-semibold text-amber-800 dark:text-amber-200">Refill reminder{expiringMeds.length > 1 ? "s" : ""}</h3>
+              <Link href="/medications" className="ml-auto text-xs text-amber-600 dark:text-amber-400 hover:underline">View all →</Link>
+            </div>
+            <ul className="space-y-1">
+              {expiringMeds.map(m => (
+                <li key={m.name} className="flex items-center justify-between text-sm">
+                  <span className="text-gray-700 dark:text-gray-300">{m.name}</span>
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${m.daysLeft <= 2 ? "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400" : "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400"}`}>
+                    {m.daysLeft === 1 ? "Last day" : `${m.daysLeft}d left`}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {/* Flagged vitals banner */}
         {flaggedVitals.length > 0 && (

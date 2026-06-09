@@ -34,6 +34,7 @@ export interface Symptom {
   severity: number;
   notes: string;
   loggedAt: string;
+  linkedMedication?: string;
 }
 
 export interface Appointment {
@@ -226,7 +227,22 @@ export interface VitalEntry {
   loggedAt: string;
 }
 
-const DATA_KEYS = ["medications", "symptoms", "appointments", "records", "activity", "dietary", "other", "vitals", "healthProfile"] as const;
+export interface EmergencyContact {
+  name: string;
+  phone: string;
+  relation: string;
+}
+
+export interface EmergencyInfo {
+  bloodType?: string;
+  allergies: string[];
+  emergencyContacts: EmergencyContact[];
+  primaryDoctor?: string;
+  primaryDoctorPhone?: string;
+  notes?: string;
+}
+
+const DATA_KEYS = ["medications", "symptoms", "appointments", "records", "activity", "dietary", "other", "vitals", "healthProfile", "emergencyInfo"] as const;
 
 // Returns a persons accessor scoped to a specific user key (e.g. their email).
 // All per-person data keys (medications__<id>, etc.) are already scoped by person UUID,
@@ -408,6 +424,17 @@ export const storage = {
     set: (ranges: Partial<Record<VitalType, CustomVitalRange>>, personId: string): void => {
       if (typeof window === "undefined") return;
       localStorage.setItem(pk("customVitalRanges", personId), JSON.stringify(ranges));
+    },
+  },
+  emergencyInfo: {
+    get: (personId: string): EmergencyInfo => {
+      if (typeof window === "undefined") return { allergies: [], emergencyContacts: [] };
+      try { return JSON.parse(localStorage.getItem(pk("emergencyInfo", personId)) || "null") ?? { allergies: [], emergencyContacts: [] }; }
+      catch { return { allergies: [], emergencyContacts: [] }; }
+    },
+    set: (info: EmergencyInfo, personId: string): void => {
+      if (typeof window === "undefined") return;
+      localStorage.setItem(pk("emergencyInfo", personId), JSON.stringify(info));
     },
   },
 };

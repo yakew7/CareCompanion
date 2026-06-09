@@ -6,7 +6,7 @@ import { Pencil, Trash2, CheckSquare, Square, Download, MoreVertical, AlertTrian
 import TopBar from "@/components/TopBar";
 import { api } from "@/lib/api";
 import { usePersonContext } from "@/contexts/PersonContext";
-import type { Medication } from "@/lib/storage";
+import type { Medication, Symptom } from "@/lib/storage";
 import { downloadMedRemindersICS } from "@/lib/ics";
 import { storage } from "@/lib/storage";
 
@@ -116,6 +116,12 @@ export default function MedicationsPage() {
   const today = new Date().toISOString().split("T")[0];
   // Feature 15: dose time editing — {medId, time, value}
   const [doseTimeEdit, setDoseTimeEdit] = useState<{ medId: string; time: string; value: string } | null>(null);
+  const [allSymptoms, setAllSymptoms] = useState<Symptom[]>([]);
+
+  useEffect(() => {
+    if (!activePersonId) return;
+    api.symptoms.getAll().then(setAllSymptoms);
+  }, [activePersonId]);
 
   useEffect(() => {
     if (!activePersonId) return;
@@ -636,6 +642,35 @@ export default function MedicationsPage() {
                         })}
                       </div>
                     )}
+                    {(() => {
+                      const linked = allSymptoms
+                        .filter(s => s.linkedMedication?.toLowerCase() === med.name.toLowerCase())
+                        .sort((a, b) => new Date(b.loggedAt).getTime() - new Date(a.loggedAt).getTime())
+                        .slice(0, 5);
+                      if (linked.length === 0) return null;
+                      const daysAfterStart = med.createdAt
+                        ? Math.ceil((new Date(linked[linked.length - 1].loggedAt).getTime() - new Date(med.createdAt).getTime()) / 86400000)
+                        : null;
+                      return (
+                        <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
+                          <p className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wide mb-2">
+                            Reported side effects ({linked.length})
+                          </p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {linked.map(s => (
+                              <span key={s.id} className="text-xs px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+                                {s.symptom} <span className="opacity-60">{s.severity}/5</span>
+                              </span>
+                            ))}
+                          </div>
+                          {daysAfterStart !== null && daysAfterStart > 0 && (
+                            <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1.5">
+                              First reported {daysAfterStart} day{daysAfterStart !== 1 ? "s" : ""} after starting this medication
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </SwipeCard>
               );
