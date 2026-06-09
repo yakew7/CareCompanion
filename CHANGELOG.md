@@ -15,7 +15,7 @@ A comprehensive caregiver-intelligence release. Adds four P1 safety & prep featu
 A dedicated `/emergency` page accessible from the sidebar and the "More" bottom-nav sheet. Displays blood type (large red chip), allergy chips, tap-to-call emergency contacts, and primary doctor info — everything a first responder or ER needs at a glance.
 
 Edit mode includes:
-- Eight blood type preset buttons (A+, A−, B+, B−, AB+, AB−, O+, O−) + free-text fallback
+- Nine blood type preset buttons: A+, A−, B+, B−, AB+, AB−, O+, O−, Unknown — tap to select, tap again to deselect
 - Add/remove allergies
 - Add/remove emergency contacts (name, phone, relation) with tap-to-call on the view screen
 - Primary doctor name and phone

@@ -268,12 +268,6 @@ export default function EmergencyPage() {
               </button>
             ))}
           </div>
-          <input
-            className="input text-sm"
-            placeholder="Or type a custom blood type…"
-            value={BLOOD_TYPES.includes(draft.bloodType ?? "") ? "" : (draft.bloodType ?? "")}
-            onChange={(e) => setDraft((d) => ({ ...d, bloodType: e.target.value || undefined }))}
-          />
         </div>
 
         {/* Allergies */}

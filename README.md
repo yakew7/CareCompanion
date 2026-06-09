@@ -43,7 +43,7 @@ Instant access to everything a first responder or ER needs. Tap-to-call contacts
 <summary>What's included</summary>
 <br/>
 
-- **Blood type** displayed as a large red chip — A+, B−, AB+, O+, etc. with preset buttons in edit mode
+- **Blood type** displayed as a large red chip — 8 presets (A+, A−, B+, B−, AB+, AB−, O+, O−) plus "Unknown"; tap to select in edit mode
 - **Allergy chips** — add/remove individual allergens
 - **Emergency contacts** with name, phone, and relation; tap the phone number to call directly
 - **Primary doctor** name and phone
