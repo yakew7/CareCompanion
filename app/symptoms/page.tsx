@@ -128,7 +128,7 @@ export default function SymptomsPage() {
   const [analyzing, setAnalyzing] = useState(false);
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [search, setSearch] = useState("");
-  const [form, setForm] = useState({ symptom: "", severity: 3, notes: "", loggedAt: nowIST(), linkedMedication: "" as string });
+  const [form, setForm] = useState({ symptom: "", severity: 3, notes: "", loggedAt: nowIST(), linkedMedication: "" as string, ongoing: false });
   const [medications, setMedications] = useState<string[]>([]);
   const [editSymptom, setEditSymptom] = useState<Symptom | null>(null);
   const [editLoggedAt, setEditLoggedAt] = useState("");
@@ -164,12 +164,13 @@ export default function SymptomsPage() {
       notes: form.notes,
       loggedAt: new Date(form.loggedAt).toISOString(),
       linkedMedication: form.linkedMedication || undefined,
+      ongoing: form.ongoing || undefined,
     };
     await api.symptoms.save(s);
     await api.activity.push({ type: "symptom", label: `Logged symptom: ${s.symptom} (severity ${s.severity})`, at: s.loggedAt });
     setSymptoms(await api.symptoms.getAll());
     setShowForm(false);
-    setForm({ symptom: "", severity: 3, notes: "", loggedAt: nowIST(), linkedMedication: "" });
+    setForm({ symptom: "", severity: 3, notes: "", loggedAt: nowIST(), linkedMedication: "", ongoing: false });
     toast.success("Symptom logged");
   }
 
@@ -222,6 +223,15 @@ export default function SymptomsPage() {
     setSymptoms([]);
     setShowClearConfirm(false);
     toast.success("All symptoms cleared");
+  }
+
+  async function resolveSymptom(id: string) {
+    const sym = symptoms.find(s => s.id === id);
+    if (!sym) return;
+    const updated = { ...sym, resolvedAt: new Date().toISOString() };
+    await api.symptoms.save(updated);
+    setSymptoms(prev => prev.map(s => s.id === id ? updated : s));
+    toast.success("Marked as resolved");
   }
 
   async function runAnalysis() {
@@ -415,23 +425,46 @@ export default function SymptomsPage() {
                           <h3 className="font-semibold text-gray-900 dark:text-gray-100 capitalize">{s.symptom}</h3>
                           <span className={cls}>{label}</span>
                           <span className="text-xs text-gray-400 dark:text-gray-500">{SEVERITY_SHORT[s.severity]}</span>
+                          {s.ongoing && !s.resolvedAt && (
+                            <span className="text-xs px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 font-medium">Ongoing</span>
+                          )}
+                          {s.resolvedAt && (
+                            <span className="text-xs px-1.5 py-0.5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 font-medium">
+                              Resolved · {Math.ceil((new Date(s.resolvedAt).getTime() - new Date(s.loggedAt).getTime()) / 86400000)}d
+                            </span>
+                          )}
                         </div>
                         <div className="flex items-center gap-2 mt-1.5">
                           <SeverityBar value={s.severity} />
                           <span className="text-xs text-gray-400 dark:text-gray-500">{s.severity}/5</span>
+                          {s.ongoing && !s.resolvedAt && (
+                            <span className="text-xs text-amber-600 dark:text-amber-500">
+                              {Math.ceil((Date.now() - new Date(s.loggedAt).getTime()) / 86400000)}d
+                            </span>
+                          )}
                         </div>
                         {s.notes && <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{s.notes}</p>}
                         <p className="text-xs text-gray-400 dark:text-gray-500 mt-1.5">{formatIST(s.loggedAt)}</p>
                       </div>
-                      <div className="flex gap-1 flex-shrink-0">
-                        <button onClick={() => { setEditSymptom({ ...s }); setEditLoggedAt(formatForInput(s.loggedAt)); }}
-                          className="p-1.5 text-gray-400 dark:text-gray-500 hover:text-teal-500 transition-colors rounded-lg hover:bg-teal-50 dark:hover:bg-teal-900/20">
-                          <Pencil className="w-4 h-4" />
-                        </button>
-                        <button onClick={() => deleteSymptom(s.id)}
-                          className="p-1.5 text-gray-400 dark:text-gray-500 hover:text-red-400 transition-colors rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                      <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                        <div className="flex gap-1">
+                          <button onClick={() => { setEditSymptom({ ...s }); setEditLoggedAt(formatForInput(s.loggedAt)); }}
+                            className="p-1.5 text-gray-400 dark:text-gray-500 hover:text-teal-500 transition-colors rounded-lg hover:bg-teal-50 dark:hover:bg-teal-900/20">
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => deleteSymptom(s.id)}
+                            className="p-1.5 text-gray-400 dark:text-gray-500 hover:text-red-400 transition-colors rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                        {s.ongoing && !s.resolvedAt && (
+                          <button
+                            onClick={() => resolveSymptom(s.id)}
+                            className="text-xs px-2 py-1 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-700 hover:bg-green-100 transition-colors"
+                          >
+                            Mark resolved
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -492,6 +525,15 @@ export default function SymptomsPage() {
                 </p>
               )}
             </div>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <div
+                onClick={() => setForm({ ...form, ongoing: !form.ongoing })}
+                className={`w-10 h-6 rounded-full transition-colors flex items-center px-0.5 cursor-pointer ${form.ongoing ? "bg-teal-500" : "bg-gray-300 dark:bg-gray-600"}`}
+              >
+                <div className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${form.ongoing ? "translate-x-4" : "translate-x-0"}`} />
+              </div>
+              <span className="text-sm text-gray-700 dark:text-gray-300">Still ongoing</span>
+            </label>
             <div className="flex gap-3 pt-2">
               <button onClick={saveSymptom} className="btn-primary flex-1">Log Symptom</button>
               <button onClick={() => setShowForm(false)} className="btn-secondary flex-1">Cancel</button>
@@ -531,6 +573,19 @@ export default function SymptomsPage() {
                 </p>
               )}
             </div>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <div
+                onClick={() => setEditSymptom({
+                  ...editSymptom!,
+                  ongoing: !editSymptom!.ongoing,
+                  resolvedAt: !editSymptom!.ongoing ? undefined : editSymptom!.resolvedAt,
+                })}
+                className={`w-10 h-6 rounded-full transition-colors flex items-center px-0.5 cursor-pointer ${editSymptom.ongoing ? "bg-teal-500" : "bg-gray-300 dark:bg-gray-600"}`}
+              >
+                <div className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${editSymptom.ongoing ? "translate-x-4" : "translate-x-0"}`} />
+              </div>
+              <span className="text-sm text-gray-700 dark:text-gray-300">Still ongoing</span>
+            </label>
             <div className="flex gap-3 pt-2">
               <button onClick={saveEdit} className="btn-primary flex-1">Save</button>
               <button onClick={() => setEditSymptom(null)} className="btn-secondary flex-1">Cancel</button>

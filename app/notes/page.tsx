@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { v4 as uuidv4 } from "uuid";
 import toast from "react-hot-toast";
 import { Trash2, Plus, Salad, StickyNote, FileText, Pencil, Check, X } from "lucide-react";
@@ -14,6 +14,73 @@ import { useTimezoneRefresh } from "@/lib/useTimezoneRefresh";
 
 type Tab = "dietary" | "other";
 
+// ─── Tag input chip helper ────────────────────────────────────────────────────
+
+function TagInputRow({
+  tags,
+  tagInput,
+  onTagInputChange,
+  onAddTag,
+  onRemoveTag,
+}: {
+  tags: string[];
+  tagInput: string;
+  onTagInputChange: (v: string) => void;
+  onAddTag: (tag: string) => void;
+  onRemoveTag: (tag: string) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      const val = tagInput.trim().toLowerCase().replace(/,/g, "");
+      if (val && !tags.includes(val) && tags.length < 5) {
+        onAddTag(val);
+      }
+      onTagInputChange("");
+    } else if (e.key === "Backspace" && tagInput === "" && tags.length > 0) {
+      onRemoveTag(tags[tags.length - 1]);
+    }
+  }
+
+  return (
+    <div
+      className="flex flex-wrap gap-1.5 items-center px-2 py-1.5 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 cursor-text min-h-[36px]"
+      onClick={() => inputRef.current?.focus()}
+    >
+      {tags.map((tag) => (
+        <span
+          key={tag}
+          className="px-2 py-0.5 rounded-full text-xs bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400 flex items-center gap-1"
+        >
+          #{tag}
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onRemoveTag(tag); }}
+            className="hover:text-red-400 transition-colors leading-none"
+          >
+            ×
+          </button>
+        </span>
+      ))}
+      {tags.length < 5 && (
+        <input
+          ref={inputRef}
+          type="text"
+          value={tagInput}
+          onChange={(e) => onTagInputChange(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder={tags.length === 0 ? "Add tags (Enter or , to add)" : ""}
+          className="flex-1 min-w-[120px] bg-transparent text-xs text-gray-700 dark:text-gray-200 outline-none placeholder:text-gray-400 dark:placeholder:text-gray-500"
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── NoteSection ──────────────────────────────────────────────────────────────
+
 function NoteSection({
   title,
   icon: Icon,
@@ -25,29 +92,59 @@ function NoteSection({
   onClearAll,
   accentClass,
   emptyHint,
+  activeTagFilter,
+  onTagFilterChange,
 }: {
   title: string;
   icon: React.FC<{ className?: string }>;
   notes: Note[];
   loading: boolean;
-  onAdd: (content: string) => void;
+  onAdd: (content: string, tags: string[]) => void;
   onDelete: (id: string) => void;
-  onEdit: (id: string, content: string) => void;
+  onEdit: (id: string, content: string, tags: string[]) => void;
   onClearAll: () => void;
   accentClass: string;
   emptyHint?: string;
+  activeTagFilter: string | null;
+  onTagFilterChange: (tag: string | null) => void;
 }) {
   const [showForm, setShowForm] = useState(false);
   const [draft, setDraft] = useState("");
+  const [tagInput, setTagInput] = useState("");
+  const [formTags, setFormTags] = useState<string[]>([]);
   const [editId, setEditId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState("");
+  const [editTags, setEditTags] = useState<string[]>([]);
+  const [editTagInput, setEditTagInput] = useState("");
 
   function handleAdd() {
     if (!draft.trim()) return;
-    onAdd(draft.trim());
+    // commit any pending tag input
+    const pending = tagInput.trim().toLowerCase().replace(/,/g, "");
+    const finalTags = pending && !formTags.includes(pending) && formTags.length < 5
+      ? [...formTags, pending]
+      : formTags;
+    onAdd(draft.trim(), finalTags);
     setDraft("");
+    setFormTags([]);
+    setTagInput("");
     setShowForm(false);
   }
+
+  function handleEditSave(id: string) {
+    if (!editDraft.trim()) return;
+    const pending = editTagInput.trim().toLowerCase().replace(/,/g, "");
+    const finalTags = pending && !editTags.includes(pending) && editTags.length < 5
+      ? [...editTags, pending]
+      : editTags;
+    onEdit(id, editDraft.trim(), finalTags);
+    setEditId(null);
+    setEditTagInput("");
+  }
+
+  const displayedNotes = activeTagFilter
+    ? notes.filter((n) => n.tags?.includes(activeTagFilter))
+    : notes;
 
   return (
     <div className="flex flex-col gap-4">
@@ -55,7 +152,9 @@ function NoteSection({
         <h2 className="text-base font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
           <Icon className={`w-4 h-4 ${accentClass}`} />
           {title}
-          <span className="text-xs font-normal text-gray-400 dark:text-gray-500">({notes.length})</span>
+          <span className="text-xs font-normal text-gray-400 dark:text-gray-500">
+            ({activeTagFilter ? `${displayedNotes.length}/${notes.length}` : notes.length})
+          </span>
         </h2>
         <div className="flex gap-2">
           {notes.length > 0 && (
@@ -77,9 +176,16 @@ function NoteSection({
             autoFocus
             onChange={(e) => setDraft(e.target.value)}
           />
+          <TagInputRow
+            tags={formTags}
+            tagInput={tagInput}
+            onTagInputChange={setTagInput}
+            onAddTag={(t) => setFormTags((prev) => [...prev, t])}
+            onRemoveTag={(t) => setFormTags((prev) => prev.filter((x) => x !== t))}
+          />
           <div className="flex gap-2">
             <button onClick={handleAdd} className="btn-primary flex-1">Save</button>
-            <button onClick={() => { setShowForm(false); setDraft(""); }} className="btn-secondary flex-1">Cancel</button>
+            <button onClick={() => { setShowForm(false); setDraft(""); setFormTags([]); setTagInput(""); }} className="btn-secondary flex-1">Cancel</button>
           </div>
         </div>
       )}
@@ -88,28 +194,56 @@ function NoteSection({
         <div className="flex justify-center py-8">
           <div className="w-6 h-6 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
         </div>
-      ) : notes.length === 0 ? (
+      ) : displayedNotes.length === 0 ? (
         <div className="card text-center py-8 text-gray-400 dark:text-gray-500">
-          <p className="text-sm">No {title.toLowerCase()} notes yet</p>
-          {emptyHint && <p className="text-xs mt-1">{emptyHint}</p>}
+          <p className="text-sm">
+            {activeTagFilter
+              ? `No ${title.toLowerCase()} notes tagged #${activeTagFilter}`
+              : `No ${title.toLowerCase()} notes yet`}
+          </p>
+          {!activeTagFilter && emptyHint && <p className="text-xs mt-1">{emptyHint}</p>}
         </div>
       ) : (
         <div className="space-y-2">
-          {notes.map((n) => (
+          {displayedNotes.map((n) => (
             <div key={n.id} className="card flex items-start gap-3">
               <div className="flex-1 min-w-0">
                 {editId === n.id ? (
                   <div className="space-y-2">
                     <textarea className="input resize-none text-sm w-full" rows={3} value={editDraft} autoFocus
                       onChange={(e) => setEditDraft(e.target.value)} />
+                    <TagInputRow
+                      tags={editTags}
+                      tagInput={editTagInput}
+                      onTagInputChange={setEditTagInput}
+                      onAddTag={(t) => setEditTags((prev) => [...prev, t])}
+                      onRemoveTag={(t) => setEditTags((prev) => prev.filter((x) => x !== t))}
+                    />
                     <div className="flex gap-2">
-                      <button onClick={() => { if (editDraft.trim()) { onEdit(n.id, editDraft.trim()); setEditId(null); } }} className="btn-primary flex-1 py-1 text-xs flex items-center justify-center gap-1"><Check className="w-3 h-3" /> Save</button>
-                      <button onClick={() => setEditId(null)} className="btn-secondary flex-1 py-1 text-xs flex items-center justify-center gap-1"><X className="w-3 h-3" /> Cancel</button>
+                      <button onClick={() => handleEditSave(n.id)} className="btn-primary flex-1 py-1 text-xs flex items-center justify-center gap-1"><Check className="w-3 h-3" /> Save</button>
+                      <button onClick={() => { setEditId(null); setEditTagInput(""); }} className="btn-secondary flex-1 py-1 text-xs flex items-center justify-center gap-1"><X className="w-3 h-3" /> Cancel</button>
                     </div>
                   </div>
                 ) : (
                   <>
                     <p className="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap">{n.content}</p>
+                    {n.tags && n.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {n.tags.map((tag) => (
+                          <button
+                            key={tag}
+                            onClick={() => onTagFilterChange(activeTagFilter === tag ? null : tag)}
+                            className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium transition-colors ${
+                              activeTagFilter === tag
+                                ? "bg-teal-500 text-white"
+                                : "bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400 hover:bg-teal-200 dark:hover:bg-teal-800/40"
+                            }`}
+                          >
+                            #{tag}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                     <div className="flex items-center gap-1.5 mt-2">
                       {n.source !== "manual" ? (
                         <>
@@ -127,7 +261,7 @@ function NoteSection({
               </div>
               {editId !== n.id && (
                 <div className="flex gap-1 flex-shrink-0">
-                  <button onClick={() => { setEditId(n.id); setEditDraft(n.content); }}
+                  <button onClick={() => { setEditId(n.id); setEditDraft(n.content); setEditTags(n.tags || []); setEditTagInput(""); }}
                     className="p-1.5 text-gray-400 dark:text-gray-500 hover:text-teal-500 transition-colors rounded-lg hover:bg-teal-50 dark:hover:bg-teal-900/20">
                     <Pencil className="w-3.5 h-3.5" />
                   </button>
@@ -145,6 +279,8 @@ function NoteSection({
   );
 }
 
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
 export default function NotesPage() {
   useTimezoneRefresh();
   const { activePersonId } = usePersonContext();
@@ -152,6 +288,7 @@ export default function NotesPage() {
   const [other, setOther] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>("dietary");
+  const [activeTagFilter, setActiveTagFilter] = useState<string | null>(null);
 
   useEffect(() => {
     if (!activePersonId) return;
@@ -163,8 +300,8 @@ export default function NotesPage() {
     });
   }, [activePersonId]);
 
-  async function addDietary(content: string) {
-    const n: Note = { id: uuidv4(), content, source: "manual", createdAt: new Date().toISOString() };
+  async function addDietary(content: string, tags: string[]) {
+    const n: Note = { id: uuidv4(), content, source: "manual", createdAt: new Date().toISOString(), tags };
     await api.dietary.save(n);
     setDietary(await api.dietary.getAll());
     toast.success("Dietary note saved");
@@ -199,10 +336,10 @@ export default function NotesPage() {
     }, 5100);
   }
 
-  async function editDietary(id: string, content: string) {
+  async function editDietary(id: string, content: string, tags: string[]) {
     const n = dietary.find((x) => x.id === id);
     if (!n) return;
-    await api.dietary.save({ ...n, content });
+    await api.dietary.save({ ...n, content, tags });
     setDietary(await api.dietary.getAll());
   }
 
@@ -215,8 +352,8 @@ export default function NotesPage() {
     toast.success("Dietary notes cleared");
   }
 
-  async function addOther(content: string) {
-    const n: Note = { id: uuidv4(), content, source: "manual", createdAt: new Date().toISOString() };
+  async function addOther(content: string, tags: string[]) {
+    const n: Note = { id: uuidv4(), content, source: "manual", createdAt: new Date().toISOString(), tags };
     await api.other.save(n);
     setOther(await api.other.getAll());
     toast.success("Note saved");
@@ -251,10 +388,10 @@ export default function NotesPage() {
     }, 5100);
   }
 
-  async function editOther(id: string, content: string) {
+  async function editOther(id: string, content: string, tags: string[]) {
     const n = other.find((x) => x.id === id);
     if (!n) return;
-    await api.other.save({ ...n, content });
+    await api.other.save({ ...n, content, tags });
     setOther(await api.other.getAll());
   }
 
@@ -272,6 +409,16 @@ export default function NotesPage() {
       <TopBar />
       <main className="p-4 sm:p-6 max-w-4xl space-y-5">
         <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Notes</h2>
+
+        {/* Active tag filter banner */}
+        {activeTagFilter && (
+          <div className="flex items-center gap-2 px-3 py-2 bg-teal-50 dark:bg-teal-900/20 rounded-xl border border-teal-200 dark:border-teal-800">
+            <span className="text-sm text-teal-700 dark:text-teal-300">Filtering by <strong>#{activeTagFilter}</strong></span>
+            <button onClick={() => setActiveTagFilter(null)} className="ml-auto text-teal-400 hover:text-teal-600">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
 
         {/* Mobile: tabs */}
         <div className="flex gap-2 sm:hidden">
@@ -303,6 +450,8 @@ export default function NotesPage() {
             onClearAll={clearDietary}
             accentClass="text-green-600 dark:text-green-400"
             emptyHint="Use + Add to log dietary restrictions, meal plans, or nutrition notes."
+            activeTagFilter={activeTagFilter}
+            onTagFilterChange={setActiveTagFilter}
           />
           <NoteSection
             title="Other"
@@ -315,6 +464,8 @@ export default function NotesPage() {
             onClearAll={clearOther}
             accentClass="text-orange-500 dark:text-orange-400"
             emptyHint="Notes extracted from uploaded reports appear here automatically. You can also add your own with + Add."
+            activeTagFilter={activeTagFilter}
+            onTagFilterChange={setActiveTagFilter}
           />
         </div>
 
@@ -332,6 +483,8 @@ export default function NotesPage() {
               onClearAll={clearDietary}
               accentClass="text-green-600 dark:text-green-400"
               emptyHint="Use + Add to log dietary restrictions, meal plans, or nutrition notes."
+              activeTagFilter={activeTagFilter}
+              onTagFilterChange={setActiveTagFilter}
             />
           ) : (
             <NoteSection
@@ -345,6 +498,8 @@ export default function NotesPage() {
               onClearAll={clearOther}
               accentClass="text-orange-500 dark:text-orange-400"
               emptyHint="Notes extracted from uploaded reports appear here automatically. You can also add your own with + Add."
+              activeTagFilter={activeTagFilter}
+              onTagFilterChange={setActiveTagFilter}
             />
           )}
         </div>

@@ -35,6 +35,8 @@ export interface Symptom {
   notes: string;
   loggedAt: string;
   linkedMedication?: string;
+  ongoing?: boolean;       // true = still happening, not yet resolved
+  resolvedAt?: string;     // ISO string — when it was marked resolved
 }
 
 export interface Appointment {
@@ -64,6 +66,7 @@ export interface Note {
   content: string;
   source: string; // "manual" or the report file name
   createdAt: string;
+  tags?: string[]; // free-form tags, e.g. ["cardiologist", "diet"]
 }
 
 export interface NotificationSettings {
