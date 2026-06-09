@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import "@fontsource-variable/inter";
 import "./globals.css";
 import AuthGate from "@/components/AuthGate";
 import NextAuthProvider from "@/components/NextAuthProvider";
@@ -8,8 +8,6 @@ import { NotificationProvider } from "@/contexts/NotificationContext";
 import { Toaster } from "react-hot-toast";
 import TabSyncProvider from "@/components/TabSyncProvider";
 import StorageQuotaMonitor from "@/components/StorageQuotaMonitor";
-
-const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: {
@@ -38,7 +36,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         />
       </head>
-      <body className={`${inter.className} bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100`}>
+      <body className="font-sans bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100">
         <NextAuthProvider>
           <PersonProvider>
             <NotificationProvider>

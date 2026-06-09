@@ -16,7 +16,7 @@ const config: Config = {
         surface: "#F5F5F5",
       },
       fontFamily: {
-        sans: ["Inter", "sans-serif"],
+        sans: ["Inter Variable", "Inter", "sans-serif"],
       },
       borderRadius: {
         xl: "12px",
