@@ -131,6 +131,7 @@ export default function SymptomsPage() {
   const [form, setForm] = useState({ symptom: "", severity: 3, notes: "", loggedAt: nowIST() });
   const [editSymptom, setEditSymptom] = useState<Symptom | null>(null);
   const [editLoggedAt, setEditLoggedAt] = useState("");
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
   const severityTrends = useMemo(() => computeSeverityTrends(symptoms), [symptoms]);
 
   useEffect(() => {
@@ -212,11 +213,11 @@ export default function SymptomsPage() {
   }
 
   async function clearAll() {
-    if (!confirm("Remove all symptom entries for this person? This cannot be undone.")) return;
     const count = symptoms.length;
     await api.symptoms.clearAll();
     api.activity.push({ type: "symptom", label: `Cleared all symptoms (${count} item${count !== 1 ? "s" : ""})`, at: new Date().toISOString(), deleted: true });
     setSymptoms([]);
+    setShowClearConfirm(false);
     toast.success("All symptoms cleared");
   }
 
@@ -225,12 +226,13 @@ export default function SymptomsPage() {
     if (recent.length === 0) { toast.error("No symptoms to analyse"); return; }
     setAnalyzing(true); setShowAnalysis(true); setAnalysis("");
     try {
+      const severityScale = "Severity scale: 1 = Barely noticeable (no impact), 2 = Mild (slightly uncomfortable), 3 = Moderate (disrupting routine), 4 = Severe (significant distress), 5 = Emergency-level (seek immediate attention).";
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: [{ role: "user", content: "Review these symptom logs. Identify any patterns, recurring issues, or things a caregiver should mention to a doctor." }],
-          context: `Symptom log (recent 30 entries):\n${JSON.stringify(recent, null, 2)}`,
+          context: `${severityScale}\n\nSymptom log (recent 30 entries):\n${JSON.stringify(recent, null, 2)}`,
         }),
       });
       if (!res.body) throw new Error();
@@ -293,7 +295,7 @@ export default function SymptomsPage() {
           ))}
           <span className="ml-auto text-sm text-gray-400 dark:text-gray-500 self-center">{displayed.length} entries</span>
           {symptoms.length > 0 && (
-            <button onClick={clearAll} className="btn-danger text-xs px-3 py-1.5">Clear all</button>
+            <button onClick={() => setShowClearConfirm(true)} className="btn-danger text-xs px-3 py-1.5">Clear all</button>
           )}
         </div>
 
@@ -420,11 +422,11 @@ export default function SymptomsPage() {
                       </div>
                       <div className="flex gap-1 flex-shrink-0">
                         <button onClick={() => { setEditSymptom({ ...s }); setEditLoggedAt(formatForInput(s.loggedAt)); }}
-                          className="p-1.5 text-gray-300 dark:text-gray-600 hover:text-teal-500 transition-colors rounded-lg hover:bg-teal-50 dark:hover:bg-teal-900/20">
+                          className="p-1.5 text-gray-400 dark:text-gray-500 hover:text-teal-500 transition-colors rounded-lg hover:bg-teal-50 dark:hover:bg-teal-900/20">
                           <Pencil className="w-4 h-4" />
                         </button>
                         <button onClick={() => deleteSymptom(s.id)}
-                          className="p-1.5 text-gray-300 dark:text-gray-600 hover:text-red-400 transition-colors rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20">
+                          className="p-1.5 text-gray-400 dark:text-gray-500 hover:text-red-400 transition-colors rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
@@ -520,6 +522,22 @@ export default function SymptomsPage() {
             <div className="flex gap-3 pt-2">
               <button onClick={saveEdit} className="btn-primary flex-1">Save</button>
               <button onClick={() => setEditSymptom(null)} className="btn-secondary flex-1">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Clear-all confirmation modal */}
+      {showClearConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-sm shadow-xl space-y-4">
+            <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Clear all symptoms?</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              This will permanently delete all <span className="font-medium">{symptoms.length}</span> symptom{symptoms.length !== 1 ? "s" : ""} for this person. This cannot be undone.
+            </p>
+            <div className="flex gap-3 pt-1">
+              <button onClick={() => setShowClearConfirm(false)} className="btn-secondary flex-1">Cancel</button>
+              <button onClick={clearAll} className="btn-danger flex-1">Delete all</button>
             </div>
           </div>
         </div>

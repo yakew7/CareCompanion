@@ -251,7 +251,7 @@ export default function Sidebar() {
         </div>
 
         <button
-          onClick={() => { exportAllData(); toast.success("Backup downloaded"); }}
+          onClick={() => { exportAllData(); toast.success("Backup saved to Downloads", { duration: 4000 }); }}
           className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl transition-colors"
         >
           <Download className="w-4 h-4" />

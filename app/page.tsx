@@ -163,6 +163,7 @@ export default function DashboardPage() {
   const [symptomSparkline, setSymptomSparkline] = useState<number[]>([]);
   const [flaggedVitals, setFlaggedVitals] = useState<{ label: string; reading: string; status: "warning" | "danger" }[]>([]);
   const [insights, setInsights] = useState<Insight[]>([]);
+  const [dataLoaded, setDataLoaded] = useState(false);
   const [hour] = useState(new Date().getHours());
   const [showPrint, setShowPrint] = useState(false);
   const [reengageDismissed, setReengageDismissed] = useState(false);
@@ -255,13 +256,15 @@ export default function DashboardPage() {
       });
       setFlaggedVitals(flagged);
       setInsights(computeInsights(vitals, symptoms));
+      setDataLoaded(true);
     });
   }, [activePersonId]);
 
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   const firstName = activePerson?.nickname || session?.user?.name?.split(" ")[0] || "there";
 
-  const isFirstUse = !onboardingDismissed
+  const isFirstUse = dataLoaded
+    && !onboardingDismissed
     && stats.medications === 0
     && stats.records === 0
     && stats.symptomsThisWeek === 0
@@ -274,6 +277,7 @@ export default function DashboardPage() {
   }
 
   const showReengage = !isFirstUse && !reengageDismissed && daysSinceLast !== null && daysSinceLast >= 2;
+  const hasAnyData = activity.length > 0 || stats.medications > 0 || stats.records > 0;
 
   const neutral = "bg-gray-50 dark:bg-gray-800/60 text-gray-700 dark:text-gray-300 border-gray-100 dark:border-gray-700";
   const orange  = "bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 border-orange-100 dark:border-orange-800";
@@ -408,7 +412,7 @@ export default function DashboardPage() {
           </Link>
         )}
 
-        {insights.length > 0 && (
+        {dataLoaded && (insights.length > 0 ? (
           <div className="card">
             <div className="flex items-center gap-2 mb-3">
               <Sparkles className="w-4 h-4 text-teal-500" />
@@ -439,7 +443,17 @@ export default function DashboardPage() {
               })}
             </ul>
           </div>
-        )}
+        ) : hasAnyData ? (
+          <div className="card">
+            <div className="flex items-center gap-2 mb-2">
+              <Sparkles className="w-4 h-4 text-teal-500" />
+              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Insights</h3>
+            </div>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Keep logging vitals and symptoms — patterns will surface automatically once there&apos;s enough data.
+            </p>
+          </div>
+        ) : null)}
 
         <div className="card">
           <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Quick Actions</h3>

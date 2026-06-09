@@ -115,7 +115,7 @@ function NoteSection({
                         <>
                           <FileText className="w-3 h-3 text-gray-400 dark:text-gray-500 flex-shrink-0" />
                           <span className="text-xs text-gray-400 dark:text-gray-500 truncate max-w-[180px]">{n.source}</span>
-                          <span className="text-xs text-gray-300 dark:text-gray-600">·</span>
+                          <span className="text-xs text-gray-400 dark:text-gray-500">·</span>
                         </>
                       ) : (
                         <span className="badge-gray text-xs">Manual</span>
@@ -128,11 +128,11 @@ function NoteSection({
               {editId !== n.id && (
                 <div className="flex gap-1 flex-shrink-0">
                   <button onClick={() => { setEditId(n.id); setEditDraft(n.content); }}
-                    className="p-1.5 text-gray-300 dark:text-gray-600 hover:text-teal-500 transition-colors rounded-lg hover:bg-teal-50 dark:hover:bg-teal-900/20">
+                    className="p-1.5 text-gray-400 dark:text-gray-500 hover:text-teal-500 transition-colors rounded-lg hover:bg-teal-50 dark:hover:bg-teal-900/20">
                     <Pencil className="w-3.5 h-3.5" />
                   </button>
                   <button onClick={() => onDelete(n.id)}
-                    className="p-1.5 text-gray-300 dark:text-gray-600 hover:text-red-400 transition-colors rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20">
+                    className="p-1.5 text-gray-400 dark:text-gray-500 hover:text-red-400 transition-colors rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>

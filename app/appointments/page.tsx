@@ -60,7 +60,7 @@ function statusColor(status: Appointment["status"]) {
 }
 
 const emptyForm = (): Omit<Appointment, "id"> => ({
-  doctor: "", specialty: "", datetime: tomorrowMorningIST(), location: "", notes: "",
+  doctor: "", specialty: "", datetime: nowIST(), location: "", notes: "",
   status: "upcoming", postVisitNotes: "",
 });
 

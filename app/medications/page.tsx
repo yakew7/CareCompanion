@@ -42,6 +42,18 @@ function isMonthly(freq: string) {
   return freq.toLowerCase().includes("monthly");
 }
 
+/** Returns true if a dose was logged outside the expected time window for its slot. */
+function isLateDose(slot: string, takenAtHHMM: string): boolean {
+  const hour = parseInt(takenAtHHMM.split(":")[0], 10);
+  if (isNaN(hour)) return false;
+  switch (slot.toLowerCase()) {
+    case "morning":   return hour >= 12; // after noon
+    case "afternoon": return hour >= 17; // after 5 PM
+    case "evening":   return hour >= 22; // after 10 PM
+    default:          return false;       // Night: no late window
+  }
+}
+
 const emptyForm = () => ({
   name: "", dosage: "", frequency: "Once daily",
   times: ["Morning"] as string[],
@@ -589,8 +601,13 @@ export default function MedicationsPage() {
                                 {time}
                               </button>
                               {takenAt && !isEditing && (
-                                <span className="text-[10px] text-gray-400 dark:text-gray-500 pl-0.5">
+                                <span className="text-[10px] text-gray-400 dark:text-gray-500 pl-0.5 flex items-center gap-1">
                                   Taken {format12h(takenAt)}
+                                  {isLateDose(time, takenAt) && (
+                                    <span className="inline-block px-1 py-0.5 rounded text-[9px] font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 leading-none">
+                                      Late
+                                    </span>
+                                  )}
                                 </span>
                               )}
                               {/* Feature 15: Inline time editor */}
