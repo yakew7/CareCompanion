@@ -7,7 +7,7 @@ import { useState } from "react";
 import {
   LayoutDashboard, FileText, Pill, Activity, Calendar,
   Heart, LogOut, Sun, Moon, Plus, X, Check, NotebookPen, MessageCircleHeart, HeartPulse,
-  Download, Upload, Globe, Pencil, ShieldAlert,
+  Download, Upload, Globe, Pencil, ShieldAlert, BookOpen,
 } from "lucide-react";
 import { exportAllData, previewBackup, commitBackup } from "@/lib/backup";
 import type { BackupPreview } from "@/lib/backup";
@@ -27,6 +27,7 @@ const nav = [
   { href: "/notes", label: "Notes", icon: NotebookPen },
   { href: "/chat", label: "Ask", icon: MessageCircleHeart },
   { href: "/emergency", label: "Emergency Info", icon: ShieldAlert },
+  { href: "/journal", label: "Journal", icon: BookOpen },
 ];
 
 export default function Sidebar() {

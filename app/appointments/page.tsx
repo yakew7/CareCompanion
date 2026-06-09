@@ -61,7 +61,7 @@ function statusColor(status: Appointment["status"]) {
 
 const emptyForm = (): Omit<Appointment, "id"> => ({
   doctor: "", specialty: "", datetime: nowIST(), location: "", notes: "",
-  status: "upcoming", postVisitNotes: "",
+  status: "upcoming", postVisitNotes: "", reminderHours: undefined as number | undefined,
 });
 
 export default function AppointmentsPage() {
@@ -101,7 +101,30 @@ export default function AppointmentsPage() {
   useEffect(() => {
     if (!activePersonId) return;
     setLoading(true);
-    api.appointments.getAll().then((data) => { setAppointments(data); setLoading(false); });
+    api.appointments.getAll().then((data) => {
+      setAppointments(data);
+      setLoading(false);
+      // Fire appointment reminders
+      if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+        const now = Date.now();
+        data.forEach((appt) => {
+          if (appt.status !== "upcoming" || !appt.reminderHours) return;
+          const apptMs = new Date(appt.datetime).getTime();
+          if (apptMs <= now) return; // already past
+          const reminderMs = apptMs - appt.reminderHours * 3600000;
+          const firedKey = `cc_appt_rem_${appt.id}`;
+          if (now >= reminderMs && !localStorage.getItem(firedKey)) {
+            localStorage.setItem(firedKey, "1");
+            try {
+              const hoursLeft = Math.round((apptMs - now) / 3600000);
+              new Notification(`Appointment in ${hoursLeft}h`, {
+                body: `${appt.doctor}${appt.specialty ? ` (${appt.specialty})` : ""}${appt.location ? ` · ${appt.location}` : ""}`,
+              });
+            } catch { /* notification permission may have been revoked */ }
+          }
+        });
+      }
+    });
   }, [activePersonId]);
 
   function openAdd() { setEditing(null); setForm(emptyForm()); setShowModal(true); }
@@ -111,6 +134,7 @@ export default function AppointmentsPage() {
       doctor: appt.doctor, specialty: appt.specialty,
       datetime: appt.datetime ? formatForInput(appt.datetime) : nowIST(),
       location: appt.location, notes: appt.notes, status: appt.status, postVisitNotes: appt.postVisitNotes,
+      reminderHours: appt.reminderHours,
     });
     setShowModal(true);
   }
@@ -118,7 +142,7 @@ export default function AppointmentsPage() {
   async function save() {
     if (!form.doctor.trim()) { toast.error("Doctor name is required"); return; }
     if (!form.datetime) { toast.error("Date and time is required"); return; }
-    const appt: Appointment = { id: editing?.id || uuidv4(), ...form, datetime: new Date(form.datetime).toISOString() };
+    const appt: Appointment = { id: editing?.id || uuidv4(), ...form, datetime: new Date(form.datetime).toISOString(), reminderHours: form.reminderHours };
     await api.appointments.save(appt);
     if (!editing) api.activity.push({ type: "appointment", label: `Added appointment: ${appt.doctor}`, at: new Date().toISOString() });
     setAppointments(await api.appointments.getAll());
@@ -342,6 +366,11 @@ export default function AppointmentsPage() {
                 </p>
               )}
               {appt.notes && <p className="text-xs text-gray-400 dark:text-gray-500 italic">{appt.notes}</p>}
+              {appt.reminderHours && (
+                <span className="inline-flex items-center gap-1 text-[10px] text-blue-600 dark:text-blue-400 mt-0.5">
+                  🔔 Reminder set {appt.reminderHours}h before
+                </span>
+              )}
             </div>
             {(appt.visitDoctorSaid || appt.visitMedsChanged || appt.visitActionItems || appt.postVisitNotes) && (
               <div className="mt-2 p-2.5 bg-gray-50 dark:bg-gray-700/50 rounded-lg space-y-1.5">
@@ -803,6 +832,21 @@ export default function AppointmentsPage() {
                 <option value="upcoming">Upcoming</option>
                 <option value="completed">Completed</option>
                 <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
+            <div>
+              <label className="label">Reminder</label>
+              <select
+                className="input"
+                value={form.reminderHours ?? ""}
+                onChange={(e) => setForm({ ...form, reminderHours: e.target.value ? Number(e.target.value) : undefined })}
+              >
+                <option value="">No reminder</option>
+                <option value="1">1 hour before</option>
+                <option value="2">2 hours before</option>
+                <option value="12">12 hours before</option>
+                <option value="24">24 hours before (day before)</option>
+                <option value="48">2 days before</option>
               </select>
             </div>
             <div className="flex gap-3 pt-2">

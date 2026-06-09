@@ -26,6 +26,7 @@ export interface Medication {
   log: Record<string, Record<string, boolean | string>>; // string = "HH:MM" actual take time
   expiresAt?: string; // ISO date — auto-deleted after this date
   createdAt?: string; // ISO date — first day to track adherence from
+  pillCount?: number;     // current pill inventory count; decremented on each dose log
 }
 
 export interface Symptom {
@@ -48,6 +49,7 @@ export interface Appointment {
   notes: string;
   status: "upcoming" | "completed" | "cancelled";
   postVisitNotes: string;
+  reminderHours?: number; // hours before appointment to fire a notification
   // Structured post-visit fields (P2)
   visitDoctorSaid?: string;
   visitMedsChanged?: string;
@@ -249,7 +251,14 @@ export interface EmergencyInfo {
   notes?: string;
 }
 
-const DATA_KEYS = ["medications", "symptoms", "appointments", "records", "activity", "dietary", "other", "vitals", "healthProfile", "emergencyInfo"] as const;
+export interface JournalEntry {
+  id: string;
+  content: string;
+  mood?: "good" | "neutral" | "tough"; // optional daily mood marker
+  loggedAt: string; // ISO string
+}
+
+const DATA_KEYS = ["medications", "symptoms", "appointments", "records", "activity", "dietary", "other", "vitals", "healthProfile", "emergencyInfo", "journal"] as const;
 
 // Returns a persons accessor scoped to a specific user key (e.g. their email).
 // All per-person data keys (medications__<id>, etc.) are already scoped by person UUID,
@@ -443,5 +452,13 @@ export const storage = {
       if (typeof window === "undefined") return;
       localStorage.setItem(pk("emergencyInfo", personId), JSON.stringify(info));
     },
+  },
+  journal: {
+    getAll: (personId: string): JournalEntry[] => getList<JournalEntry>(pk("journal", personId)),
+    save: (e: JournalEntry, personId: string): void => { upsert(pk("journal", personId), e, true); },
+    delete: (id: string, personId: string): void => {
+      setList(pk("journal", personId), getList<JournalEntry>(pk("journal", personId)).filter((e) => e.id !== id));
+    },
+    clearAll: (personId: string): void => { setList(pk("journal", personId), []); },
   },
 };

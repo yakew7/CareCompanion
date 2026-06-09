@@ -135,6 +135,21 @@ function timeAgo(iso: string): string {
   return `${d}d ago`;
 }
 
+function getInTargetPct(
+  type: VitalType,
+  allEntries: VitalEntry[],
+  custom?: CustomVitalRange,
+): { pct: number; count: number } | null {
+  const cutoff = Date.now() - 90 * 86400000;
+  const recent = allEntries
+    .filter((e) => e.type === type && new Date(e.loggedAt).getTime() >= cutoff)
+    .sort((a, b) => new Date(b.loggedAt).getTime() - new Date(a.loggedAt).getTime())
+    .slice(0, 20);
+  if (recent.length < 3) return null;
+  const inTarget = recent.filter((e) => getStatus(e.type, e.value, e.value2, custom) === "normal").length;
+  return { pct: Math.round((inTarget / recent.length) * 100), count: recent.length };
+}
+
 function Sparkline({ values }: { values: number[] }) {
   if (values.length < 2) return null;
   const min = Math.min(...values), max = Math.max(...values), range = max - min || 1;
@@ -455,6 +470,19 @@ export default function VitalsPage() {
             <p className={`font-bold text-gray-900 dark:text-gray-100 leading-tight mt-0.5 ${featured ? "text-2xl" : "text-xl"}`}>{formatValue(latest)}</p>
             {latest.notes && <p className="text-xs text-gray-400 dark:text-gray-500 truncate">{latest.notes}</p>}
             <p className="text-xs text-gray-400 dark:text-gray-500">{timeAgo(latest.loggedAt)}</p>
+            {def.type !== "weight" && (() => {
+              const tp = getInTargetPct(def.type, entries, customRanges[def.type]);
+              if (!tp) return null;
+              return (
+                <p className={`text-[10px] mt-0.5 ${
+                  tp.pct >= 80 ? "text-green-600 dark:text-green-400"
+                  : tp.pct >= 50 ? "text-amber-600 dark:text-amber-400"
+                  : "text-red-600 dark:text-red-400"
+                }`}>
+                  {tp.pct}% in target <span className="text-gray-400 dark:text-gray-500">({tp.count} readings)</span>
+                </p>
+              );
+            })()}
             <div className="flex items-center justify-between mt-1">
               <Sparkline values={spark} />
               {status && <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${STATUS_STYLE[status]}`}>{STATUS_LABEL[status]}</span>}

@@ -62,6 +62,7 @@ const emptyForm = () => ({
   weeklyTime: "Morning",
   notes: "",
   durationDays: "" as string,
+  pillCount: "" as string,
 });
 
 // Feature 16: Swipe-to-delete wrapper for mobile
@@ -176,6 +177,7 @@ export default function MedicationsPage() {
       name: med.name, dosage: med.dosage, frequency: med.frequency,
       times, weeklyDays, weeklyTime, notes: med.notes,
       durationDays: remainingDays > 0 ? String(remainingDays) : "",
+      pillCount: med.pillCount != null ? String(med.pillCount) : "",
     });
     setShowModal(true);
   }
@@ -205,7 +207,7 @@ export default function MedicationsPage() {
     const expiresAt = form.durationDays !== "" && days > 0
       ? new Date(Date.now() + days * 86400000).toISOString()
       : form.durationDays === "" ? editing?.expiresAt : undefined;
-    const med: Medication = { id: editing?.id || uuidv4(), name: form.name, dosage: form.dosage, frequency: form.frequency, times, notes: form.notes, log: editing?.log || {}, expiresAt, createdAt: editing?.createdAt || new Date().toISOString().split("T")[0] };
+    const med: Medication = { id: editing?.id || uuidv4(), name: form.name, dosage: form.dosage, frequency: form.frequency, times, notes: form.notes, log: editing?.log || {}, expiresAt, createdAt: editing?.createdAt || new Date().toISOString().split("T")[0], pillCount: form.pillCount !== "" && parseInt(form.pillCount) > 0 ? parseInt(form.pillCount) : editing?.pillCount };
     await api.medications.save(med);
     if (!editing) api.activity.push({ type: "medication", label: `Added medication: ${med.name}`, at: new Date().toISOString() });
     const refreshed = await api.medications.getAll();
@@ -294,7 +296,11 @@ export default function MedicationsPage() {
       // Optimistically mark taken, then open time editor
       const now = new Date();
       const hhmm = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-      const updated: Medication = { ...med, log: { ...med.log, [today]: { ...todayLog, [time]: true } } };
+      const updated: Medication = {
+        ...med,
+        log: { ...med.log, [today]: { ...todayLog, [time]: true } },
+        pillCount: med.pillCount != null && med.pillCount > 0 ? med.pillCount - 1 : med.pillCount,
+      };
       setMeds((prev) => prev.map((m) => (m.id === med.id ? updated : m)));
       api.medications.save(updated).catch(() => toast.error("Failed to save dose"));
       setDoseTimeEdit({ medId: med.id, time, value: hhmm });
@@ -619,6 +625,23 @@ export default function MedicationsPage() {
                               ? <span className="text-xs px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-medium">{daysLeft <= 0 ? "Expired" : "Last day"}</span>
                               : <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 font-medium">{daysLeft}d left</span>;
                           })()}
+                          {med.pillCount != null && (() => {
+                            const dailyDoses = (!isWeekly(med.frequency) && !isMonthly(med.frequency) && med.frequency !== "As needed")
+                              ? med.times.length : 1;
+                            const daysLeft = Math.floor(med.pillCount / Math.max(dailyDoses, 1));
+                            if (med.pillCount <= 0) return (
+                              <span className="text-xs px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-medium">Out of pills</span>
+                            );
+                            if (daysLeft <= 3) return (
+                              <span className="text-xs px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-medium">{med.pillCount} pills (~{daysLeft}d)</span>
+                            );
+                            if (daysLeft <= 7) return (
+                              <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 font-medium">{med.pillCount} pills (~{daysLeft}d)</span>
+                            );
+                            return (
+                              <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400">{med.pillCount} pills</span>
+                            );
+                          })()}
                         </div>
                         {med.notes && <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{med.notes}</p>}
                       </div>
@@ -827,6 +850,25 @@ export default function MedicationsPage() {
                 )}
               </div>
             )}
+
+            <div>
+              <label className="label">Pills remaining (optional)</label>
+              <input
+                className="input"
+                type="number"
+                min="0"
+                placeholder="e.g. 30 (leave blank if unknown)"
+                value={form.pillCount}
+                onChange={(e) => setForm({ ...form, pillCount: e.target.value })}
+              />
+              {form.pillCount && parseInt(form.pillCount) > 0 && (() => {
+                const dailyDoses = (!isWeekly(form.frequency) && !isMonthly(form.frequency) && form.frequency !== "As needed")
+                  ? form.times.length
+                  : 1;
+                const daysLeft = Math.floor(parseInt(form.pillCount) / Math.max(dailyDoses, 1));
+                return <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">~{daysLeft} days of doses remaining</p>;
+              })()}
+            </div>
 
             <div>
               <label className="label">Course duration (days) — optional</label>

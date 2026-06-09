@@ -261,19 +261,41 @@ export default function DashboardPage() {
 
       // Expiring medications: expiresAt set, daysLeft > 0 and <= 7
       const nowMs = Date.now();
-      setExpiringMeds(
-        meds
-          .filter((m) => {
-            if (!m.expiresAt) return false;
-            const daysLeft = Math.ceil((new Date(m.expiresAt).getTime() - nowMs) / 86400000);
-            return daysLeft > 0 && daysLeft <= 7;
-          })
-          .map((m) => ({
-            name: m.name,
-            daysLeft: Math.ceil((new Date(m.expiresAt!).getTime() - nowMs) / 86400000),
-          }))
-          .sort((a, b) => a.daysLeft - b.daysLeft)
-      );
+      const expiringByDate = meds
+        .filter((m) => {
+          if (!m.expiresAt) return false;
+          const daysLeft = Math.ceil((new Date(m.expiresAt).getTime() - nowMs) / 86400000);
+          return daysLeft > 0 && daysLeft <= 7;
+        })
+        .map((m) => ({
+          name: m.name,
+          daysLeft: Math.ceil((new Date(m.expiresAt!).getTime() - nowMs) / 86400000),
+        }));
+
+      // Also flag low pill count medications
+      const lowPillMeds = meds
+        .filter((m) => {
+          if (m.pillCount == null) return false;
+          const freq = m.frequency?.toLowerCase() || "";
+          const isWeeklyM = freq.includes("weekly");
+          const isMonthlyM = freq.includes("monthly");
+          const dailyDoses = (!isWeeklyM && !isMonthlyM && m.frequency !== "As needed") ? m.times.length : 1;
+          const daysLeft = Math.floor(m.pillCount / Math.max(dailyDoses, 1));
+          return daysLeft <= 7 && daysLeft >= 0;
+        })
+        .map((m) => {
+          const freq = m.frequency?.toLowerCase() || "";
+          const isWeeklyM = freq.includes("weekly");
+          const isMonthlyM = freq.includes("monthly");
+          const dailyDoses = (!isWeeklyM && !isMonthlyM && m.frequency !== "As needed") ? m.times.length : 1;
+          return { name: m.name, daysLeft: Math.floor(m.pillCount! / Math.max(dailyDoses, 1)) };
+        });
+
+      const combined = [...expiringByDate];
+      for (const lp of lowPillMeds) {
+        if (!combined.find((e) => e.name === lp.name)) combined.push(lp);
+      }
+      setExpiringMeds(combined.sort((a, b) => a.daysLeft - b.daysLeft));
 
       setDataLoaded(true);
     });
