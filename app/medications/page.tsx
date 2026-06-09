@@ -4,6 +4,7 @@ import toast from "react-hot-toast";
 import { v4 as uuidv4 } from "uuid";
 import { Pencil, Trash2, CheckSquare, Square, Download, MoreVertical, AlertTriangle, Search, Calendar, ChevronLeft, ChevronRight, Clock } from "lucide-react";
 import TopBar from "@/components/TopBar";
+import IOSPushBanner from "@/components/IOSPushBanner";
 import { api } from "@/lib/api";
 import { usePersonContext } from "@/contexts/PersonContext";
 import type { Medication, Symptom } from "@/lib/storage";
@@ -415,6 +416,8 @@ export default function MedicationsPage() {
             />
           </div>
         )}
+
+        <IOSPushBanner />
 
         {showReminderExport && (
           <div className="card border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-900/10 space-y-3">

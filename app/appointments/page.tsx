@@ -93,6 +93,9 @@ export default function AppointmentsPage() {
   const [prepQuestions, setPrepQuestions] = useState<string>("");
   const [prepQuestionsLoading, setPrepQuestionsLoading] = useState(false);
   const [prepPostNotes, setPrepPostNotes] = useState("");
+  const [prepDoctorSaid, setPrepDoctorSaid] = useState("");
+  const [prepMedsChanged, setPrepMedsChanged] = useState("");
+  const [prepActionItems, setPrepActionItems] = useState("");
   const [prepSavingNotes, setPrepSavingNotes] = useState(false);
 
   useEffect(() => {
@@ -204,6 +207,9 @@ export default function AppointmentsPage() {
     setPrepAppt(appt);
     setShowVisitPrep(true);
     setPrepPostNotes(appt.postVisitNotes || "");
+    setPrepDoctorSaid(appt.visitDoctorSaid || "");
+    setPrepMedsChanged(appt.visitMedsChanged || "");
+    setPrepActionItems(appt.visitActionItems || "");
     setPrepQuestions("");
     setPrepQuestionsLoading(false);
 
@@ -278,11 +284,17 @@ export default function AppointmentsPage() {
     if (!prepAppt) return;
     setPrepSavingNotes(true);
     try {
-      const updated = { ...prepAppt, postVisitNotes: prepPostNotes };
+      const updated = {
+        ...prepAppt,
+        postVisitNotes: prepPostNotes,
+        visitDoctorSaid: prepDoctorSaid || undefined,
+        visitMedsChanged: prepMedsChanged || undefined,
+        visitActionItems: prepActionItems || undefined,
+      };
       await api.appointments.save(updated);
       setAppointments((prev) => prev.map((a) => a.id === updated.id ? updated : a));
       setPrepAppt(updated);
-      toast.success("Notes saved");
+      toast.success("Visit notes saved");
     } catch {
       toast.error("Failed to save notes");
     } finally {
@@ -331,10 +343,21 @@ export default function AppointmentsPage() {
               )}
               {appt.notes && <p className="text-xs text-gray-400 dark:text-gray-500 italic">{appt.notes}</p>}
             </div>
-            {appt.postVisitNotes && (
-              <div className="mt-2 p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-0.5">Post-visit notes</p>
-                <p className="text-sm text-gray-700 dark:text-gray-300">{appt.postVisitNotes}</p>
+            {(appt.visitDoctorSaid || appt.visitMedsChanged || appt.visitActionItems || appt.postVisitNotes) && (
+              <div className="mt-2 p-2.5 bg-gray-50 dark:bg-gray-700/50 rounded-lg space-y-1.5">
+                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Visit Notes</p>
+                {appt.visitDoctorSaid && (
+                  <div><p className="text-[10px] text-teal-600 dark:text-teal-400 font-medium">Doctor said</p><p className="text-sm text-gray-700 dark:text-gray-300">{appt.visitDoctorSaid}</p></div>
+                )}
+                {appt.visitMedsChanged && (
+                  <div><p className="text-[10px] text-purple-600 dark:text-purple-400 font-medium">Medication changes</p><p className="text-sm text-gray-700 dark:text-gray-300">{appt.visitMedsChanged}</p></div>
+                )}
+                {appt.visitActionItems && (
+                  <div><p className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">Action items</p><p className="text-sm text-gray-700 dark:text-gray-300">{appt.visitActionItems}</p></div>
+                )}
+                {appt.postVisitNotes && (
+                  <div><p className="text-[10px] text-gray-400 dark:text-gray-500 font-medium">Notes</p><p className="text-sm text-gray-700 dark:text-gray-300">{appt.postVisitNotes}</p></div>
+                )}
               </div>
             )}
           </div>
@@ -977,17 +1000,50 @@ export default function AppointmentsPage() {
                 )}
               </section>
 
-              {/* 6. Post-visit notes */}
+              {/* 6. Post-visit notes — structured */}
               <section className="print:hidden">
                 <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Post-Visit Notes</h3>
-                <div className="space-y-3">
-                  <textarea
-                    className="input resize-none text-sm w-full"
-                    rows={4}
-                    placeholder="Add notes after the visit..."
-                    value={prepPostNotes}
-                    onChange={(e) => setPrepPostNotes(e.target.value)}
-                  />
+                <div className="space-y-4">
+                  <div>
+                    <label className="label">What did the doctor say?</label>
+                    <textarea
+                      className="input resize-none text-sm w-full"
+                      rows={3}
+                      placeholder="e.g. Blood pressure is under control, continue current dose..."
+                      value={prepDoctorSaid}
+                      onChange={(e) => setPrepDoctorSaid(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="label">Medication changes</label>
+                    <textarea
+                      className="input resize-none text-sm w-full"
+                      rows={2}
+                      placeholder="e.g. Increased Lisinopril to 20mg, added Aspirin 75mg..."
+                      value={prepMedsChanged}
+                      onChange={(e) => setPrepMedsChanged(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="label">Action items &amp; follow-ups</label>
+                    <textarea
+                      className="input resize-none text-sm w-full"
+                      rows={2}
+                      placeholder="e.g. Get HbA1c test in 3 months, follow up with cardiologist..."
+                      value={prepActionItems}
+                      onChange={(e) => setPrepActionItems(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="label text-gray-400 dark:text-gray-500 font-normal">General notes (optional)</label>
+                    <textarea
+                      className="input resize-none text-sm w-full"
+                      rows={2}
+                      placeholder="Any other notes..."
+                      value={prepPostNotes}
+                      onChange={(e) => setPrepPostNotes(e.target.value)}
+                    />
+                  </div>
                   <button
                     onClick={saveVisitPrepNotes}
                     disabled={prepSavingNotes}

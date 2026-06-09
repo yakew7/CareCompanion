@@ -46,6 +46,10 @@ export interface Appointment {
   notes: string;
   status: "upcoming" | "completed" | "cancelled";
   postVisitNotes: string;
+  // Structured post-visit fields (P2)
+  visitDoctorSaid?: string;
+  visitMedsChanged?: string;
+  visitActionItems?: string;
 }
 
 export interface ActivityEntry {
