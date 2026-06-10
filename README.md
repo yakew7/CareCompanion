@@ -4,7 +4,7 @@
 
 **The private health dashboard built for family caregivers**
 
-[![Version](https://img.shields.io/badge/version-1.6.0-0d9488?style=for-the-badge)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.7.0-0d9488?style=for-the-badge)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/license-MIT-22c55e?style=for-the-badge)](LICENSE)
 [![Next.js](https://img.shields.io/badge/Next.js-14-000000?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?style=for-the-badge&logo=typescript&logoColor=white)](https://typescriptlang.org)
@@ -62,8 +62,12 @@ Upload a PDF or TXT report and get an AI-generated plain-English summary in seco
 <br/>
 
 - **Plain-English AI summary** split into three sections: Summary, Dietary Notes, and Other Notes
-- **Auto-extraction** — medications, appointments, symptoms, vitals, dietary notes, and patient profile are identified from the report text and staged for review
+- **Auto-extraction** — medications, appointments, symptoms, vitals, dietary notes, allergies, and patient profile are identified from the report text and staged for review
+- **Full lab panel import** — a dense hospital report imports all of its readings (CBC, LFT, RFT, TFT, electrolytes, iron studies); truncated AI responses are detected and retried automatically so lab values are never silently dropped
+- **Exact appointment details** — explicitly stated dates, times, and venues import verbatim (*"25 July 2026, 10:00 AM, Apollo Hospitals"*), not as day-offset approximations
+- **Allergies → Emergency Info** — explicitly stated allergies auto-fill the Emergency Info card, deduplicated, with a confirmation toast
 - **Per-item confirmation panel** — checkboxes let you choose exactly what gets saved; nothing is applied without your explicit approval
+- **Post-import interaction check** — every imported medication is checked against the rest; all findings are summarised in a single compact notice, never one toast per drug
 - **Extraction toast** tells you precisely what was saved: *"Saved from report: 2 medications, 1 appointment, 3 notes"* — no guesswork
 - **Chat with any report** via the built-in Health Assistant — ask follow-up questions in plain language
 - **Report text is never stored** — only the AI-generated summary is kept in your browser
@@ -82,8 +86,8 @@ A full medication management system — from daily tracking to refill alerts and
 
 - **Flexible schedules** — daily, weekly (specific days of the week), and monthly medications
 - **Time slots** — Morning, Afternoon, Evening, Night (multiple slots per medication)
-- **One-tap dose logging** with a daily progress ring and 7-day adherence percentage
-- **Adherence calendar** that only counts days from when the medication was first added — no false "missed dose" marks for days before it existed
+- **One-tap dose logging** with a daily progress ring, 7-day and 30-day adherence percentages, and a 🔥 **perfect-streak counter**
+- **Adherence calendar** that only counts days from when the medication was first added — no false "missed dose" marks for days before it existed; monthly courses are counted on their scheduled day of the month
 - **"Late" badge** — if a morning dose is logged at 2 PM, an amber *Late* chip appears on the dose record
 - **Course duration** — set an end date and the medication auto-removes itself when the course finishes
 - **Indian prescription notation** — understands `1-0-1`, `0-0-1`, `1-1-1` when extracted from reports
@@ -98,7 +102,7 @@ A full medication management system — from daily tracking to refill alerts and
 ---
 
 ### 📊 Vitals & Lab Results
-27 readings across 7 groups — from daily blood pressure to quarterly thyroid panels.
+31 readings across 8 groups — from daily blood pressure to quarterly thyroid panels.
 
 <details>
 <summary>What's included</summary>
@@ -123,6 +127,7 @@ A full medication management system — from daily tracking to refill alerts and
 - **Doctor's custom target range** — override the standard range for any test; the standard range is shown as a hint so you know what you're replacing
 - **BMI** auto-calculated from latest weight and height with Normal / Overweight / Obese badge
 - **Auto-filled from reports** — handles Indian lab notation (Lakh/µL for platelets, mmol/L → mg/dL for glucose, °F → °C for temperature)
+- **CSV export** — download every reading as `Date,Type,Value,Value2,Unit,Notes` for Excel or a doctor's intake system
 - **+ Log first reading** button on empty vital cards — no hunting for a separate log button
 
 </details>
@@ -147,12 +152,14 @@ Structured symptom logging with severity tracking, duration monitoring, and AI p
 | 5 | Emergency-level | 🔴 Dark Red | Seek medical attention immediately |
 
 **More features:**
+- **Timeline view** — a List/Timeline toggle renders the full symptom history on a vertical line with severity-coloured dots, ongoing/resolved duration badges, and linked-medication chips
+- **AI trigger analysis** — the model is briefed with current medications (and their start dates), recent journal entries, and dietary notes alongside the symptom log, then asked for suspected triggers, dated patterns, and talking points for the doctor — and told to say so when the data is too sparse to conclude anything
 - **Link to a medication** — associate a symptom with any tracked medication as a potential side effect
 - **Ongoing tracking** — mark a symptom as "Still ongoing" at log time; an amber *Ongoing* badge shows a live day count; a "Mark resolved" button stamps the resolution timestamp
 - **Week-over-week trend card** — automatic ▲/▼ severity comparison with colour coding
-- **AI pattern analysis** — the model is briefed on the full scale so analysis is clinically meaningful
+- **Co-occurrence insights** — symptoms that repeatedly appear on the same day are surfaced as paired chips
 - **Edit any entry** — update severity, notes, or medication link without deleting the record
-- **Filter by time period** — All / This week
+- **Filter by time period** — All / This week / This month
 
 </details>
 
@@ -175,7 +182,7 @@ Track upcoming and past appointments with AI-assisted visit prep and structured 
 **Post-visit structured notes (4 fields):**
 - 💬 *What the doctor said* — key takeaways and diagnoses
 - 💊 *Medication changes* — new prescriptions, dose adjustments, discontinuations
-- ✅ *Action items* — tests to book, referrals, follow-ups
+- ✅ *Action items* — tests to book, referrals, follow-ups — **each line becomes a checkable item** on the appointment card, and unchecked items surface on the dashboard as *"Open action items from past visits"*
 - 📋 *Outcome summary* — free-form overall notes
 
 Post-visit notes are colour-coded on the appointment card (teal / purple / amber) and included in the Health Assistant's patient context.
@@ -323,6 +330,24 @@ Detection runs entirely client-side — no API call, no latency. Insights disapp
 
 ---
 
+### 🖨️ Doctor-Ready Print Summary
+One click on the dashboard produces a clean, printable health summary — built for handing to a doctor.
+
+<details>
+<summary>What's included</summary>
+<br/>
+
+- **Patient context** — blood type, allergies, and primary doctor from Emergency Info
+- **Medications table** with dose, frequency, times, and a colour-coded **30-day adherence column**
+- **Latest vitals** with the **previous reading** under each value for instant trend comparison
+- **Appointments** — upcoming visits plus recent completed visits with their structured post-visit notes
+- **Recent symptoms** and notes
+- Print or save as PDF straight from the browser — no export pipeline needed
+
+</details>
+
+---
+
 ### 🔍 Global Search
 Search everything — from anywhere — in real time.
 
@@ -427,7 +452,7 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-> **Skip auth in development** — set `NEXT_PUBLIC_DEV_SKIP_AUTH=true` in `.env.local` to bypass Google login. The app auto-creates a "Demo" profile using a fixed local namespace.
+> **Skip auth in development** — set `NEXT_PUBLIC_DEV_SKIP_AUTH=true` in `.env.local` to bypass Google login. The app auto-creates a "Demo" profile using a fixed local namespace. The flag is **ignored in production builds**, so it can never disable auth on a deployed instance.
 
 > **AI features** — report upload, health chat, symptom analysis, visit prep questions, and drug interaction checks all require a valid Groq key. Every other feature works without one.
 
@@ -451,15 +476,35 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ---
 
+## 🛡️ Application Hardening
+
+Beyond the localStorage-only data model, the app itself is locked down:
+
+| Layer | Protection |
+|---|---|
+| **AI endpoints** | All 7 Groq-proxying routes require an authenticated session (401 otherwise) |
+| **Rate limiting** | 20 requests/minute per user on every AI route (429 beyond) |
+| **Upload limits** | PDF uploads capped at 4 MB **server-side** (413), text payloads length-capped before reaching the AI |
+| **Headers** | Content-Security-Policy, `X-Frame-Options: DENY`, `nosniff`, Referrer-Policy, Permissions-Policy |
+| **API caching** | `Cache-Control: no-store` on all `/api/*` responses — health data is never cached |
+| **Dev bypass** | `NEXT_PUBLIC_DEV_SKIP_AUTH` is ignored in production builds — a misconfigured env var cannot disable auth on a deployed instance |
+| **Prompt hygiene** | User-supplied fields are length-capped before interpolation into AI prompts |
+
+Accessibility is treated as part of quality: key modals use `role="dialog"` / `aria-modal` with Escape-to-close, focus trapping, and focus restoration via a shared `useDialog` hook.
+
+---
+
 ## 🔒 Privacy & Data Handling
 
 Health data is stored exclusively in your browser's `localStorage`. Nothing health-related is written to any server or database.
 
 | Data | Where it goes | Why | Retained by service? |
 |---|---|---|:---:|
-| Report text | Groq API | AI summarisation | ❌ In-flight only |
+| Report text | Groq API | AI summarisation & extraction | ❌ In-flight only |
 | Chat messages | Groq API | Health assistant responses | ❌ In-flight only |
 | Visit prep prompt | Groq API | Question generation | ❌ In-flight only |
+| Medication names | Groq API | Drug interaction check | ❌ In-flight only |
+| Symptom log + context | Groq API | Trigger & pattern analysis | ❌ In-flight only |
 | Google account (email, name) | NextAuth / Google | Login | Session token only |
 | **Medications** | Your browser only | — | N/A |
 | **Symptoms** | Your browser only | — | N/A |

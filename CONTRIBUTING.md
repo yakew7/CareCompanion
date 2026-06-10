@@ -27,7 +27,7 @@ Please read [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) before participating. All c
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js 24+
 - npm (comes with Node)
 - A [Groq](https://console.groq.com/) API key for AI features
 
@@ -39,10 +39,11 @@ cd CareCompanion
 npm install
 ```
 
-Create a `.env.local` file in the project root:
+Create a `.env.local` file in the project root — see the [README Quick Start](README.md#-quick-start) for the full variable list (NextAuth, Google OAuth, Groq, Supabase). For local development the fastest path is:
 
 ```env
 GROQ_API_KEY=your_groq_api_key_here
+NEXT_PUBLIC_DEV_SKIP_AUTH=true   # bypasses Google login locally; ignored in production builds
 ```
 
 Start the dev server:
@@ -53,7 +54,7 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-> AI features (report upload, health chat, symptom analysis) require a valid Groq key. The rest of the app works without one.
+> AI features (report upload, health chat, trigger analysis, visit prep, interaction checks) require a valid Groq key **and an authenticated session** — all AI routes return 401 without one, so keep `NEXT_PUBLIC_DEV_SKIP_AUTH=true` while developing locally. The rest of the app works without a Groq key.
 
 ---
 
@@ -61,21 +62,28 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ```
 app/                  Next.js App Router pages and API routes
-  api/                Server-side route handlers (AI, report parsing)
-  medications/
-  records/
-  symptoms/
-  appointments/
-  vitals/
-  notes/
-  chat/
+  api/                Server-side route handlers (AI, report parsing, auth-scoped DB)
+  medications/        Schedules, dose logging, adherence calendar & streak
+  records/            Report upload, AI summary, extraction & import
+  symptoms/           Severity log, timeline view, AI trigger analysis
+  appointments/       Visit prep, post-visit notes, action-item checklist
+  vitals/             At-home vitals + lab panels, trends, CSV export
+  notes/              Dietary & other care notes with tags
+  journal/            Daily caregiver journal
+  emergency/          Emergency info card (blood type, allergies, contacts)
+  chat/               Health Assistant
 components/           Shared React components
-contexts/             React context providers (profiles, theme)
-lib/                  Utility functions (localStorage helpers, date utils)
+contexts/             React context providers (profiles, notifications)
+lib/                  localStorage helpers, AI route guard (api-guard.ts),
+                      accessible dialog hook (useDialog.ts), backup, time utils
 public/               Static assets, PWA manifest, service worker
 ```
 
-All user data lives in `localStorage` — there is no backend database.
+All user health data lives in `localStorage` — there is no backend database for medical records. Supabase stores auth sessions only.
+
+Two conventions worth knowing before touching AI routes:
+- **Every new AI route must call `guardAiRoute()`** from `lib/api-guard.ts` at the top of its handler (auth + rate limiting).
+- **Batch operations must aggregate user feedback** — one summary toast or notice for N results, never one toast per item.
 
 ---
 
@@ -84,8 +92,9 @@ All user data lives in `localStorage` — there is no backend database.
 1. **Fork** the repo and create a branch from `main`.
 2. **Make your changes.** Keep each branch focused on one thing.
 3. **Run the linter** before pushing: `npm run lint`
-4. **Build check**: `npm run build` — fix any TypeScript or build errors before opening a PR.
-5. Open a pull request against `main`.
+4. **Typecheck**: `npx tsc --noEmit` — must pass with zero errors.
+5. **Build check**: `npm run build` — fix any TypeScript or build errors before opening a PR.
+6. Open a pull request against `main`.
 
 There are no automated tests at this time. Manual testing of the affected feature is expected before submitting.
 

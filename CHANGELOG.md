@@ -5,6 +5,73 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.7.0] — 2026-06-10
+
+A security-hardening and caregiver-intelligence release. Locks down every AI endpoint, fixes six bugs found in an end-to-end audit with a real hospital report, and adds eight features — from AI trigger analysis to a post-visit action-item checklist.
+
+### 🔐 Security
+
+- **All 7 AI routes now require authentication** — `/api/chat`, `/api/health-chat`, `/api/summarize`, `/api/extract-report-data`, `/api/check-interactions`, `/api/suggest-followup`, and `/api/parse-pdf` previously accepted unauthenticated requests, allowing anyone to burn the Groq API quota. A shared guard (`lib/api-guard.ts`) returns **401** without a session
+- **Rate limiting** — 20 requests/minute per user on every AI route (sliding window, **429** beyond the limit)
+- **Server-side PDF size limit** — the 4 MB cap was client-side only; the parse route now rejects oversized uploads with **413** before reading them
+- **Dev auth bypass is production-gated** — `NEXT_PUBLIC_DEV_SKIP_AUTH` now also requires `NODE_ENV !== "production"` on both client and server, so a misconfigured env var can no longer disable auth on a deployed instance
+- **Security headers** — Content-Security-Policy (blocks foreign scripts, frames, and connections), `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, Referrer-Policy, Permissions-Policy, and `Cache-Control: no-store` on all `/api/*` responses so health data is never cached
+- **Prompt input caps** — medication names, doctor/specialty fields, and post-visit notes are length-limited before being interpolated into AI prompts, reducing prompt-injection surface
+- **AI processing disclosure** — the Health Assistant disclaimer now states that messages and tracked health data are processed by Groq
+
+### ✨ New Features
+
+#### 🧠 AI Trigger Analysis (Symptoms)
+The symptom "Analysis" button is now **"Analyze triggers"** — and it earns the name. The AI is briefed with current medications (including start dates), the last 14 journal entries, and dietary notes alongside the symptom log, then asked for suspected triggers (symptoms starting after a med began, diet/journal correlations), dated patterns, and talking points for the doctor — with an explicit instruction to say so when the data is too sparse rather than speculate.
+
+#### 📍 Symptom Timeline View
+A List/Timeline toggle on the Symptoms page. The timeline renders entries newest-first on a vertical line with severity-coloured dots (green ≤2, amber 3, red 4–5), ongoing/resolved duration badges, linked-medication chips, and notes.
+
+#### ✅ Post-Visit Action-Item Checklist
+Each line of an appointment's *Action items* note now renders as a checkable item on the appointment card — strike-through when done, persisted per item with no data migration required. The dashboard shows an **"Open action items from past visits"** card listing unchecked items with the doctor and visit date.
+
+#### 🚨 Allergy Extraction → Emergency Info
+Reports that explicitly state allergies (e.g. *"Patient is ALLERGIC to Sulfa drugs and Penicillin"*) now auto-fill the Emergency Info allergy list — case-insensitively deduplicated, with a confirmation toast. Intolerances and "advised to avoid" items are deliberately excluded.
+
+#### 📅 Exact Appointment Dates, Times & Venues from Reports
+Extraction now returns explicit `dateISO` / `timeHHMM` / `location` when a report states them, so *"25 July 2026, 10:00 AM, Apollo Hospitals, Juhu"* imports as exactly that — instead of a day-offset guess at the current clock time with no venue.
+
+#### 🔥 Adherence Streak
+The medications page shows a *"N-day perfect streak"* counter next to the 30-day adherence stat. A day counts when every expected dose was logged; an incomplete today doesn't break the streak.
+
+#### 📄 Doctor-Ready Print Summary Upgrades
+The dashboard Print Summary now includes a colour-coded **Adherence (30d)** column on the medications table and a **previous-reading line** under each vital for at-a-glance trend comparison.
+
+#### 📊 Vitals CSV Export
+An **Export CSV** button on the Vitals page downloads every reading as `Date,Type,Value,Value2,Unit,Notes` — ready for Excel or a doctor's intake system.
+
+### ♿ Accessibility
+
+- New `useDialog` hook (`lib/useDialog.ts`): Escape closes, Tab is trapped inside, focus moves into the dialog on open and returns to the trigger on close
+- Applied with `role="dialog"` / `aria-modal="true"` / `aria-label` to the medication add/edit and clear-confirm modals, the appointment form modal, and the dashboard print summary
+
+### 🐛 Bug Fixes
+
+- **Lab results lost on import** — the extraction response was capped at 4,000 tokens with no truncation detection; dense reports lost whatever came last in the JSON (usually the lab panel). Token budget doubled and the route now retries once on truncation or unparseable JSON. A full hospital report now imports all 30 readings — CBC, LFT, RFT, TFT, electrolytes, and iron studies included
+- **Appointment dates off by one day** — the extraction prompt contained a hardcoded "TODAY" date that went stale; it is now injected dynamically per request
+- **Interaction-warning toast spam** — importing several medications fired one 12-second toast per drug, flooding the screen. All findings are now collected into a single compact notice with a scrollable list and dismiss button; each interacting pair is checked once instead of from both directions
+- **Monthly medications excluded from adherence** — the day-adherence calculation skipped monthly meds entirely, inflating the percentage; they are now expected on the day-of-month the course started (clamped to month end)
+- **Imported medications bypassed interaction checking** — medications saved via report extraction now run the same drug-interaction check as the manual form
+- **Streaming AI fetches never checked `res.ok`** — a 500/429 from the API left the chat, records Q&A, and visit-prep modals spinning; all streaming and extraction fetches now fail fast into their error handlers
+- **Symptom co-occurrence recomputed on every render** — now memoised and capped to the 500 most recent entries
+- **Imported appointments with no doctor name** — fall back to the specialty (or "Doctor") instead of importing blank
+
+### 🔧 Changed
+
+- `lib/api-guard.ts` (new): shared auth + rate-limit guard for AI routes
+- `lib/useDialog.ts` (new): accessible dialog behaviour hook
+- `lib/storage.ts`: `actionItemsDone?: Record<string, boolean>` added to `Appointment`; new `actionItemLines()` helper
+- `app/api/extract-report-data`: dynamic current date, `allergies` array, appointment `dateISO`/`timeHHMM`/`location`, `max_tokens` 4000 → 8000 with truncation retry
+- `next.config.js`: security headers (CSP, frame, sniff, referrer, permissions) and `no-store` on `/api/*`
+- `.claude/launch.json`: `autoPort` enabled so preview servers don't collide with a running dev server
+
+---
+
 ## [1.6.0] — 2026-06-09
 
 Four new caregiver-utility features plus three bug fixes.

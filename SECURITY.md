@@ -4,8 +4,9 @@
 
 | Version | Supported |
 |---|---|
-| 1.1.0 (current) | ✅ |
-| 1.0.0 | ✅ |
+| 1.7.x (current) | ✅ |
+| 1.6.x | ✅ |
+| < 1.6.0 | ❌ Please upgrade — versions before 1.7.0 do not authenticate AI endpoints |
 | Pre-release dev builds | ❌ Not supported |
 
 ---
@@ -42,9 +43,13 @@ No health data is written to any server or database, including Supabase.
 
 | Data | Service | Purpose | Retained? |
 |---|---|---|---|
-| Report text | Groq API | AI summarisation | No — processed in-flight only |
+| Report text | Groq API | AI summarisation & extraction | No — processed in-flight only |
 | Chat messages | Groq API | Health assistant responses | No — processed in-flight only |
+| Medication names | Groq API | Drug interaction checks | No — processed in-flight only |
+| Symptom log + meds/journal context | Groq API | Trigger & pattern analysis | No — processed in-flight only |
 | Google account (email, name) | NextAuth / Google OAuth | Authentication only | Session token only |
+
+The Health Assistant UI discloses to the user that messages and tracked health data are processed by an AI service (Groq).
 
 **Patient nickname is never sent to Groq or any other service.** The health context passed to the AI identifies the patient only as `[anonymous]`.
 
@@ -62,6 +67,29 @@ create table user_profiles (
 ```
 
 No health data, no patient names, no medical records are stored in Supabase.
+
+---
+
+## Application hardening
+
+The following protections are active as of v1.7.0:
+
+### Endpoint protection
+- **Authentication required on every AI route** — `/api/chat`, `/api/health-chat`, `/api/summarize`, `/api/extract-report-data`, `/api/check-interactions`, `/api/suggest-followup`, and `/api/parse-pdf` all verify the NextAuth session via a shared guard (`lib/api-guard.ts`) and return **401** for unauthenticated requests
+- **Rate limiting** — 20 requests per minute per user on all AI routes (sliding window); requests beyond the limit receive **429**
+- **Database routes** (`/api/db/*`) require a session and scope every query by `user_id` — one account can never read another account's rows
+
+### Input limits
+- PDF uploads are capped at 4 MB **server-side** (rejected with 413 before the file is read)
+- Report text, chat context, and prompt-bound fields (medication names, doctor/specialty, notes) are length-capped before being interpolated into AI prompts, limiting prompt-injection surface
+
+### Transport & browser protections
+- **Content-Security-Policy** restricting scripts, frames, and connections to the app's own origin (plus Supabase and Google avatar images)
+- `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, and a restrictive `Permissions-Policy`
+- `Cache-Control: no-store` on all `/api/*` responses — AI responses containing health context are never cached by the browser or service worker
+
+### Configuration safety
+- The development auth bypass (`NEXT_PUBLIC_DEV_SKIP_AUTH`) is **ignored in production builds** (`NODE_ENV` gated on both client and server) — setting it on a deployed instance cannot disable authentication
 
 ---
 
