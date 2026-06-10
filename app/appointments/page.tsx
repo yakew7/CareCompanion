@@ -2,12 +2,13 @@
 import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { v4 as uuidv4 } from "uuid";
-import { Pencil, Trash2, CalendarDays, MapPin, Sparkles, Download, MoreVertical, Search, ChevronLeft, ChevronRight, List, LayoutGrid, ClipboardList, Printer, X } from "lucide-react";
+import { Pencil, Trash2, CalendarDays, MapPin, Sparkles, Download, MoreVertical, Search, ChevronLeft, ChevronRight, List, LayoutGrid, ClipboardList, Printer, X, CheckSquare, Square } from "lucide-react";
 import { downloadICS } from "@/lib/ics";
 import TopBar from "@/components/TopBar";
 import { api } from "@/lib/api";
 import { usePersonContext } from "@/contexts/PersonContext";
 import type { Appointment } from "@/lib/storage";
+import { actionItemLines } from "@/lib/storage";
 import { nowIST, tomorrowMorningIST, formatIST, formatForInput } from "@/lib/time";
 
 function toDateStr(d: Date | string): string {
@@ -345,6 +346,15 @@ export default function AppointmentsPage() {
     .filter((a) => (a.status !== "upcoming" || new Date(a.datetime) < now) && matchesSearch(a))
     .sort((a, b) => new Date(b.datetime).getTime() - new Date(a.datetime).getTime());
 
+  async function toggleActionItem(appt: Appointment, line: string) {
+    const updated: Appointment = {
+      ...appt,
+      actionItemsDone: { ...(appt.actionItemsDone || {}), [line]: !appt.actionItemsDone?.[line] },
+    };
+    await api.appointments.save(updated);
+    setAppointments((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
+  }
+
   function AppCard({ appt }: { appt: Appointment }) {
     return (
       <div className="card">
@@ -385,7 +395,26 @@ export default function AppointmentsPage() {
                   <div><p className="text-[10px] text-purple-600 dark:text-purple-400 font-medium">Medication changes</p><p className="text-sm text-gray-700 dark:text-gray-300">{appt.visitMedsChanged}</p></div>
                 )}
                 {appt.visitActionItems && (
-                  <div><p className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">Action items</p><p className="text-sm text-gray-700 dark:text-gray-300">{appt.visitActionItems}</p></div>
+                  <div>
+                    <p className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">Action items</p>
+                    <div className="space-y-1 mt-0.5">
+                      {actionItemLines(appt).map((line) => {
+                        const done = !!appt.actionItemsDone?.[line];
+                        return (
+                          <button
+                            key={line}
+                            onClick={() => toggleActionItem(appt, line)}
+                            className="flex items-start gap-1.5 text-left w-full group"
+                          >
+                            {done
+                              ? <CheckSquare className="w-4 h-4 mt-0.5 flex-shrink-0 text-green-500" />
+                              : <Square className="w-4 h-4 mt-0.5 flex-shrink-0 text-gray-300 dark:text-gray-500 group-hover:text-amber-500 transition-colors" />}
+                            <span className={`text-sm ${done ? "line-through text-gray-400 dark:text-gray-500" : "text-gray-700 dark:text-gray-300"}`}>{line}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 )}
                 {appt.postVisitNotes && (
                   <div><p className="text-[10px] text-gray-400 dark:text-gray-500 font-medium">Notes</p><p className="text-sm text-gray-700 dark:text-gray-300">{appt.postVisitNotes}</p></div>

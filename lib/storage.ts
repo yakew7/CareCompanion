@@ -54,6 +54,16 @@ export interface Appointment {
   visitDoctorSaid?: string;
   visitMedsChanged?: string;
   visitActionItems?: string;
+  /** Done-state per action item, keyed by the trimmed line text from visitActionItems */
+  actionItemsDone?: Record<string, boolean>;
+}
+
+/** Split visitActionItems free text into individual checklist lines. */
+export function actionItemLines(a: Appointment): string[] {
+  return (a.visitActionItems || "")
+    .split("\n")
+    .map((l) => l.replace(/^[-•*]\s*/, "").trim())
+    .filter(Boolean);
 }
 
 export interface ActivityEntry {

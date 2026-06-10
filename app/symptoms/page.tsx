@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import ReactMarkdown from "react-markdown";
 import { v4 as uuidv4 } from "uuid";
-import { Trash2, Sparkles, Search, TrendingUp, Pencil, X, ChevronUp } from "lucide-react";
+import { Trash2, Sparkles, Search, TrendingUp, Pencil, X, ChevronUp, List, GitCommitVertical } from "lucide-react";
 import TopBar from "@/components/TopBar";
 import { api } from "@/lib/api";
 import { usePersonContext } from "@/contexts/PersonContext";
@@ -133,6 +133,7 @@ export default function SymptomsPage() {
   const [editSymptom, setEditSymptom] = useState<Symptom | null>(null);
   const [editLoggedAt, setEditLoggedAt] = useState("");
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [view, setView] = useState<"list" | "timeline">("list");
   const severityTrends = useMemo(() => computeSeverityTrends(symptoms), [symptoms]);
   // Feature 13: co-occurrence pairs — memoised and capped to the 500 most recent entries
   const coOccurrences = useMemo(
@@ -245,15 +246,26 @@ export default function SymptomsPage() {
     setAnalyzing(true); setShowAnalysis(true); setAnalysis("");
     try {
       const severityScale = "Severity scale: 1 = Barely noticeable (no impact), 2 = Mild (slightly uncomfortable), 3 = Moderate (disrupting routine), 4 = Severe (significant distress), 5 = Emergency-level (seek immediate attention).";
+      // Pull surrounding context so the AI can spot triggers, not just patterns
+      const [meds, journal, dietary] = await Promise.all([
+        api.medications.getAll(),
+        api.journal.getAll(),
+        api.dietary.getAll(),
+      ]);
+      const medsCtx = meds.length > 0
+        ? meds.map((m) => `${m.name}${m.dosage ? ` ${m.dosage}` : ""} ${m.frequency} (started ${m.createdAt?.split("T")[0] || "unknown"})`).join("; ")
+        : "none";
+      const journalCtx = journal.slice(0, 14).map((j) => `${j.loggedAt.split("T")[0]}${j.mood ? ` [${j.mood}]` : ""}: ${j.content.slice(0, 200)}`).join("\n") || "none";
+      const dietaryCtx = dietary.slice(0, 10).map((d) => d.content).join("; ") || "none";
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          messages: [{ role: "user", content: "Review these symptom logs. Identify any patterns, recurring issues, or things a caregiver should mention to a doctor." }],
-          context: `${severityScale}\n\nSymptom log (recent 30 entries):\n${JSON.stringify(recent, null, 2)}`,
+          messages: [{ role: "user", content: "Review this patient's symptom log alongside their medications, journal, and dietary notes. Identify: 1) Recurring patterns (time of day, day of week, clusters). 2) Suspected TRIGGERS — symptoms that started or worsened after a medication began, or that correlate with diet/journal events. 3) Anything a caregiver should mention to a doctor. Be specific and cite the dates you base each observation on. If the data is too sparse for a conclusion, say so rather than speculating." }],
+          context: `${severityScale}\n\nCurrent medications: ${medsCtx}\n\nDietary notes: ${dietaryCtx}\n\nSymptom log (recent 30 entries):\n${recent.map((s) => `${s.loggedAt.split("T")[0]}: ${s.symptom} (severity ${s.severity}/5)${s.ongoing ? " [ongoing]" : ""}${s.resolvedAt ? ` [resolved ${s.resolvedAt.split("T")[0]}]` : ""}${s.linkedMedication ? ` [linked med: ${s.linkedMedication}]` : ""}${s.notes ? ` — ${s.notes.slice(0, 120)}` : ""}`).join("\n")}\n\nRecent journal entries:\n${journalCtx}`,
         }),
       });
-      if (!res.body) throw new Error();
+      if (!res.ok || !res.body) throw new Error();
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let text = "";
@@ -279,7 +291,7 @@ export default function SymptomsPage() {
           <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Symptom Log</h2>
           <div className="flex gap-2">
             <button onClick={runAnalysis} className="btn-secondary flex items-center gap-1.5 text-xs sm:text-sm">
-              <Sparkles className="w-3.5 h-3.5" /> Analysis
+              <Sparkles className="w-3.5 h-3.5" /> Analyze triggers
             </button>
             <button onClick={() => setShowForm(true)} className="btn-primary">+ Log</button>
           </div>
@@ -308,6 +320,16 @@ export default function SymptomsPage() {
               {f === "all" ? "All" : f === "week" ? "This week" : "This month"}
             </button>
           ))}
+          <div className="flex rounded-xl border border-gray-200 dark:border-gray-600 overflow-hidden">
+            <button onClick={() => setView("list")} title="List view" aria-pressed={view === "list"}
+              className={`px-2.5 py-1.5 ${view === "list" ? "bg-teal-600 text-white" : "bg-white dark:bg-gray-700 text-gray-500 dark:text-gray-300"}`}>
+              <List className="w-4 h-4" />
+            </button>
+            <button onClick={() => setView("timeline")} title="Timeline view" aria-pressed={view === "timeline"}
+              className={`px-2.5 py-1.5 ${view === "timeline" ? "bg-teal-600 text-white" : "bg-white dark:bg-gray-700 text-gray-500 dark:text-gray-300"}`}>
+              <GitCommitVertical className="w-4 h-4" />
+            </button>
+          </div>
           <span className="ml-auto text-sm text-gray-400 dark:text-gray-500 self-center">{displayed.length} entries</span>
           {symptoms.length > 0 && (
             <button onClick={() => setShowClearConfirm(true)} className="btn-danger text-xs px-3 py-1.5">Clear all</button>
@@ -365,7 +387,7 @@ export default function SymptomsPage() {
           <div className="card border border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-900/20">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold text-purple-700 dark:text-purple-300 flex items-center gap-1.5">
-                <Sparkles className="w-4 h-4" /> Pattern Analysis
+                <Sparkles className="w-4 h-4" /> Triggers &amp; Patterns
               </h3>
               <button
                 onClick={() => setShowAnalysis(false)}
@@ -413,6 +435,41 @@ export default function SymptomsPage() {
                 <p className="text-sm mt-1">Start tracking to spot patterns over time</p>
               </>
             )}
+          </div>
+        ) : view === "timeline" ? (
+          <div className="card relative pl-10">
+            <div className="absolute left-[22px] top-6 bottom-6 w-0.5 bg-gray-200 dark:bg-gray-700 rounded" />
+            <div className="space-y-6">
+              {[...displayed].sort((a, b) => new Date(b.loggedAt).getTime() - new Date(a.loggedAt).getTime()).map((s) => (
+                <div key={s.id} className="relative">
+                  <span
+                    title={`Severity ${s.severity}/5`}
+                    className={`absolute -left-[26px] top-0.5 w-4 h-4 rounded-full border-2 border-white dark:border-gray-800 ${
+                      s.severity <= 2 ? "bg-green-400" : s.severity === 3 ? "bg-amber-400" : "bg-red-400"
+                    }`}
+                  />
+                  <p className="text-xs text-gray-400 dark:text-gray-500">{formatIST(s.loggedAt)}</p>
+                  <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                    <span className="font-semibold text-gray-900 dark:text-gray-100 capitalize">{s.symptom}</span>
+                    <span className="text-xs text-gray-400 dark:text-gray-500">{s.severity}/5</span>
+                    {s.ongoing && !s.resolvedAt && (
+                      <span className="text-xs px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 font-medium">
+                        Ongoing · {Math.ceil((Date.now() - new Date(s.loggedAt).getTime()) / 86400000)}d
+                      </span>
+                    )}
+                    {s.resolvedAt && (
+                      <span className="text-xs px-1.5 py-0.5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 font-medium">
+                        Resolved · {Math.ceil((new Date(s.resolvedAt).getTime() - new Date(s.loggedAt).getTime()) / 86400000)}d
+                      </span>
+                    )}
+                    {s.linkedMedication && (
+                      <span className="text-xs px-1.5 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 font-medium">💊 {s.linkedMedication}</span>
+                    )}
+                  </div>
+                  {s.notes && <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{s.notes}</p>}
+                </div>
+              ))}
+            </div>
           </div>
         ) : (
           <div className="space-y-3">

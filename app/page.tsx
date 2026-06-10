@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import toast from "react-hot-toast";
 import { Pill, Activity, Calendar, FileText, Upload, Thermometer, ClipboardList, ShieldCheck, ChevronRight, Printer, X, Sparkles, TrendingUp, TrendingDown, AlertTriangle } from "lucide-react";
 import type { Medication, VitalEntry, Appointment, Symptom, CustomVitalRange, Note } from "@/lib/storage";
-import { storage } from "@/lib/storage";
+import { storage, actionItemLines } from "@/lib/storage";
 import TopBar from "@/components/TopBar";
 import { api } from "@/lib/api";
 import { usePersonContext } from "@/contexts/PersonContext";
@@ -190,6 +190,7 @@ export default function DashboardPage() {
   const [insights, setInsights] = useState<Insight[]>([]);
   const [dataLoaded, setDataLoaded] = useState(false);
   const [expiringMeds, setExpiringMeds] = useState<{name: string; daysLeft: number}[]>([]);
+  const [pendingActions, setPendingActions] = useState<{ item: string; doctor: string; datetime: string }[]>([]);
   const [hour] = useState(new Date().getHours());
   const [showPrint, setShowPrint] = useState(false);
   const printDialogRef = useDialog(showPrint, () => setShowPrint(false));
@@ -229,6 +230,16 @@ export default function DashboardPage() {
       });
       setActivity(acts.slice(0, 50));
       setPrintData({ meds, vitals, appts, symptoms, dietary, other, emergencyInfo: storage.emergencyInfo.get(activePersonId) });
+
+      // Unchecked action items from completed visits
+      const pending: { item: string; doctor: string; datetime: string }[] = [];
+      for (const a of appts) {
+        if (a.status !== "completed") continue;
+        for (const line of actionItemLines(a)) {
+          if (!a.actionItemsDone?.[line]) pending.push({ item: line, doctor: a.doctor, datetime: a.datetime });
+        }
+      }
+      setPendingActions(pending.sort((x, y) => new Date(y.datetime).getTime() - new Date(x.datetime).getTime()));
 
       // Days since last logged entry
       const lastEntry = acts[0];
@@ -574,6 +585,28 @@ export default function DashboardPage() {
                   </span>
                 </li>
               ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Open action items from past visits */}
+        {pendingActions.length > 0 && dataLoaded && (
+          <div className="card border border-orange-200 dark:border-orange-800 bg-orange-50/50 dark:bg-orange-900/10">
+            <div className="flex items-center gap-2 mb-2">
+              <ClipboardList className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+              <h3 className="text-sm font-semibold text-orange-800 dark:text-orange-200">Open action items from past visits</h3>
+              <Link href="/appointments" className="ml-auto text-xs text-orange-600 dark:text-orange-400 hover:underline">View all →</Link>
+            </div>
+            <ul className="space-y-1">
+              {pendingActions.slice(0, 3).map((p, i) => (
+                <li key={i} className="text-sm text-gray-700 dark:text-gray-300">
+                  <span className="text-orange-500 dark:text-orange-400 mr-1">○</span>{p.item}
+                  <span className="text-xs text-gray-400 dark:text-gray-500 ml-1.5">— {p.doctor}, {formatDateIST(p.datetime)}</span>
+                </li>
+              ))}
+              {pendingActions.length > 3 && (
+                <li className="text-xs text-gray-400 dark:text-gray-500">+{pendingActions.length - 3} more</li>
+              )}
             </ul>
           </div>
         )}
