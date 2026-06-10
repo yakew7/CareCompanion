@@ -70,6 +70,16 @@ export default function RecordsPage() {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  function extractedApptDate(a: Record<string, unknown>): Date {
+    const iso = a.dateISO as string | undefined;
+    if (iso && /^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+      const t = typeof a.timeHHMM === "string" && /^\d{1,2}:\d{2}$/.test(a.timeHHMM) ? a.timeHHMM.padStart(5, "0") : "09:00";
+      const d = new Date(`${iso}T${t}:00`);
+      if (!isNaN(d.getTime())) return d;
+    }
+    return new Date(Date.now() + (((a.daysFromNow as number) || 30) * 86400000));
+  }
+
   async function processFile(file: File) {
     if (!file.name.endsWith(".pdf") && !file.name.endsWith(".txt")) {
       toast.error("Only PDF and TXT files are supported"); return;
@@ -124,8 +134,10 @@ export default function RecordsPage() {
       const extractedVitals: Array<{ type: string; value: number; value2?: number; unit: string; notes?: string }> = extracted.vitals || [];
       let vitalCount = 0;
       for (const v of extractedVitals) {
-        if (v.type && typeof v.value === "number" && !isNaN(v.value)) {
-          await api.vitals.save({ id: uuidv4(), type: v.type as import("@/lib/storage").VitalType, value: v.value, value2: v.value2, unit: v.unit || "", notes: v.notes || "From report", loggedAt: new Date().toISOString() });
+        const value = v.value == null || v.value === ("" as unknown) ? NaN : Number(v.value);
+        const value2 = v.value2 != null && v.value2 !== ("" as unknown) && !isNaN(Number(v.value2)) ? Number(v.value2) : undefined;
+        if (v.type && !isNaN(value)) {
+          await api.vitals.save({ id: uuidv4(), type: v.type as import("@/lib/storage").VitalType, value, value2, unit: v.unit || "", notes: v.notes || "From report", loggedAt: new Date().toISOString() });
           vitalCount++;
         }
       }
@@ -147,8 +159,7 @@ export default function RecordsPage() {
           data: m,
         })),
         ...(extracted.appointments || []).map((a: Record<string, unknown>) => {
-          const days = (a.daysFromNow as number) || 30;
-          const date = new Date(Date.now() + days * 86400000).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+          const date = extractedApptDate(a).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
           return {
             id: uuidv4(), type: "appointment" as const, selected: true,
             label: `${a.doctor || "Doctor"}${a.specialty ? ` (${a.specialty})` : ""} — ${a.notes} — ${date}`,
@@ -253,8 +264,7 @@ export default function RecordsPage() {
           data: m,
         })),
         ...(extracted.appointments || []).map((a: Record<string, unknown>) => {
-          const days = (a.daysFromNow as number) || 30;
-          const date = new Date(Date.now() + days * 86400000).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+          const date = extractedApptDate(a).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
           return {
             id: uuidv4(), type: "appointment" as const, selected: true,
             label: `${a.doctor || "Doctor"}${a.specialty ? ` (${a.specialty})` : ""} — ${a.notes} — ${date}`,
@@ -342,22 +352,48 @@ export default function RecordsPage() {
   async function checkImportedInteractions(importedNames: string[]) {
     if (importedNames.length === 0) return;
     const allMeds = await api.medications.getAll();
-    for (const name of importedNames) {
-      const others = allMeds.filter((m) => `${m.name}${m.dosage ? ` ${m.dosage}` : ""}` !== name)
-        .map((m) => `${m.name}${m.dosage ? ` ${m.dosage}` : ""}`);
+    const allNames = allMeds.map((m) => `${m.name}${m.dosage ? ` ${m.dosage}` : ""}`);
+    // Check each new med only against meds that came before it, so each
+    // interacting pair is reported once instead of from both directions.
+    const preExisting = allNames.filter((n) => !importedNames.includes(n));
+    const findings: { med: string; message: string }[] = [];
+    for (let i = 0; i < importedNames.length; i++) {
+      const others = [...preExisting, ...importedNames.slice(0, i)];
       if (others.length === 0) continue;
       try {
         const res = await fetch("/api/check-interactions", {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ newMed: name, existingMeds: others }),
+          body: JSON.stringify({ newMed: importedNames[i], existingMeds: others }),
         });
         if (!res.ok) continue;
         const data = await res.json() as { hasInteraction: boolean; message: string };
-        if (data.hasInteraction && data.message) {
-          toast(`Possible interaction (${name}): ${data.message} Check with your doctor or pharmacist.`, { icon: "⚠️", duration: 12000 });
-        }
+        if (data.hasInteraction && data.message) findings.push({ med: importedNames[i], message: data.message });
       } catch { /* non-critical */ }
     }
+    if (findings.length === 0) return;
+    // One compact summary toast instead of one toast per medication
+    toast.custom(
+      (t) => (
+        <div className={`flex items-start gap-3 bg-amber-50 border border-amber-200 dark:bg-amber-900/30 dark:border-amber-700 px-4 py-3 rounded-xl shadow-lg max-w-md transition-all ${t.visible ? "opacity-100" : "opacity-0"}`}>
+          <span className="text-base flex-shrink-0 mt-0.5">⚠️</span>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">
+              {findings.length === 1 ? "1 possible interaction found" : `${findings.length} possible interactions found`}
+            </p>
+            <ul className="mt-1 space-y-1 max-h-36 overflow-y-auto pr-1">
+              {findings.map((f) => (
+                <li key={f.med} className="text-xs text-amber-700 dark:text-amber-300">
+                  <span className="font-semibold">{f.med}:</span> {f.message}
+                </li>
+              ))}
+            </ul>
+            <p className="text-xs text-amber-500 dark:text-amber-400 mt-1.5">Review with your doctor or pharmacist before changing anything.</p>
+          </div>
+          <button onClick={() => toast.dismiss(t.id)} className="text-amber-400 hover:text-amber-600 dark:hover:text-amber-300 flex-shrink-0 text-lg leading-none">×</button>
+        </div>
+      ),
+      { id: "import-interactions", duration: 20000 }
+    );
   }
 
   async function addSelectedItems() {
@@ -381,8 +417,7 @@ export default function RecordsPage() {
           await api.symptoms.save({ id: uuidv4(), symptom: s.symptom as string, severity: (s.severity as number) || 3, notes: (s.notes as string) || "", loggedAt: symptomLoggedAt });
         } else if (item.type === "appointment") {
           const a = item.data;
-          const days = (a.daysFromNow as number) || 30;
-          await api.appointments.save({ id: uuidv4(), doctor: (a.doctor as string) || "", specialty: (a.specialty as string) || "", datetime: new Date(Date.now() + days * 86400000).toISOString(), location: "", notes: (a.notes as string) || "", status: "upcoming", postVisitNotes: "" });
+          await api.appointments.save({ id: uuidv4(), doctor: (a.doctor as string) || (a.specialty as string) || "Doctor", specialty: (a.specialty as string) || "", datetime: extractedApptDate(a).toISOString(), location: (a.location as string) || "", notes: (a.notes as string) || "", status: "upcoming", postVisitNotes: "" });
         } else if (item.type === "dietary") {
           await api.dietary.save({ id: uuidv4(), content: item.label, source: activeRecord?.name || "Report", createdAt: new Date().toISOString() });
         } else if (item.type === "other") {

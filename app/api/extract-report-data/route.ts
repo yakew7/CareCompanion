@@ -9,18 +9,17 @@ export async function POST(req: NextRequest) {
   try {
     const { text } = await req.json();
     if (!text?.trim()) return NextResponse.json({ medications: [], appointments: [], symptoms: [], dietary: [], other: [], vitals: [], profile: {} });
+    const todayStr = new Date().toISOString().split("T")[0];
 
-    const completion = await getGroq().chat.completions.create({
-      model: MODEL,
-      messages: [
+    const extractionMessages = [
         {
-          role: "system",
+          role: "system" as const,
           content: `You are a strict medical data extractor. Extract ONLY items that are EXPLICITLY and DIRECTLY stated in the report text.
 
 STRICT RULES:
 - Medications: ONLY if a medication name is explicitly prescribed or listed. dosage/frequency/times must be exactly as written. If times of day are not mentioned, use []. Do NOT infer or guess.
-- Appointments: ONLY if a specific follow-up visit is explicitly recommended. Do NOT create appointments for every doctor mentioned.
-- Symptoms: ONLY symptoms the patient is explicitly described as experiencing. Do NOT include test results or diagnoses as symptoms. If a specific date is mentioned for a symptom, set daysAgo to how many days before TODAY (2026-06-09) that date was. If no date is mentioned, use daysAgo: 0.
+- Appointments: ONLY if a specific follow-up visit is explicitly recommended. Do NOT create appointments for every doctor mentioned. If an explicit date is stated, return it as dateISO (YYYY-MM-DD); if a time is stated, return timeHHMM (24-hour, e.g. "10:00"). Also set daysFromNow = days from TODAY (${todayStr}) to that date.
+- Symptoms: ONLY symptoms the patient is explicitly described as experiencing. Do NOT include test results or diagnoses as symptoms. If a specific date is mentioned for a symptom, set daysAgo to how many days before TODAY (${todayStr}) that date was. If no date is mentioned, use daysAgo: 0.
 - Dietary: ONLY explicit dietary instructions (e.g. "avoid salt", "low-fat diet", "drink 2L water daily"). Not general health advice.
 - Other: Other explicit instructions not covered above (e.g. "bed rest for 1 week", "avoid heavy lifting", "monitor blood pressure daily").
 - If something is NOT directly stated, do NOT include it.
@@ -101,7 +100,7 @@ DURATION — extract if stated:
 Return ONLY valid JSON:
 {
   "medications": [{ "name": "...", "dosage": "...", "frequency": "...", "times": [], "notes": "...", "durationDays": 0 }],
-  "appointments": [{ "doctor": "...", "specialty": "...", "notes": "...", "daysFromNow": 30 }],
+  "appointments": [{ "doctor": "...", "specialty": "...", "notes": "...", "daysFromNow": 30, "dateISO": "YYYY-MM-DD or omit", "timeHHMM": "HH:MM or omit", "location": "venue if stated, else omit" }],
   "symptoms": [{ "symptom": "...", "severity": 3, "notes": "...", "daysAgo": 0 }],
   "dietary": [{ "advice": "exact dietary instruction from report" }],
   "other": [{ "note": "exact other instruction from report" }],
@@ -110,16 +109,31 @@ Return ONLY valid JSON:
 }`,
         },
         {
-          role: "user",
+          role: "user" as const,
           content: `Extract from this report — only what is explicitly stated:\n\n${text.slice(0, 12000)}`,
         },
-      ],
-      max_tokens: 4000,
-      temperature: 0,
-    });
+      ];
 
-    const raw = completion.choices[0].message.content?.trim() || "";
-    const json = JSON.parse(raw.match(/\{[\s\S]*\}/)?.[0] || "{}");
+    // A truncated response silently loses whatever comes last in the JSON
+    // (usually the lab vitals) — retry once if the model ran out of tokens
+    // or returned unparseable JSON.
+    let json: Record<string, unknown> = {};
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const completion = await getGroq().chat.completions.create({
+        model: MODEL,
+        messages: extractionMessages,
+        max_tokens: 8000,
+        temperature: 0,
+      });
+      const choice = completion.choices[0];
+      const raw = choice.message.content?.trim() || "";
+      try {
+        json = JSON.parse(raw.match(/\{[\s\S]*\}/)?.[0] || "{}");
+      } catch {
+        json = {};
+      }
+      if (choice.finish_reason !== "length" && Object.keys(json).length > 0) break;
+    }
 
     return NextResponse.json({
       medications: json.medications || [],
