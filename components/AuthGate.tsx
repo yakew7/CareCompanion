@@ -10,7 +10,9 @@ import BottomNav from "@/components/BottomNav";
 import BackupReminder from "@/components/BackupReminder";
 import { markFirstUseIfNeeded } from "@/lib/backup";
 
-const DEV_SKIP_AUTH = process.env.NEXT_PUBLIC_DEV_SKIP_AUTH === "true";
+const DEV_SKIP_AUTH =
+  process.env.NEXT_PUBLIC_DEV_SKIP_AUTH === "true" &&
+  process.env.NODE_ENV !== "production";
 
 export default function AuthGate({ children }: { children: React.ReactNode }) {
   if (DEV_SKIP_AUTH) return <DevShell>{children}</DevShell>;

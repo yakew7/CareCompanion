@@ -1,8 +1,11 @@
 // SERVER ONLY — do not import from client components
 import { getGroq, MODEL } from "@/lib/groq";
 import { NextRequest } from "next/server";
+import { guardAiRoute } from "@/lib/api-guard";
 
 export async function POST(req: NextRequest) {
+  const rejected = await guardAiRoute();
+  if (rejected) return rejected;
   try {
     const body = await req.json();
     const messages = body.messages as { role: "user" | "assistant"; content: string }[];

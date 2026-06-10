@@ -1,8 +1,11 @@
 // SERVER ONLY
 import { NextRequest, NextResponse } from "next/server";
 import { getGroq, MODEL } from "@/lib/groq";
+import { guardAiRoute } from "@/lib/api-guard";
 
 export async function POST(req: NextRequest) {
+  const rejected = await guardAiRoute();
+  if (rejected) return rejected;
   try {
     const { notes, doctor, specialty } = await req.json();
     if (!notes?.trim()) return NextResponse.json({ suggested: false });
@@ -23,7 +26,7 @@ If no follow-up is mentioned, return { "suggested": false }.`,
         },
         {
           role: "user",
-          content: `Doctor: ${doctor}\nSpecialty: ${specialty}\nPost-visit notes: ${notes}`,
+          content: `Doctor: ${String(doctor || "").slice(0, 200)}\nSpecialty: ${String(specialty || "").slice(0, 200)}\nPost-visit notes: ${String(notes).slice(0, 4000)}`,
         },
       ],
       max_tokens: 150,

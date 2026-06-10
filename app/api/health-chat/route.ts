@@ -1,8 +1,11 @@
 // SERVER ONLY
 import { NextRequest, NextResponse } from "next/server";
 import { getGroq, MODEL_HEALTH_CHAT } from "@/lib/groq";
+import { guardAiRoute } from "@/lib/api-guard";
 
 export async function POST(req: NextRequest) {
+  const rejected = await guardAiRoute();
+  if (rejected) return rejected;
   try {
     const { messages, context } = await req.json();
 

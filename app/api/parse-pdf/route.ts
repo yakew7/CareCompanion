@@ -2,13 +2,21 @@
 export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
+import { guardAiRoute } from "@/lib/api-guard";
+
+const MAX_PDF_BYTES = 4 * 1024 * 1024;
 
 export async function POST(req: NextRequest) {
+  const rejected = await guardAiRoute();
+  if (rejected) return rejected;
   try {
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
+    }
+    if (file.size > MAX_PDF_BYTES) {
+      return NextResponse.json({ error: "File too large (max 4 MB)" }, { status: 413 });
     }
 
     const buffer = await file.arrayBuffer();

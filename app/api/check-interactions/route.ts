@@ -1,9 +1,14 @@
 import { getGroq, MODEL } from "@/lib/groq";
 import { NextRequest } from "next/server";
+import { guardAiRoute } from "@/lib/api-guard";
 
 export async function POST(req: NextRequest) {
+  const rejected = await guardAiRoute();
+  if (rejected) return rejected;
   try {
-    const { newMed, existingMeds } = await req.json() as { newMed: string; existingMeds: string[] };
+    const body = await req.json() as { newMed: string; existingMeds: string[] };
+    const newMed = (body.newMed || "").slice(0, 200);
+    const existingMeds = (body.existingMeds || []).slice(0, 50).map((m) => String(m).slice(0, 200));
 
     if (!newMed || !existingMeds?.length) {
       return Response.json({ hasInteraction: false, message: "" });

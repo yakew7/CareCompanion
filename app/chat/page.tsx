@@ -248,7 +248,7 @@ export default function ChatPage() {
           <div className="flex items-start gap-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-xl px-3 py-2">
             <ShieldAlert className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
             <p className="text-xs text-amber-700 dark:text-amber-400">
-              This assistant gives general health information only. It is not a substitute for professional medical advice, diagnosis, or treatment.
+              This assistant gives general health information only. It is not a substitute for professional medical advice, diagnosis, or treatment. Messages and tracked health data are processed by an AI service (Groq) to generate responses.
             </p>
           </div>
         </div>
