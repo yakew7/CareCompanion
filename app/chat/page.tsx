@@ -214,7 +214,7 @@ export default function ChatPage() {
           context,
         }),
       });
-      if (!res.body) throw new Error();
+      if (!res.ok || !res.body) throw new Error();
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let ai = "";

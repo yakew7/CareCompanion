@@ -11,6 +11,7 @@ import { api } from "@/lib/api";
 import { usePersonContext } from "@/contexts/PersonContext";
 import type { ActivityEntry, VitalType } from "@/lib/storage";
 import { getAppTimezone, formatDateIST, formatIST } from "@/lib/time";
+import { useDialog } from "@/lib/useDialog";
 
 interface Insight {
   type: "trend_up" | "trend_down" | "day_spike" | "freq_increase";
@@ -154,6 +155,29 @@ function DashSparkline({ values }: { values: number[] }) {
   );
 }
 
+/** 30-day adherence % for one medication, or null when it can't be computed (as-needed/monthly). */
+function medAdherence30(med: Medication): number | null {
+  const freq = med.frequency.toLowerCase();
+  if (med.frequency === "As needed" || freq.includes("monthly") || med.times.length === 0) return null;
+  const weekly = freq.includes("weekly");
+  let exp = 0, tak = 0;
+  for (let i = 0; i < 30; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const ds = d.toISOString().split("T")[0];
+    const created = med.createdAt?.split("T")[0];
+    if (created && ds < created) continue;
+    if (med.expiresAt && ds > med.expiresAt.split("T")[0]) continue;
+    const dayName = d.toLocaleDateString("en-US", { weekday: "long" });
+    for (const t of med.times) {
+      if (weekly && !t.startsWith(dayName)) continue;
+      exp++;
+      if (med.log[ds]?.[t]) tak++;
+    }
+  }
+  return exp > 0 ? Math.round((tak / exp) * 100) : null;
+}
+
 export default function DashboardPage() {
   const { data: session } = useSession();
   const { activePersonId, activePerson } = usePersonContext();
@@ -168,6 +192,7 @@ export default function DashboardPage() {
   const [expiringMeds, setExpiringMeds] = useState<{name: string; daysLeft: number}[]>([]);
   const [hour] = useState(new Date().getHours());
   const [showPrint, setShowPrint] = useState(false);
+  const printDialogRef = useDialog(showPrint, () => setShowPrint(false));
   const [reengageDismissed, setReengageDismissed] = useState(false);
   const [daysSinceLast, setDaysSinceLast] = useState<number | null>(null);
   const [printData, setPrintData] = useState<{
@@ -741,7 +766,7 @@ export default function DashboardPage() {
           <style>{`@media print{*{visibility:hidden;}#print-root,#print-root *{visibility:visible;}#print-root{position:absolute;top:0;left:0;right:0;padding:24px;}}`}</style>
           <div className="fixed inset-0 bg-black/90 z-50" onClick={() => setShowPrint(false)} />
           <div className="fixed inset-0 z-50 overflow-y-auto py-6 px-4 flex items-start justify-center pointer-events-none">
-            <div id="print-root" className="bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded-2xl w-full max-w-2xl shadow-2xl pointer-events-auto" onClick={e => e.stopPropagation()}>
+            <div id="print-root" ref={printDialogRef} role="dialog" aria-modal="true" aria-label="Health summary for printing" className="bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded-2xl w-full max-w-2xl shadow-2xl pointer-events-auto" onClick={e => e.stopPropagation()}>
               {/* Print header */}
               <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-gray-200 dark:border-gray-700">
                 <div>
@@ -781,16 +806,20 @@ export default function DashboardPage() {
                     <p className="text-sm text-gray-400">None recorded</p>
                   ) : (
                     <table className="w-full text-sm border-collapse">
-                      <thead><tr className="border-b border-gray-200 dark:border-gray-700"><th className="text-left pb-1.5 font-semibold text-gray-700 dark:text-gray-300">Medication</th><th className="text-left pb-1.5 font-semibold text-gray-700 dark:text-gray-300">Dose</th><th className="text-left pb-1.5 font-semibold text-gray-700 dark:text-gray-300">Frequency</th><th className="text-left pb-1.5 font-semibold text-gray-700 dark:text-gray-300">Times</th></tr></thead>
+                      <thead><tr className="border-b border-gray-200 dark:border-gray-700"><th className="text-left pb-1.5 font-semibold text-gray-700 dark:text-gray-300">Medication</th><th className="text-left pb-1.5 font-semibold text-gray-700 dark:text-gray-300">Dose</th><th className="text-left pb-1.5 font-semibold text-gray-700 dark:text-gray-300">Frequency</th><th className="text-left pb-1.5 font-semibold text-gray-700 dark:text-gray-300">Times</th><th className="text-left pb-1.5 font-semibold text-gray-700 dark:text-gray-300">Adherence (30d)</th></tr></thead>
                       <tbody>
-                        {printData.meds.map((m) => (
-                          <tr key={m.id} className="border-b border-gray-100 dark:border-gray-800">
-                            <td className="py-1.5 font-medium">{m.name}</td>
-                            <td className="py-1.5 text-gray-600 dark:text-gray-400">{m.dosage || "—"}</td>
-                            <td className="py-1.5 text-gray-600 dark:text-gray-400">{m.frequency}</td>
-                            <td className="py-1.5 text-gray-600 dark:text-gray-400">{m.times.join(", ")}</td>
-                          </tr>
-                        ))}
+                        {printData.meds.map((m) => {
+                          const adh = medAdherence30(m);
+                          return (
+                            <tr key={m.id} className="border-b border-gray-100 dark:border-gray-800">
+                              <td className="py-1.5 font-medium">{m.name}</td>
+                              <td className="py-1.5 text-gray-600 dark:text-gray-400">{m.dosage || "—"}</td>
+                              <td className="py-1.5 text-gray-600 dark:text-gray-400">{m.frequency}</td>
+                              <td className="py-1.5 text-gray-600 dark:text-gray-400">{m.times.join(", ")}</td>
+                              <td className={`py-1.5 font-medium ${adh === null ? "text-gray-400" : adh >= 80 ? "text-green-600 dark:text-green-400" : adh >= 50 ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400"}`}>{adh === null ? "—" : `${adh}%`}</td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   )}
@@ -800,18 +829,30 @@ export default function DashboardPage() {
                 {printData.vitals.length > 0 && (() => {
                   const VITAL_LABELS: Record<string, string> = { bp:"Blood Pressure", glucose:"Blood Glucose", weight:"Weight", heart_rate:"Heart Rate", temperature:"Temperature", spo2:"SpO₂", respiratory_rate:"Resp. Rate", hba1c:"HbA1c", cholesterol:"Cholesterol", hemoglobin:"Hemoglobin", creatinine:"Creatinine", pain:"Pain Level" };
                   const latest = new Map<string, VitalEntry>();
-                  [...printData.vitals].sort((a,b)=>new Date(b.loggedAt).getTime()-new Date(a.loggedAt).getTime()).forEach(v=>{if(!latest.has(v.type))latest.set(v.type,v);});
+                  const previous = new Map<string, VitalEntry>();
+                  [...printData.vitals].sort((a,b)=>new Date(b.loggedAt).getTime()-new Date(a.loggedAt).getTime()).forEach(v=>{
+                    if (!latest.has(v.type)) latest.set(v.type, v);
+                    else if (!previous.has(v.type)) previous.set(v.type, v);
+                  });
                   return (
                     <section>
                       <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-3">Latest Vitals</h3>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                        {Array.from(latest.entries()).map(([type, v]) => (
-                          <div key={type} className="border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2">
-                            <p className="text-xs text-gray-400 dark:text-gray-500">{VITAL_LABELS[type] ?? type}</p>
-                            <p className="text-sm font-semibold">{v.value2 != null ? `${v.value}/${v.value2}` : v.value} {v.unit}</p>
-                            <p className="text-xs text-gray-400 dark:text-gray-500">{formatDateIST(v.loggedAt)}</p>
-                          </div>
-                        ))}
+                        {Array.from(latest.entries()).map(([type, v]) => {
+                          const p = previous.get(type);
+                          return (
+                            <div key={type} className="border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2">
+                              <p className="text-xs text-gray-400 dark:text-gray-500">{VITAL_LABELS[type] ?? type}</p>
+                              <p className="text-sm font-semibold">{v.value2 != null ? `${v.value}/${v.value2}` : v.value} {v.unit}</p>
+                              <p className="text-xs text-gray-400 dark:text-gray-500">{formatDateIST(v.loggedAt)}</p>
+                              {p && (
+                                <p className="text-[10px] text-gray-400 dark:text-gray-500">
+                                  prev {p.value2 != null ? `${p.value}/${p.value2}` : p.value} · {formatDateIST(p.loggedAt)}
+                                </p>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     </section>
                   );

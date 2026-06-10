@@ -98,7 +98,7 @@ export default function RecordsPage() {
       });
       const sumData = await sumRes.json();
       toast.dismiss("summary");
-      if (sumData.error) throw new Error(sumData.error);
+      if (!sumRes.ok || sumData.error) throw new Error(sumData.error || "Summary failed");
 
       const record: MedicalRecord = {
         id: uuidv4(), name: file.name, text,
@@ -118,7 +118,7 @@ export default function RecordsPage() {
       const extracted = await fetch("/api/extract-report-data", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text }),
-      }).then((r) => r.json());
+      }).then((r) => { if (!r.ok) throw new Error("Extraction failed"); return r.json(); });
 
       // Auto-insert vitals from report (no confirmation needed — objective numbers)
       const extractedVitals: Array<{ type: string; value: number; value2?: number; unit: string; notes?: string }> = extracted.vitals || [];
@@ -243,7 +243,7 @@ export default function RecordsPage() {
       const extracted = await fetch("/api/extract-report-data", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text }),
-      }).then((r) => r.json());
+      }).then((r) => { if (!r.ok) throw new Error("Extraction failed"); return r.json(); });
       toast.dismiss("reextract");
 
       const items: ExtractedItem[] = [
@@ -319,7 +319,7 @@ export default function RecordsPage() {
           context: activeRecord?.text || activeRecord?.summary || "",
         }),
       });
-      if (!res.body) throw new Error();
+      if (!res.ok || !res.body) throw new Error();
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let aiContent = "";
@@ -339,10 +339,32 @@ export default function RecordsPage() {
     finally { setStreaming(false); }
   }
 
+  async function checkImportedInteractions(importedNames: string[]) {
+    if (importedNames.length === 0) return;
+    const allMeds = await api.medications.getAll();
+    for (const name of importedNames) {
+      const others = allMeds.filter((m) => `${m.name}${m.dosage ? ` ${m.dosage}` : ""}` !== name)
+        .map((m) => `${m.name}${m.dosage ? ` ${m.dosage}` : ""}`);
+      if (others.length === 0) continue;
+      try {
+        const res = await fetch("/api/check-interactions", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ newMed: name, existingMeds: others }),
+        });
+        if (!res.ok) continue;
+        const data = await res.json() as { hasInteraction: boolean; message: string };
+        if (data.hasInteraction && data.message) {
+          toast(`Possible interaction (${name}): ${data.message} Check with your doctor or pharmacist.`, { icon: "⚠️", duration: 12000 });
+        }
+      } catch { /* non-critical */ }
+    }
+  }
+
   async function addSelectedItems() {
     const selected = extractedItems.filter((i) => i.selected);
     if (selected.length === 0) { setExtractedItems([]); return; }
     setAddingItems(true);
+    const importedMedNames: string[] = [];
     try {
       for (const item of selected) {
         if (item.type === "medication") {
@@ -351,6 +373,7 @@ export default function RecordsPage() {
           const rawTimes = (m.times as string[]) || [];
           const cleanTimes = rawTimes.filter((t: string) => t && t !== "[]" && t.trim() !== "");
           await api.medications.save({ id: uuidv4(), name: m.name as string, dosage: (m.dosage as string) || "", frequency: (m.frequency as string) || "As needed", times: cleanTimes, notes: (m.notes as string) || "", log: {}, createdAt: new Date().toISOString(), expiresAt: durationDays > 0 ? new Date(Date.now() + durationDays * 86400000).toISOString() : undefined });
+          importedMedNames.push(`${m.name as string}${m.dosage ? ` ${m.dosage as string}` : ""}`);
         } else if (item.type === "symptom") {
           const s = item.data;
           const daysAgo = (s.daysAgo as number) || 0;
@@ -381,6 +404,7 @@ export default function RecordsPage() {
       await api.activity.push({ type: "record", label: `Added ${selected.length} items from report`, at: new Date().toISOString() });
       toast.success(`Saved from report: ${summary}`);
       setExtractedItems([]);
+      checkImportedInteractions(importedMedNames);
     } catch {
       toast.error("Failed to add some items");
     } finally {

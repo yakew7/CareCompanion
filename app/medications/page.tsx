@@ -9,6 +9,7 @@ import { api } from "@/lib/api";
 import { usePersonContext } from "@/contexts/PersonContext";
 import type { Medication, Symptom } from "@/lib/storage";
 import { downloadMedRemindersICS } from "@/lib/ics";
+import { useDialog } from "@/lib/useDialog";
 import { storage } from "@/lib/storage";
 
 const TIMES = ["Morning", "Afternoon", "Evening", "Night"];
@@ -116,6 +117,8 @@ export default function MedicationsPage() {
   const [showCalendar, setShowCalendar] = useState(false);
   const [calMonthOffset, setCalMonthOffset] = useState(0);
   const today = new Date().toISOString().split("T")[0];
+  const medModalRef = useDialog(showModal, () => setShowModal(false));
+  const clearConfirmRef = useDialog(showClearConfirm, () => setShowClearConfirm(false));
   // Feature 15: dose time editing — {medId, time, value}
   const [doseTimeEdit, setDoseTimeEdit] = useState<{ medId: string; time: string; value: string } | null>(null);
   const [allSymptoms, setAllSymptoms] = useState<Symptom[]>([]);
@@ -137,10 +140,8 @@ export default function MedicationsPage() {
       }
       if (expired.length > 0) {
         toast(`${expired.length} medication${expired.length !== 1 ? "s" : ""} auto-removed after completing course`, { icon: "✅" });
-        setMeds(await api.medications.getAll());
-      } else {
-        setMeds(data);
       }
+      setMeds(expired.length > 0 ? await api.medications.getAll() : data);
       setLoading(false);
     });
   }, [activePersonId]);
@@ -345,14 +346,23 @@ export default function MedicationsPage() {
     const dayName = new Date(dateStr + "T12:00:00").toLocaleDateString("en-US", { weekday: "long" });
     let exp = 0, tak = 0;
     for (const med of meds) {
-      if (med.createdAt && dateStr < med.createdAt) continue;
+      const createdDate = med.createdAt?.split("T")[0];
+      if (createdDate && dateStr < createdDate) continue;
       if (med.expiresAt && dateStr > med.expiresAt.split("T")[0]) continue;
       if (med.frequency === "As needed") continue;
       if (isWeekly(med.frequency)) {
         for (const time of med.times) {
           if (time.startsWith(dayName)) { exp++; if (med.log[dateStr]?.[time]) tak++; }
         }
-      } else if (!isMonthly(med.frequency)) {
+      } else if (isMonthly(med.frequency)) {
+        // expected on the same day-of-month the med was started, clamped to month end
+        const anchorDay = createdDate ? parseInt(createdDate.split("-")[2], 10) : 1;
+        const [y, m, d] = dateStr.split("-").map(Number);
+        const lastDayOfMonth = new Date(y, m, 0).getDate();
+        if (d === Math.min(anchorDay, lastDayOfMonth)) {
+          for (const time of med.times) { exp++; if (med.log[dateStr]?.[time]) tak++; }
+        }
+      } else {
         for (const time of med.times) { exp++; if (med.log[dateStr]?.[time]) tak++; }
       }
     }
@@ -396,6 +406,20 @@ export default function MedicationsPage() {
   const mostMissedPct = mostMissedEntry
     ? Math.round((mostMissedEntry[1].misses / mostMissedEntry[1].total) * 100)
     : null;
+
+  // Perfect-day streak: consecutive past days with every expected dose taken.
+  // Today only counts once complete; an incomplete today doesn't break the streak.
+  let adherenceStreak = 0;
+  for (let i = 0; i <= 365; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const ds = d.toISOString().split("T")[0];
+    const { taken, expected } = getDayAdherence(ds);
+    if (expected === 0) break;
+    if (taken >= expected) adherenceStreak++;
+    else if (i === 0) continue;
+    else break;
+  }
 
   const filteredMeds = search.trim()
     ? meds.filter((m) => m.name.toLowerCase().includes(search.toLowerCase().trim()))
@@ -513,6 +537,11 @@ export default function MedicationsPage() {
                   {mostMissedEntry && mostMissedPct !== null && (
                     <span className="ml-2 text-amber-500 dark:text-amber-400">· Most missed: {mostMissedEntry[0]} ({mostMissedPct}% skip rate)</span>
                   )}
+                </p>
+              )}
+              {adherenceStreak >= 2 && (
+                <p className="text-xs text-gray-400 dark:text-gray-500">
+                  🔥 <span className="font-medium text-teal-600 dark:text-teal-400">{adherenceStreak}-day perfect streak</span>
                 </p>
               )}
             </div>
@@ -756,7 +785,7 @@ export default function MedicationsPage() {
 
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-t-2xl sm:rounded-2xl p-6 w-full sm:max-w-md shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
+          <div ref={medModalRef} role="dialog" aria-modal="true" aria-label={editing ? "Edit Medication" : "Add Medication"} className="bg-white dark:bg-gray-800 rounded-t-2xl sm:rounded-2xl p-6 w-full sm:max-w-md shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
               {editing ? "Edit Medication" : "Add Medication"}
             </h3>
@@ -911,7 +940,7 @@ export default function MedicationsPage() {
 
       {showClearConfirm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-sm shadow-xl space-y-4">
+          <div ref={clearConfirmRef} role="dialog" aria-modal="true" aria-label="Confirm delete all medications" className="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-sm shadow-xl space-y-4">
             <div>
               <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
                 Delete all medications for {activePerson?.nickname}?

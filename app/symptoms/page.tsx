@@ -134,6 +134,11 @@ export default function SymptomsPage() {
   const [editLoggedAt, setEditLoggedAt] = useState("");
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const severityTrends = useMemo(() => computeSeverityTrends(symptoms), [symptoms]);
+  // Feature 13: co-occurrence pairs — memoised and capped to the 500 most recent entries
+  const coOccurrences = useMemo(
+    () => (symptoms.length >= 4 ? computeCoOccurrences(symptoms.slice(0, 500)) : []),
+    [symptoms]
+  );
 
   useEffect(() => {
     if (!activePersonId) return;
@@ -265,9 +270,6 @@ export default function SymptomsPage() {
   const displayed = filtered().filter((s) =>
     !search.trim() || s.symptom.toLowerCase().includes(search.toLowerCase().trim())
   );
-
-  // Feature 13: Compute co-occurrence pairs
-  const coOccurrences = symptoms.length >= 4 ? computeCoOccurrences(symptoms) : [];
 
   return (
     <>

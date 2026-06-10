@@ -15,6 +15,7 @@ function toDateStr(d: Date | string): string {
   return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
 }
 import { useTimezoneRefresh } from "@/lib/useTimezoneRefresh";
+import { useDialog } from "@/lib/useDialog";
 
 type ViewMode = "list" | "week" | "month";
 
@@ -72,6 +73,7 @@ export default function AppointmentsPage() {
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [calOffset, setCalOffset] = useState(0);
   const [showModal, setShowModal] = useState(false);
+  const apptModalRef = useDialog(showModal, () => setShowModal(false));
   const [showOverflow, setShowOverflow] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [editing, setEditing] = useState<Appointment | null>(null);
@@ -286,6 +288,7 @@ export default function AppointmentsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: [{ role: "user", content: prompt }] }),
       });
+      if (!res.ok) throw new Error();
       if (res.body) {
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
@@ -786,7 +789,7 @@ export default function AppointmentsPage() {
 
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-t-2xl sm:rounded-2xl p-6 w-full sm:max-w-md shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
+          <div ref={apptModalRef} role="dialog" aria-modal="true" aria-label={editing ? "Edit Appointment" : "Add Appointment"} className="bg-white dark:bg-gray-800 rounded-t-2xl sm:rounded-2xl p-6 w-full sm:max-w-md shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
               {editing ? "Edit Appointment" : isFollowup ? "Review Follow-up" : "Add Appointment"}
             </h3>

@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 import toast from "react-hot-toast";
-import { HeartPulse, Droplets, Scale, Heart, Gauge, Thermometer, Wind, TrendingUp, Plus, Trash2, Pencil, Check, X, ChevronDown, ChevronUp, Zap, BarChart2, SlidersHorizontal, FlaskConical, Microscope, Activity, Filter } from "lucide-react";
+import { HeartPulse, Droplets, Scale, Heart, Gauge, Thermometer, Wind, TrendingUp, Plus, Trash2, Pencil, Check, X, ChevronDown, ChevronUp, Zap, BarChart2, SlidersHorizontal, FlaskConical, Microscope, Activity, Filter, Download } from "lucide-react";
 import TopBar from "@/components/TopBar";
 import { nowIST } from "@/lib/time";
 import { api } from "@/lib/api";
@@ -232,7 +232,7 @@ function CollapsibleSection({
 }
 
 export default function VitalsPage() {
-  const { activePersonId } = usePersonContext();
+  const { activePersonId, activePerson } = usePersonContext();
   const [entries, setEntries] = useState<VitalEntry[]>([]);
   const [profile, setProfile] = useState<HealthProfile>({});
   const [profileDraft, setProfileDraft] = useState<HealthProfile>({});
@@ -265,6 +265,23 @@ export default function VitalsPage() {
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [trendType, customRangeType, logType]);
+
+  function exportCSV() {
+    if (entries.length === 0) { toast("No readings to export"); return; }
+    const esc = (s: string) => `"${s.replace(/"/g, '""')}"`;
+    const rows = [...entries]
+      .sort((a, b) => new Date(a.loggedAt).getTime() - new Date(b.loggedAt).getTime())
+      .map((e) => [e.loggedAt, e.type, e.value, e.value2 ?? "", e.unit, esc(e.notes || "")].join(","));
+    const csv = ["Date,Type,Value,Value2,Unit,Notes", ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `vitals-${activePerson?.nickname || "export"}-${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Vitals exported as CSV");
+  }
 
   function openEditProfile() { setProfileDraft({ ...profile }); setEditingProfile(true); }
 
@@ -531,7 +548,14 @@ export default function VitalsPage() {
     <>
       <TopBar />
       <main className="p-4 sm:p-6 max-w-3xl space-y-6">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Vitals</h2>
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Vitals</h2>
+          {entries.length > 0 && (
+            <button onClick={exportCSV} className="btn-secondary flex items-center gap-2 text-sm">
+              <Download className="w-4 h-4" /> Export CSV
+            </button>
+          )}
+        </div>
 
         {/* ── Section 1: Basic Info ───────────────────────────────────────── */}
         <section>
