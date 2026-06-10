@@ -8,6 +8,7 @@ import TopBar from "@/components/TopBar";
 import { api } from "@/lib/api";
 import { usePersonContext } from "@/contexts/PersonContext";
 import type { MedicalRecord } from "@/lib/storage";
+import { storage } from "@/lib/storage";
 import { formatDateIST } from "@/lib/time";
 import { useTimezoneRefresh } from "@/lib/useTimezoneRefresh";
 
@@ -151,6 +152,18 @@ export default function RecordsPage() {
       if (extractedProfile.bloodType) mergedProfile.bloodType = extractedProfile.bloodType;
       if (JSON.stringify(mergedProfile) !== JSON.stringify(currentProfile)) await api.healthProfile.set(mergedProfile);
       if (vitalCount > 0) toast.success(`${vitalCount} vital reading${vitalCount !== 1 ? "s" : ""} auto-filled from report`);
+
+      // Auto-add explicitly stated allergies to Emergency Info (deduped)
+      const extractedAllergies: string[] = (extracted.allergies || []).filter((a: unknown): a is string => typeof a === "string" && !!a.trim());
+      if (extractedAllergies.length > 0 && activePersonId) {
+        const info = storage.emergencyInfo.get(activePersonId);
+        const existingLower = info.allergies.map((a) => a.toLowerCase().trim());
+        const newOnes = extractedAllergies.map((a) => a.trim()).filter((a) => !existingLower.includes(a.toLowerCase()));
+        if (newOnes.length > 0) {
+          storage.emergencyInfo.set({ ...info, allergies: [...info.allergies, ...newOnes] }, activePersonId);
+          toast.success(`Added to Emergency Info: allergic to ${newOnes.join(", ")}`, { duration: 8000 });
+        }
+      }
 
       const items: ExtractedItem[] = [
         ...(extracted.medications || []).map((m: Record<string, unknown>) => ({

@@ -35,6 +35,8 @@ Map each position to the time name if the value is 1 (include it) or 0 (skip it)
            1-0-1-0 → ["Morning","Evening"]| 1-0-1-1 → ["Morning","Evening","Night"]
 If the notation has numbers > 1 (e.g. "2-0-2"), that is the tablet count per dose — set dosage accordingly but still map times the same way.
 
+ALLERGIES — extract if the report EXPLICITLY states the patient is allergic to something (drugs, foods, substances). Return each allergen as a short name (e.g. "Sulfa drugs", "Penicillin", "Peanuts"). Do NOT include intolerances, side effects, or things merely advised to avoid.
+
 PATIENT PROFILE — extract if mentioned in the report:
 - Age in years (integer)
 - Height in cm (convert from feet/inches if needed, e.g. 5'7" ≈ 170 cm)
@@ -105,7 +107,8 @@ Return ONLY valid JSON:
   "dietary": [{ "advice": "exact dietary instruction from report" }],
   "other": [{ "note": "exact other instruction from report" }],
   "vitals": [{ "type": "bp", "value": 120, "value2": 80, "unit": "mmHg", "notes": "" }],
-  "profile": { "age": null, "heightCm": null, "gender": null, "bloodType": null }
+  "profile": { "age": null, "heightCm": null, "gender": null, "bloodType": null },
+  "allergies": ["allergen name, only if explicitly stated"]
 }`,
         },
         {
@@ -143,8 +146,9 @@ Return ONLY valid JSON:
       other: json.other || [],
       vitals: json.vitals || [],
       profile: json.profile || {},
+      allergies: json.allergies || [],
     });
   } catch {
-    return NextResponse.json({ medications: [], appointments: [], symptoms: [], dietary: [], other: [], vitals: [], profile: {} });
+    return NextResponse.json({ medications: [], appointments: [], symptoms: [], dietary: [], other: [], vitals: [], profile: {}, allergies: [] });
   }
 }
