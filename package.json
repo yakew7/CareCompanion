@@ -14,7 +14,7 @@
     "@tailwindcss/typography": "^0.5.20",
     "groq-sdk": "^0.37.0",
     "leaflet": "^1.9.4",
-    "lucide-react": "^1.18.0",
+    "lucide-react": "^1.23.0",
     "next": "14.2.35",
     "next-auth": "^4.24.14",
     "pdf-parse": "^1.1.1",
