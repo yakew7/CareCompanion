@@ -4,8 +4,8 @@
 
 | Version | Supported |
 |---|---|
-| 1.7.x (current) | ✅ |
-| 1.6.x | ✅ |
+| 1.8.x (current) | ✅ |
+| 1.7.x | ✅ |
 | < 1.6.0 | ❌ Please upgrade — versions before 1.7.0 do not authenticate AI endpoints |
 | Pre-release dev builds | ❌ Not supported |
 
@@ -48,8 +48,20 @@ No health data is written to any server or database, including Supabase.
 | Medication names | Groq API | Drug interaction checks | No — processed in-flight only |
 | Symptom log + meds/journal context | Groq API | Trigger & pattern analysis | No — processed in-flight only |
 | Google account (email, name) | NextAuth / Google OAuth | Authentication only | Session token only |
+| Search location + facility types (Find Care) | OpenStreetMap Overpass, via the app server | Facility discovery | No — not stored |
+| Location string (Find Care manual entry) | OpenStreetMap Nominatim, via the app server | Geocoding | No — not stored |
+| Map viewport (Find Care) | OpenStreetMap tile servers (direct browser request) | Base map imagery | No — not stored |
 
 The Health Assistant UI discloses to the user that messages and tracked health data are processed by an AI service (Groq).
+
+### Find Care external services
+
+Find Care is the one section that queries external location services. It never involves any health record or patient identifier — only the search location, the chosen facility types, and (for manual entry) the typed location string.
+
+- **Proxied by design.** All facility (Overpass) and geocoding (Nominatim) requests are made server-side through `app/api/find-care/*`. The browser communicates only with the app's own origin for data, which is why `connect-src` stays limited to `'self'` (plus Supabase). Map tiles are the sole direct third-party request, from `*.tile.openstreetmap.org`.
+- **Opt-in location.** GPS is never activated on load; the browser's permission prompt only appears after the user explicitly taps "Use my location". Denial falls back to manual entry, which needs no device location.
+- **Nothing persisted.** No location, query, or facility result is written server-side; results live in client component state for the session only.
+- **Input validated before any upstream call.** Coordinates, radius, and facility types are validated and clamped server-side; an invalid request returns **400** and never reaches Overpass or Nominatim. Upstream failures return **502**, timeouts **504**.
 
 **Patient nickname is never sent to Groq or any other service.** The health context passed to the AI identifies the patient only as `[anonymous]`.
 
@@ -72,20 +84,22 @@ No health data, no patient names, no medical records are stored in Supabase.
 
 ## Application hardening
 
-The following protections are active as of v1.7.0:
+The following protections are active as of v1.8.0:
 
 ### Endpoint protection
 - **Authentication required on every AI route** — `/api/chat`, `/api/health-chat`, `/api/summarize`, `/api/extract-report-data`, `/api/check-interactions`, `/api/suggest-followup`, and `/api/parse-pdf` all verify the NextAuth session via a shared guard (`lib/api-guard.ts`) and return **401** for unauthenticated requests
-- **Rate limiting** — 20 requests per minute per user on all AI routes (sliding window); requests beyond the limit receive **429**
+- **Find Care proxy routes** (`/api/find-care/facilities`, `/api/find-care/geocode`) reuse the same shared guard — authenticated session required (**401**), rate-limited, and all inputs validated (**400**) before any external call
+- **Rate limiting** — 20 requests per minute per user on all AI and Find Care routes (sliding window); requests beyond the limit receive **429**
 - **Database routes** (`/api/db/*`) require a session and scope every query by `user_id` — one account can never read another account's rows
 
 ### Input limits
 - PDF uploads are capped at 4 MB **server-side** (rejected with 413 before the file is read)
 - Report text, chat context, and prompt-bound fields (medication names, doctor/specialty, notes) are length-capped before being interpolated into AI prompts, limiting prompt-injection surface
+- Find Care coordinates, radius, and facility types are validated and clamped (radius to 500 m–25 km, results to the 50 nearest) before any upstream request, bounding query cost and abuse
 
 ### Transport & browser protections
-- **Content-Security-Policy** restricting scripts, frames, and connections to the app's own origin (plus Supabase and Google avatar images)
-- `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, and a restrictive `Permissions-Policy`
+- **Content-Security-Policy** restricting scripts, frames, and connections to the app's own origin (plus Supabase and Google avatar images). `img-src` also allows `https://*.tile.openstreetmap.org` for Find Care map tiles — the only external image source. `connect-src` remains `'self' https://*.supabase.co`, since all Find Care data is proxied server-side
+- `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, and a restrictive `Permissions-Policy` (`camera=(), microphone=(), geolocation=(self)` — geolocation is enabled for the app's own origin only, to support Find Care's opt-in GPS)
 - `Cache-Control: no-store` on all `/api/*` responses — AI responses containing health context are never cached by the browser or service worker
 
 ### Configuration safety

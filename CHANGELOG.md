@@ -5,6 +5,48 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.8.0] — 2026-07-03
+
+Adds **Find Care** — a new section that helps caregivers locate nearby care facilities (dialysis centers, hospitals, pharmacies, clinics, and specialist practices) on an interactive map, sorted by distance. Motivated by chronic conditions like kidney disease, where the nearest reachable dialysis center matters every week. All external data is sourced live from OpenStreetMap and proxied through the app's own API, so the browser only ever talks to the app origin for data.
+
+### ✨ New Features
+
+#### 🗺️ Find Care
+A new `/find-care` route with an interactive Leaflet map and a distance-sorted results list, kept in sync — selecting a facility in the list highlights its map marker and vice versa.
+
+- **Facility discovery** via the OpenStreetMap Overpass API, filtered by type: dialysis, hospital, pharmacy, clinic, doctors, cardiology, pulmonology
+- **Manual location** entry (city or postal code) via Nominatim geocoding, with alternative-match suggestions when a query is ambiguous
+- **Opt-in GPS** — "Use my location" never fires on load; denial falls back cleanly to manual entry
+- **Straight-line (haversine) distance** sorting, nearest-first, capped at the 50 closest results (with a "nearest 50 shown" indicator)
+- **Adjustable radius** — 2 / 5 / 10 / 25 km (clamped server-side to 500 m–25 km)
+- **Empty / offline / error states** — honest "no facilities found" guidance, an offline banner (no request is issued offline), and non-blocking upstream-failure messaging that keeps prior results on screen
+
+### 🔐 Security & Privacy
+
+- **Proxied external access** — all Overpass and Nominatim calls route through `app/api/find-care/*`, reusing the shared auth + rate-limit guard (`lib/api-guard.ts`): authentication required (**401**), 20 req/min/user (**429**), full input validation (**400**) before any upstream call, and `502`/`504` envelopes on upstream failure/timeout
+- **CSP** — `img-src` adds `https://*.tile.openstreetmap.org` (map tiles, the only direct third-party request); `connect-src` is unchanged (`'self' https://*.supabase.co`) since all data is proxied
+- **Permissions-Policy** — `geolocation=()` → `geolocation=(self)` to allow opt-in GPS on the app origin only
+- **No new persistence** — search location, filters, and results live in component state only; nothing is written server-side
+- **XSS** — all OpenStreetMap-sourced fields are rendered as text through React; no `dangerouslySetInnerHTML`
+
+### ⚡ Performance
+
+- **Server-side caching** — per-instance in-memory caches with TTLs (Overpass 300 s, Nominatim 3600 s), lazy expiry, a 500-entry cap with oldest-insertion eviction, and in-flight request coalescing so concurrent identical requests make a single upstream call
+- **Upstream resilience** — abort-based timeouts (Overpass 10 s, Nominatim 5 s) with a single retry on network error/timeout
+- **Code-split map** — `components/FindCareMap.tsx` is dynamically imported with `{ ssr: false }` (Leaflet requires `window`), keeping it out of the SSR/build path and off other routes
+
+### 🔧 Changed / Added
+
+- `lib/find-care.ts` (new): types, OSM tag map, haversine, normalization + de-duplication, validation, and config constants — shared by client and server
+- `lib/find-care-cache.ts` (new): server-only `TtlCache` and timeout/retry upstream-fetch helpers
+- `app/find-care/{page,layout}.tsx` (new), `components/FindCareMap.tsx` (new)
+- `app/api/find-care/{facilities,geocode}/route.ts` (new)
+- `components/Sidebar.tsx`, `components/BottomNav.tsx`, `components/TopBar.tsx`: Find Care navigation entries and title
+- `next.config.js`: tile host added to `img-src`; `Permissions-Policy` `geolocation=(self)`
+- Dependencies: `leaflet`, `react-leaflet` (runtime), `@types/leaflet` (dev)
+
+---
+
 ## [1.7.0] — 2026-06-10
 
 A security-hardening and caregiver-intelligence release. Locks down every AI endpoint, fixes six bugs found in an end-to-end audit with a real hospital report, and adds eight features — from AI trigger analysis to a post-visit action-item checklist.

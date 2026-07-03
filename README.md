@@ -4,7 +4,7 @@
 
 **The private health dashboard built for family caregivers**
 
-[![Version](https://img.shields.io/badge/version-1.7.0-0d9488?style=for-the-badge)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.8.0-0d9488?style=for-the-badge)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/license-MIT-22c55e?style=for-the-badge)](LICENSE)
 [![Next.js](https://img.shields.io/badge/Next.js-14-000000?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?style=for-the-badge&logo=typescript&logoColor=white)](https://typescriptlang.org)
@@ -49,6 +49,26 @@ Instant access to everything a first responder or ER needs. Tap-to-call contacts
 - **Primary doctor** name and phone
 - **Free-text notes** for anything else (pacemaker, implants, DNR status, etc.)
 - Accessible from the sidebar and the bottom-nav "More" sheet — always one tap away
+
+</details>
+
+---
+
+### 🗺️ Find Care
+Locate nearby care facilities — dialysis centers, hospitals, pharmacies, clinics, and specialist practices — on an interactive map, sorted by distance. Built for chronic conditions like kidney disease, where finding the nearest reachable dialysis center matters week after week.
+
+<details>
+<summary>What's included</summary>
+<br/>
+
+- **Interactive map** (Leaflet + OpenStreetMap tiles) with a results list synced to the markers — select a facility in either place and the other highlights
+- **Facility-type filters** — dialysis, hospital, pharmacy, clinic, doctors, cardiology, pulmonology; toggling re-runs the search
+- **Manual location** — enter a city or postal code (geocoded via Nominatim); pick from alternative matches when ambiguous
+- **Opt-in GPS** — "Use my location" is never triggered automatically; denial falls back to manual entry
+- **Distance-sorted results** — straight-line (haversine) distance from your location, nearest first, capped at the 50 closest
+- **Adjustable radius** — 2 / 5 / 10 / 25 km
+- **Proxied & private** — all facility and geocoding lookups go through the app's own API (`/api/find-care/*`); the browser talks only to the app origin for data, and nothing is ever stored server-side. Map tiles are the only direct third-party request.
+- Accessible from the sidebar and the bottom-nav "More" sheet; the text results list is fully usable without touching the map
 
 </details>
 
@@ -468,6 +488,8 @@ Open [http://localhost:3000](http://localhost:3000).
 | **Auth** | [NextAuth v4](https://next-auth.js.org) + Google OAuth | Zero-friction sign-in |
 | **AI** | [Groq API](https://console.groq.com) — `llama-3.3-70b-versatile` | Fast inference for streaming responses |
 | **PDF parsing** | [unpdf](https://github.com/unjs/unpdf) | Edge-compatible, no native binaries |
+| **Maps** | [Leaflet](https://leafletjs.com) + [React Leaflet](https://react-leaflet.js.org) + [OpenStreetMap](https://www.openstreetmap.org) | Keyless, telemetry-free interactive maps (Find Care) |
+| **Facility data** | OpenStreetMap [Overpass](https://overpass-api.de) & [Nominatim](https://nominatim.openstreetmap.org), server-proxied | Live, open facility discovery + geocoding (Find Care) |
 | **Storage** | `localStorage` — per-account namespaced | 100% client-side, zero server writes |
 | **Auth session DB** | [Supabase](https://supabase.com) | Auth only — no medical data |
 | **Icons** | [Lucide React](https://lucide.dev) | Consistent, accessible icon set |
@@ -482,8 +504,9 @@ Beyond the localStorage-only data model, the app itself is locked down:
 
 | Layer | Protection |
 |---|---|
-| **AI endpoints** | All 7 Groq-proxying routes require an authenticated session (401 otherwise) |
-| **Rate limiting** | 20 requests/minute per user on every AI route (429 beyond) |
+| **AI & proxy endpoints** | All Groq-proxying routes and the Find Care proxy routes (`/api/find-care/*`) require an authenticated session (401 otherwise) |
+| **Rate limiting** | 20 requests/minute per user on every AI and Find Care route (429 beyond) |
+| **Upstream isolation** | Find Care validates and clamps all inputs before any external call; a bad request never reaches Overpass/Nominatim, and the browser's `connect-src` stays limited to `'self'` |
 | **Upload limits** | PDF uploads capped at 4 MB **server-side** (413), text payloads length-capped before reaching the AI |
 | **Headers** | Content-Security-Policy, `X-Frame-Options: DENY`, `nosniff`, Referrer-Policy, Permissions-Policy |
 | **API caching** | `Cache-Control: no-store` on all `/api/*` responses — health data is never cached |
@@ -506,6 +529,9 @@ Health data is stored exclusively in your browser's `localStorage`. Nothing heal
 | Medication names | Groq API | Drug interaction check | ❌ In-flight only |
 | Symptom log + context | Groq API | Trigger & pattern analysis | ❌ In-flight only |
 | Google account (email, name) | NextAuth / Google | Login | Session token only |
+| Search location + facility types (Find Care) | OpenStreetMap Overpass, via the app server | Facility discovery | ❌ Not stored |
+| Location string (Find Care manual entry) | OpenStreetMap Nominatim, via the app server | Geocoding | ❌ Not stored |
+| Map viewport (Find Care) | OpenStreetMap tile servers (direct) | Base map imagery | ❌ Not stored |
 | **Medications** | Your browser only | — | N/A |
 | **Symptoms** | Your browser only | — | N/A |
 | **Vitals** | Your browser only | — | N/A |
@@ -514,6 +540,8 @@ Health data is stored exclusively in your browser's `localStorage`. Nothing heal
 | **Emergency info** | Your browser only | — | N/A |
 
 **The patient's name is never sent to any AI.** It is replaced with `[anonymous]` in every prompt.
+
+**Find Care is the one section that queries external location services.** No health record or patient identifier is involved — only the search location, chosen facility types, and (for manual entry) the typed location string, all proxied through the app's own API so the browser talks only to the app origin for data. GPS is strictly opt-in and never activates on load; manual entry needs no device location at all. Nothing is stored server-side.
 
 See [SECURITY.md](SECURITY.md) for the full data handling policy and vulnerability reporting process.
 
@@ -536,6 +564,8 @@ For other platforms, this is a standard Next.js app — any provider that suppor
 See [CHANGELOG.md](CHANGELOG.md) for the full release history.
 
 Planned / community ideas:
+- [ ] Find Care: driving distance & time (OSRM) with straight-line fallback
+- [ ] Find Care: save a preferred facility to Emergency Info
 - [ ] Multi-device sync via an optional encrypted backend
 - [ ] PDF report annotation and highlighting
 - [ ] Caregiver sharing mode — read-only access for other family members

@@ -15,7 +15,8 @@ const nextConfig = {
       // Next.js requires 'unsafe-inline' for hydration; dev mode needs 'unsafe-eval' for HMR
       `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob: https://lh3.googleusercontent.com",
+      // OpenStreetMap tile hosts are the only external image source (Find Care map)
+      "img-src 'self' data: blob: https://lh3.googleusercontent.com https://*.tile.openstreetmap.org",
       "font-src 'self' data:",
       "connect-src 'self' https://*.supabase.co",
       "frame-ancestors 'none'",
@@ -30,7 +31,7 @@ const nextConfig = {
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "X-Frame-Options", value: "DENY" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(self)" },
         ],
       },
       {
