@@ -39,7 +39,13 @@ cd CareCompanion
 npm install
 ```
 
-Create a `.env.local` file in the project root — see the [README Quick Start](README.md#-quick-start) for the full variable list (NextAuth, Google OAuth, Groq, Supabase). For local development the fastest path is:
+Copy the template and fill it in:
+
+```bash
+cp .env.example .env.local
+```
+
+The [README Quick Start](README.md#-quick-start) has the full annotated variable list (NextAuth, Google OAuth, Groq, Supabase). For local development the fastest path is just two values:
 
 ```env
 GROQ_API_KEY=your_groq_api_key_here
@@ -81,6 +87,8 @@ public/               Static assets, PWA manifest, service worker
 
 All user health data lives in `localStorage` — there is no backend database for medical records. Supabase stores auth sessions only.
 
+> 🧭 For a deeper map — the data layer, request lifecycles, module breakdown, and trust boundaries — see **[ARCHITECTURE.md](ARCHITECTURE.md)**.
+
 Two conventions worth knowing before touching AI routes:
 - **Every new AI route must call `guardAiRoute()`** from `lib/api-guard.ts` at the top of its handler (auth + rate limiting).
 - **Batch operations must aggregate user feedback** — one summary toast or notice for N results, never one toast per item.
@@ -88,6 +96,19 @@ Two conventions worth knowing before touching AI routes:
 ---
 
 ## Development workflow
+
+```mermaid
+flowchart LR
+    A["Fork & clone"] --> B["cp .env.example<br/>.env.local"]
+    B --> C["npm install"]
+    C --> D["branch from main"]
+    D --> E["make your change"]
+    E --> F["npm run lint"]
+    F --> G["npx tsc --noEmit"]
+    G --> H["npm run build"]
+    H --> I["open PR → main"]
+    I --> J{{"CI: lint & build"}}
+```
 
 1. **Fork** the repo and create a branch from `main`.
 2. **Make your changes.** Keep each branch focused on one thing.

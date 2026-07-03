@@ -1,0 +1,14 @@
+# Code owners are requested for review automatically on any PR that
+# touches matching paths. See:
+# https://docs.github.com/en/repositories/managing-your-repos-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owner for everything in the repo
+*                       @yakew7
+
+# Privacy- and security-critical areas — always review carefully
+/lib/api-guard.ts       @yakew7
+/lib/storage.ts         @yakew7
+/lib/api.ts             @yakew7
+/app/api/               @yakew7
+/next.config.js         @yakew7
+/SECURITY.md            @yakew7

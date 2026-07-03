@@ -30,6 +30,30 @@ You can expect an acknowledgement within **48 hours** and a resolution or status
 
 CareCompanion is designed to minimise data exposure. Here is exactly what leaves your device and what doesn't.
 
+```mermaid
+flowchart TB
+    subgraph device["🔒 Your device — this never leaves"]
+        health["Health records: medications, symptoms, vitals,<br/>appointments, notes, journal, emergency info"]
+        health --> ls[("localStorage")]
+    end
+
+    subgraph app["App origin — authenticated proxy routes"]
+        guard{{"guardAiRoute()<br/>auth · 20 req/min · input validation"}}
+    end
+
+    subgraph ext["🌐 External services — in-flight only, nothing stored"]
+        groq["Groq API"]
+        osm["OpenStreetMap<br/>Overpass · Nominatim"]
+        goog["Google · Supabase<br/>session token only"]
+    end
+
+    ls -. "AI features: anonymised context,<br/>never the patient name" .-> guard
+    guard --> groq
+    ls -. "Find Care: search location + types" .-> guard
+    guard --> osm
+    device -. "sign-in" .-> goog
+```
+
 ### What stays on your device (localStorage only)
 
 - All health data: medications, symptoms, appointments, dietary notes, other notes, report summaries

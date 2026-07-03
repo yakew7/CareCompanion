@@ -4,6 +4,7 @@
 
 **The private health dashboard built for family caregivers**
 
+[![CI](https://img.shields.io/github/actions/workflow/status/yakew7/CareCompanion/ci.yml?branch=main&style=for-the-badge&label=CI&logo=github&logoColor=white)](https://github.com/yakew7/CareCompanion/actions/workflows/ci.yml)
 [![Version](https://img.shields.io/badge/version-1.2.0-0d9488?style=for-the-badge)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/license-MIT-22c55e?style=for-the-badge)](LICENSE)
 [![Next.js](https://img.shields.io/badge/Next.js-14-000000?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org)
@@ -20,7 +21,7 @@
 
 <br/>
 
-[Features](#-features) · [Quick Start](#-quick-start) · [Tech Stack](#-tech-stack) · [Privacy](#-privacy--data-handling) · [Deploy](#-deploying) · [Contributing](#-contributing)
+[Features](#-features) · [Architecture](#-architecture-at-a-glance) · [Quick Start](#-quick-start) · [Tech Stack](#-tech-stack) · [Privacy](#-privacy--data-handling) · [Deploy](#-deploying) · [Contributing](#-contributing)
 
 </div>
 
@@ -34,7 +35,57 @@ CareCompanion is built around one constraint: **your health data never leaves yo
 
 ---
 
+## 🧭 Architecture at a glance
+
+Health data lives in your browser's `localStorage` and never touches a server. The app's only server-side code is a thin set of authenticated API routes that proxy **anonymised** requests to external AI and map services — so secrets stay server-side and the browser never talks directly to third parties for data.
+
+```mermaid
+flowchart LR
+    subgraph device["Your device — browser"]
+        UI["React UI<br/>Next.js App Router"]
+        LS[("localStorage<br/>all health data<br/>per-person")]
+        UI <--> LS
+    end
+
+    subgraph app["App origin — Next.js API routes"]
+        guard{{"guardAiRoute()<br/>auth + rate limit"}}
+    end
+
+    subgraph ext["External services"]
+        groq["Groq API"]
+        osm["OpenStreetMap<br/>Overpass · Nominatim"]
+    end
+
+    UI -->|"anonymised context<br/>never the patient name"| guard
+    guard -->|AI features| groq
+    guard -->|Find Care| osm
+    UI -.->|map tiles only| tiles["OSM tile servers"]
+    UI -.->|sign-in| auth["Google OAuth · NextAuth<br/>Supabase = sessions only"]
+```
+
+For the full breakdown — data layer, request lifecycles, module map, and trust boundaries — see **[ARCHITECTURE.md](ARCHITECTURE.md)**.
+
+---
+
 ## ✨ Features
+
+Everything a caregiver juggles — in one private, offline-capable app. Full detail on each section is below.
+
+| | Feature | What it does |
+| --- | --- | --- |
+| 🛡️ | **Emergency Info** | Blood type, allergies, contacts & primary doctor — one tap for first responders |
+| 🗺️ | **Find Care** | Nearby dialysis, hospitals, pharmacies & clinics on an interactive map, distance-sorted |
+| 📄 | **Medical Reports** | Upload a PDF/TXT → AI plain-English summary + auto-extracted meds, vitals & appointments |
+| 💊 | **Medications** | Schedules, one-tap dose logging, adherence & streaks, refills, `.ics` reminders |
+| 📊 | **Vitals & Labs** | 31 readings across 8 groups, trend sparklines, custom target ranges, CSV export |
+| 🩺 | **Symptoms** | 1–5 severity logging, timeline view, AI trigger & pattern analysis |
+| 📅 | **Appointments** | AI-generated visit-prep questions + structured post-visit notes & action items |
+| 📝 | **Notes & Journal** | Tagged dietary/care notes and a private daily caregiver log |
+| 🤖 | **Health Assistant** | Chat AI briefed on the full record — but never the patient's name |
+| 📡 | **Proactive Insights** | Health patterns surfaced automatically, entirely client-side |
+| 🖨️ | **Print Summary** | One-click, doctor-ready health summary |
+| 🔍 | **Global Search** | `⌘K` across meds, symptoms, appointments & notes |
+| 💾 | **Backup & Profiles** | JSON export/import with rollback, quota monitoring, multi-person profiles |
 
 ### 🛡️ Emergency Info Card
 Instant access to everything a first responder or ER needs. Tap-to-call contacts, blood type, allergies, and primary doctor — all on one screen, no login required once the PWA is installed.
@@ -434,7 +485,13 @@ npm install
 
 ### 2 · Configure environment
 
-Create `.env.local` in the project root:
+Copy the template and fill in your keys:
+
+```bash
+cp .env.example .env.local
+```
+
+The full variable set, annotated:
 
 ```env
 # NextAuth
