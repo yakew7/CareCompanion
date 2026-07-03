@@ -33,7 +33,7 @@ A new `/find-care` route with an interactive Leaflet map and a distance-sorted r
 ### ⚡ Performance
 
 - **Server-side caching** — per-instance in-memory caches with TTLs (Overpass 300 s, Nominatim 3600 s), lazy expiry, a 500-entry cap with oldest-insertion eviction, and in-flight request coalescing so concurrent identical requests make a single upstream call
-- **Upstream resilience** — abort-based timeouts (Overpass 10 s, Nominatim 5 s) with a single retry on network error/timeout
+- **Upstream resilience** — abort-based timeouts (Overpass 20 s, Nominatim 5 s); a timeout fails fast (one longer attempt rather than repeating a slow query), while network errors retry once. Queries target nodes and ways only (relations excluded) to stay fast in dense cities
 - **Code-split map** — `components/FindCareMap.tsx` is dynamically imported with `{ ssr: false }` (Leaflet requires `window`), keeping it out of the SSR/build path and off other routes
 
 ### 🔧 Changed / Added

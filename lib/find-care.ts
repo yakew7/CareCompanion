@@ -73,9 +73,10 @@ export const FIND_CARE_CONFIG = {
   overpassCacheTtlMs: 300_000,   // 300 s
   nominatimCacheTtlMs: 3_600_000, // 3600 s
   cacheMaxEntries: 500,
-  overpassTimeoutMs: 10_000,  // 10 s
+  overpassQueryTimeoutSec: 20, // server-side [timeout:] — Overpass self-terminates and frees its slot at this point
+  overpassTimeoutMs: 22_000,  // client abort — kept just above the server-side timeout so Overpass fails first (a clean 502) and the slot recycles, rather than us abandoning a query that keeps running
   nominatimTimeoutMs: 5_000,  // 5 s
-  upstreamRetries: 1,
+  upstreamRetries: 1,         // retries apply to network errors only; a timeout fails fast (see fetchUpstream)
   dedupeDistanceMeters: 50,   // collapse same-name entries within this radius
   userAgent: "CareCompanion/1.2.0 (+https://carecompanion.app)",
   overpassEndpoint: "https://overpass-api.de/api/interpreter",
@@ -122,7 +123,12 @@ const nameMatches = (tags: OsmTags, re: RegExp) =>
   re.test(tags.name || "") || re.test(tags.official_name || "");
 
 interface FacilityDef {
-  /** Overpass `nwr` selectors (nodes, ways, relations) queried for this type. */
+  /**
+   * Overpass `nw` selectors (nodes and ways) queried for this type. Relations
+   * are intentionally excluded: resolving relation-member geometry for an
+   * `around` filter is expensive and times out in dense cities, while care
+   * facilities are almost always mapped as nodes or ways.
+   */
   selectors: string[];
   /** Predicate mirroring the selectors, used to re-classify a returned element. */
   match: (tags: OsmTags) => boolean;
@@ -138,20 +144,20 @@ interface FacilityDef {
 //
 // Name-based matching is done with an EXACT amenity value prefix
 // (`amenity=hospital` etc.), which hits Overpass's key=value index and regexes
-// the name only on that small set. A bare `nwr[name~...]` — or even a broad
-// `nwr[amenity~"regex"]` / `nwr[healthcare]` (key-presence) prefix — forces a
+// the name only on that small set. A bare `nw[name~...]` — or even a broad
+// `nw[amenity~"regex"]` / `nw[healthcare]` (key-presence) prefix — forces a
 // scan of every named/amenity element in the radius and times out in dense
 // cities. This also keeps precision high (a "Cardio" gym is not amenity=clinic).
 // The `match` predicate below stays deliberately lenient: it only ever runs on
 // elements a selector already returned, so it must accept all of them.
 const namedMedical = (re: string): string[] =>
-  ["hospital", "clinic", "doctors"].map((a) => `nwr[amenity=${a}][name~"${re}",i]`);
+  ["hospital", "clinic", "doctors"].map((a) => `nw[amenity=${a}][name~"${re}",i]`);
 
 const FACILITY_DEFS: Record<FacilityType, FacilityDef> = {
   dialysis: {
     selectors: [
-      `nwr[healthcare=dialysis]`,
-      `nwr["healthcare:speciality"~"dialysis",i]`,
+      `nw[healthcare=dialysis]`,
+      `nw["healthcare:speciality"~"dialysis",i]`,
       ...namedMedical("dialysis"),
     ],
     match: (t) =>
@@ -160,24 +166,24 @@ const FACILITY_DEFS: Record<FacilityType, FacilityDef> = {
       nameMatches(t, NAME_RE.dialysis),
   },
   hospital: {
-    selectors: [`nwr[amenity=hospital]`, `nwr[healthcare=hospital]`],
+    selectors: [`nw[amenity=hospital]`, `nw[healthcare=hospital]`],
     match: (t) => t.amenity === "hospital" || t.healthcare === "hospital",
   },
   pharmacy: {
-    selectors: [`nwr[amenity=pharmacy]`, `nwr[healthcare=pharmacy]`],
+    selectors: [`nw[amenity=pharmacy]`, `nw[healthcare=pharmacy]`],
     match: (t) => t.amenity === "pharmacy" || t.healthcare === "pharmacy",
   },
   clinic: {
-    selectors: [`nwr[amenity=clinic]`, `nwr[healthcare=clinic]`],
+    selectors: [`nw[amenity=clinic]`, `nw[healthcare=clinic]`],
     match: (t) => t.amenity === "clinic" || t.healthcare === "clinic",
   },
   doctors: {
-    selectors: [`nwr[amenity=doctors]`, `nwr[healthcare=doctor]`],
+    selectors: [`nw[amenity=doctors]`, `nw[healthcare=doctor]`],
     match: (t) => t.amenity === "doctors" || t.healthcare === "doctor",
   },
   cardiology: {
     selectors: [
-      `nwr["healthcare:speciality"~"cardiolog|cardiac",i]`,
+      `nw["healthcare:speciality"~"cardiolog|cardiac",i]`,
       ...namedMedical("cardiolog|cardiac"),
     ],
     match: (t) =>
@@ -186,7 +192,7 @@ const FACILITY_DEFS: Record<FacilityType, FacilityDef> = {
   },
   pulmonology: {
     selectors: [
-      `nwr["healthcare:speciality"~"pulmonolog|pulmonar|respiratory",i]`,
+      `nw["healthcare:speciality"~"pulmonolog|pulmonar|respiratory",i]`,
       ...namedMedical("pulmonolog|pulmonar|respiratory"),
     ],
     match: (t) =>
@@ -244,8 +250,10 @@ export function buildOverpassQuery(
     .flatMap((t) => FACILITY_DEFS[t].selectors)
     .map((sel) => `  ${sel}(around:${radius},${lat},${lon});`)
     .join("\n");
-  // `out center tags` returns tags plus a centroid for ways/relations.
-  return `[out:json][timeout:25];\n(\n${selectors}\n);\nout center tags;`;
+  // `out center tags` returns tags plus a centroid for ways. The server-side
+  // [timeout:] is aligned with the client abort so Overpass self-terminates and
+  // frees its slot instead of running on after we've stopped waiting.
+  return `[out:json][timeout:${FIND_CARE_CONFIG.overpassQueryTimeoutSec}];\n(\n${selectors}\n);\nout center tags;`;
 }
 
 // ─── Normalization ────────────────────────────────────────────────────────────

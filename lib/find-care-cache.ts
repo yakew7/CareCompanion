@@ -84,9 +84,12 @@ export class TtlCache<T> {
 
 /**
  * Fetch an upstream URL with an abort-based timeout and at most `retries` retries
- * on network error/timeout. A returned non-2xx response is NOT retried and is
- * returned to the caller for status handling. Throws UpstreamTimeoutError when
- * the final failure was a timeout, otherwise UpstreamError.
+ * on *network* errors. A timeout is NOT retried — re-issuing an identical query
+ * to an already-slow instance just doubles the wait for the same result, so we
+ * give a single, longer attempt (see overpassTimeoutMs) and fail fast with
+ * UpstreamTimeoutError. A returned non-2xx response is NOT retried and is
+ * returned to the caller for status handling; a network error retried to
+ * exhaustion throws UpstreamError.
  */
 export async function fetchUpstream(
   url: string,
@@ -94,7 +97,6 @@ export async function fetchUpstream(
   opts: { timeoutMs: number; retries?: number },
 ): Promise<Response> {
   const retries = opts.retries ?? FIND_CARE_CONFIG.upstreamRetries;
-  let lastWasTimeout = false;
 
   for (let attempt = 0; attempt <= retries; attempt++) {
     const controller = new AbortController();
@@ -109,10 +111,13 @@ export async function fetchUpstream(
       return res;
     } catch (err) {
       clearTimeout(timer);
-      lastWasTimeout = err instanceof Error && err.name === "AbortError";
-      // Retry only on thrown network/timeout errors (loop continues).
+      // A timeout won't resolve faster on retry — fail fast.
+      if (err instanceof Error && err.name === "AbortError") {
+        throw new UpstreamTimeoutError();
+      }
+      // Otherwise it's a network error: allow the loop to retry.
     }
   }
 
-  throw lastWasTimeout ? new UpstreamTimeoutError() : new UpstreamError();
+  throw new UpstreamError();
 }
