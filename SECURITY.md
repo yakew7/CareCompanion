@@ -4,9 +4,9 @@
 
 | Version | Supported |
 |---|---|
-| 1.8.x (current) | ✅ |
-| 1.7.x | ✅ |
-| < 1.6.0 | ❌ Please upgrade — versions before 1.7.0 do not authenticate AI endpoints |
+| 1.2.x (current) | ✅ |
+| 1.1.x | ✅ |
+| < 1.1.0 | ❌ Please upgrade to a supported release |
 | Pre-release dev builds | ❌ Not supported |
 
 ---
@@ -84,7 +84,7 @@ No health data, no patient names, no medical records are stored in Supabase.
 
 ## Application hardening
 
-The following protections are active as of v1.8.0:
+The following protections are active as of v1.2.0:
 
 ### Endpoint protection
 - **Authentication required on every AI route** — `/api/chat`, `/api/health-chat`, `/api/summarize`, `/api/extract-report-data`, `/api/check-interactions`, `/api/suggest-followup`, and `/api/parse-pdf` all verify the NextAuth session via a shared guard (`lib/api-guard.ts`) and return **401** for unauthenticated requests

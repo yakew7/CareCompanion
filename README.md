@@ -4,7 +4,7 @@
 
 **The private health dashboard built for family caregivers**
 
-[![Version](https://img.shields.io/badge/version-1.8.0-0d9488?style=for-the-badge)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.2.0-0d9488?style=for-the-badge)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/license-MIT-22c55e?style=for-the-badge)](LICENSE)
 [![Next.js](https://img.shields.io/badge/Next.js-14-000000?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?style=for-the-badge&logo=typescript&logoColor=white)](https://typescriptlang.org)

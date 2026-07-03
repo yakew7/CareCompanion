@@ -77,7 +77,7 @@ export const FIND_CARE_CONFIG = {
   nominatimTimeoutMs: 5_000,  // 5 s
   upstreamRetries: 1,
   dedupeDistanceMeters: 50,   // collapse same-name entries within this radius
-  userAgent: "CareCompanion/1.8.0 (+https://carecompanion.app)",
+  userAgent: "CareCompanion/1.2.0 (+https://carecompanion.app)",
   overpassEndpoint: "https://overpass-api.de/api/interpreter",
   nominatimEndpoint: "https://nominatim.openstreetmap.org/search",
 } as const;

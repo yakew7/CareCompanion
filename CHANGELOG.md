@@ -5,7 +5,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [1.8.0] — 2026-07-03
+## [1.2.0] — 2026-07-03
 
 Adds **Find Care** — a new section that helps caregivers locate nearby care facilities (dialysis centers, hospitals, pharmacies, clinics, and specialist practices) on an interactive map, sorted by distance. Motivated by chronic conditions like kidney disease, where the nearest reachable dialysis center matters every week. All external data is sourced live from OpenStreetMap and proxied through the app's own API, so the browser only ever talks to the app origin for data.
 
