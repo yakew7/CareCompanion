@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
     const { value: elements } = await cache.getOrCompute(cacheKey, () =>
       fetchOverpassElements(lat, lon, radius, types),
     );
-    const result = processElements(elements, { lat, lon }, types);
+    const result = processElements(elements, { lat, lon }, types, radius);
     return Response.json(result, { status: 200 });
   } catch (e) {
     if (e instanceof UpstreamTimeoutError) {

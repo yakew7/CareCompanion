@@ -95,7 +95,7 @@ The following protections are active as of v1.2.0:
 ### Input limits
 - PDF uploads are capped at 4 MB **server-side** (rejected with 413 before the file is read)
 - Report text, chat context, and prompt-bound fields (medication names, doctor/specialty, notes) are length-capped before being interpolated into AI prompts, limiting prompt-injection surface
-- Find Care coordinates, radius, and facility types are validated and clamped (radius to 500 m–25 km, results to the 50 nearest) before any upstream request, bounding query cost and abuse
+- Find Care coordinates, radius, and facility types are validated and clamped (radius to 500 m–25 km, results to the 100 nearest) before any upstream request, bounding query cost and abuse
 
 ### Transport & browser protections
 - **Content-Security-Policy** restricting scripts, frames, and connections to the app's own origin (plus Supabase and Google avatar images). `img-src` also allows `https://*.tile.openstreetmap.org` for Find Care map tiles — the only external image source. `connect-src` remains `'self' https://*.supabase.co`, since all Find Care data is proxied server-side

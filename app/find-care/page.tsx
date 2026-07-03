@@ -7,6 +7,7 @@ import {
 import TopBar from "@/components/TopBar";
 import {
   FACILITY_TYPES,
+  FIND_CARE_CONFIG,
   type Facility,
   type FacilityType,
   type GeocodeResult,
@@ -421,7 +422,9 @@ export default function FindCarePage() {
                     : `${facilities.length} ${facilities.length === 1 ? "facility" : "facilities"}`}
                 </p>
                 {truncated && (
-                  <span className="text-xs text-gray-400 dark:text-gray-500">Nearest 50 shown</span>
+                  <span className="text-xs text-gray-400 dark:text-gray-500">
+                    Nearest {FIND_CARE_CONFIG.resultCap} shown
+                  </span>
                 )}
               </div>
 
@@ -430,6 +433,14 @@ export default function FindCarePage() {
                   {[0, 1, 2, 3].map((i) => (
                     <div key={i} className="card animate-pulse h-16" />
                   ))}
+                </div>
+              ) : facilities.length === 0 && searchError ? (
+                <div className="card text-center py-12 space-y-2">
+                  <AlertTriangle className="w-8 h-8 text-red-300 dark:text-red-700 mx-auto" />
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                    Couldn&apos;t complete the search
+                  </p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500">{searchError}</p>
                 </div>
               ) : facilities.length === 0 && hasSearched ? (
                 <div className="card text-center py-12 space-y-2">

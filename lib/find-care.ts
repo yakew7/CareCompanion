@@ -69,7 +69,7 @@ export const FIND_CARE_CONFIG = {
   defaultRadius: 5000,        // meters
   minRadius: 500,             // meters
   maxRadius: 25000,           // meters
-  resultCap: 50,
+  resultCap: 100,
   overpassCacheTtlMs: 300_000,   // 300 s
   nominatimCacheTtlMs: 3_600_000, // 3600 s
   cacheMaxEntries: 500,
@@ -170,8 +170,15 @@ const FACILITY_DEFS: Record<FacilityType, FacilityDef> = {
     match: (t) => t.amenity === "hospital" || t.healthcare === "hospital",
   },
   pharmacy: {
-    selectors: [`nw[amenity=pharmacy]`, `nw[healthcare=pharmacy]`],
-    match: (t) => t.amenity === "pharmacy" || t.healthcare === "pharmacy",
+    selectors: [
+      `nw[amenity=pharmacy]`,
+      `nw[healthcare=pharmacy]`,
+      `nw[shop=chemist]`,
+      `nw[shop=pharmacy]`,
+    ],
+    match: (t) =>
+      t.amenity === "pharmacy" || t.healthcare === "pharmacy" ||
+      t.shop === "chemist" || t.shop === "pharmacy",
   },
   clinic: {
     selectors: [`nw[amenity=clinic]`, `nw[healthcare=clinic]`],
@@ -239,21 +246,43 @@ export function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: 
 
 // ─── Overpass query ─────────────────────────────────────────────────────────
 
-/** Build an Overpass QL query for the requested facility types within radius. */
+/**
+ * Build an Overpass QL query for the requested facility types near a coordinate.
+ *
+ * Uses a bounding box (global `[bbox:]`) rather than `(around:radius,...)`.
+ * `around` makes Overpass compute a distance for every candidate and is markedly
+ * slower — heavy enough to time out at large radii in dense cities (the "nothing
+ * found" symptom). A bbox is a plain spatial-index range scan; we then trim the
+ * square back to the radius circle client-side via haversine (see processElements),
+ * so results are identical but the query reliably completes.
+ */
 export function buildOverpassQuery(
   lat: number,
   lon: number,
   radius: number,
   types: FacilityType[],
 ): string {
+  // Convert the radius to a lat/lon delta. Guard cos() near the poles so the
+  // longitude span can't blow up, and clamp the box to valid coordinate ranges.
+  const latDelta = radius / 111_320;
+  const lonDelta = radius / (111_320 * Math.max(Math.cos(toRad(lat)), 0.01));
+  const south = Math.max(lat - latDelta, -90);
+  const north = Math.min(lat + latDelta, 90);
+  const west = Math.max(lon - lonDelta, -180);
+  const east = Math.min(lon + lonDelta, 180);
+
   const selectors = types
     .flatMap((t) => FACILITY_DEFS[t].selectors)
-    .map((sel) => `  ${sel}(around:${radius},${lat},${lon});`)
+    .map((sel) => `  ${sel};`)
     .join("\n");
+
   // `out center tags` returns tags plus a centroid for ways. The server-side
   // [timeout:] is aligned with the client abort so Overpass self-terminates and
   // frees its slot instead of running on after we've stopped waiting.
-  return `[out:json][timeout:${FIND_CARE_CONFIG.overpassQueryTimeoutSec}];\n(\n${selectors}\n);\nout center tags;`;
+  return (
+    `[out:json][timeout:${FIND_CARE_CONFIG.overpassQueryTimeoutSec}]` +
+    `[bbox:${south},${west},${north},${east}];\n(\n${selectors}\n);\nout center tags;`
+  );
 }
 
 // ─── Normalization ────────────────────────────────────────────────────────────
@@ -341,17 +370,20 @@ export function dedupeFacilities(facilities: Facility[]): Facility[] {
 }
 
 /**
- * Full pipeline: normalize raw Overpass elements, discard unusable ones,
+ * Full pipeline: normalize raw Overpass elements, discard unusable ones and any
+ * outside the radius (the bbox query returns a square, so trim to the circle),
  * de-duplicate, sort by distance ascending, and cap at the result limit.
  */
 export function processElements(
   elements: OverpassElement[],
   origin: { lat: number; lon: number },
   requested: FacilityType[],
+  radius: number,
 ): SearchResponse {
   const normalized = elements
     .map((el) => normalizeElement(el, origin, requested))
-    .filter((f): f is Facility => f !== null);
+    .filter((f): f is Facility => f !== null)
+    .filter((f) => f.distanceMeters <= radius);
 
   const deduped = dedupeFacilities(normalized).sort(
     (a, b) => a.distanceMeters - b.distanceMeters,

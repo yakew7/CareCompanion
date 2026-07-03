@@ -65,7 +65,7 @@ Locate nearby care facilities — dialysis centers, hospitals, pharmacies, clini
 - **Facility-type filters** — dialysis, hospital, pharmacy, clinic, doctors, cardiology, pulmonology; toggling re-runs the search
 - **Manual location** — enter a city or postal code (geocoded via Nominatim); pick from alternative matches when ambiguous
 - **Opt-in GPS** — "Use my location" is never triggered automatically; denial falls back to manual entry
-- **Distance-sorted results** — straight-line (haversine) distance from your location, nearest first, capped at the 50 closest
+- **Distance-sorted results** — straight-line (haversine) distance from your location, nearest first, capped at the 100 closest
 - **Adjustable radius** — 2 / 5 / 10 / 25 km
 - **Proxied & private** — all facility and geocoding lookups go through the app's own API (`/api/find-care/*`); the browser talks only to the app origin for data, and nothing is ever stored server-side. Map tiles are the only direct third-party request.
 - Accessible from the sidebar and the bottom-nav "More" sheet; the text results list is fully usable without touching the map
