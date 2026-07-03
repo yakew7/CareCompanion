@@ -15,6 +15,7 @@ Adds **Find Care** — a new section that helps caregivers locate nearby care fa
 A new `/find-care` route with an interactive Leaflet map and a distance-sorted results list, kept in sync — selecting a facility in the list highlights its map marker and vice versa.
 
 - **Facility discovery** via the OpenStreetMap Overpass API, filtered by type: dialysis, hospital, pharmacy, clinic, doctors, cardiology, pulmonology
+- **Region-tolerant matching** — the specialty types (dialysis, cardiology, pulmonology) match not just the structured `healthcare=*` / `healthcare:speciality=*` tags but also the facility name (constrained to `amenity=hospital`/`clinic`/`doctors` for speed and precision). This surfaces facilities in regions where the structured tags are sparsely used — e.g. dialysis centres across India are almost always tagged `amenity=hospital` with only "dialysis" in the name
 - **Manual location** entry (city or postal code) via Nominatim geocoding, with alternative-match suggestions when a query is ambiguous
 - **Opt-in GPS** — "Use my location" never fires on load; denial falls back cleanly to manual entry
 - **Straight-line (haversine) distance** sorting, nearest-first, capped at the 50 closest results (with a "nearest 50 shown" indicator)

@@ -101,41 +101,107 @@ export const FACILITY_TYPE_LABELS: Record<FacilityType, string> = {
   pulmonology: "Pulmonology",
 };
 
-/** Overpass `nwr` selectors for each facility type (nodes, ways, relations). */
-const OSM_SELECTORS: Record<FacilityType, string[]> = {
-  dialysis: [`nwr[healthcare=dialysis]`],
-  hospital: [`nwr[amenity=hospital]`],
-  pharmacy: [`nwr[amenity=pharmacy]`],
-  clinic: [`nwr[amenity=clinic]`],
-  doctors: [`nwr[amenity=doctors]`],
-  cardiology: [`nwr[healthcare~"."][healthcare:speciality~"cardiology"]`],
-  pulmonology: [`nwr[healthcare~"."][healthcare:speciality~"pulmonology"]`],
+type OsmTags = Record<string, string>;
+
+// Name / speciality regex fragments. Deliberately identical syntax in Overpass
+// QL and JavaScript so the query selectors and the classifier below can share
+// one source of truth (see FACILITY_DEFS). They MUST stay in sync: an element
+// the Overpass query returns but the classifier rejects would be silently
+// dropped as "matches no requested type".
+//
+// The specialty words chosen are unambiguously medical to keep name-based
+// matching from catching non-medical POIs (e.g. "cardiac"/"cardiolog" excludes
+// a "Cardio" gym; "dialysis"/"pulmonar" are inherently clinical).
+const NAME_RE = {
+  dialysis: /dialysis/i,
+  cardiology: /cardiolog|cardiac/i,
+  pulmonology: /pulmonolog|pulmonar|respiratory/i,
+} as const;
+
+const nameMatches = (tags: OsmTags, re: RegExp) =>
+  re.test(tags.name || "") || re.test(tags.official_name || "");
+
+interface FacilityDef {
+  /** Overpass `nwr` selectors (nodes, ways, relations) queried for this type. */
+  selectors: string[];
+  /** Predicate mirroring the selectors, used to re-classify a returned element. */
+  match: (tags: OsmTags) => boolean;
+}
+
+// Each type is defined once — selectors and matcher together — so they cannot
+// drift apart. Common types (hospital/pharmacy/clinic/doctors) use the widely
+// adopted `amenity=*` tag plus a `healthcare=*` fallback. The specialty types
+// (dialysis/cardiology/pulmonology) additionally match the `healthcare:speciality`
+// tag and the facility name, because the structured `healthcare=*` tags for them
+// are sparsely used in many regions (e.g. dialysis centres across India are
+// almost always tagged `amenity=hospital`, with "dialysis" only in the name).
+//
+// Name-based matching is done with an EXACT amenity value prefix
+// (`amenity=hospital` etc.), which hits Overpass's key=value index and regexes
+// the name only on that small set. A bare `nwr[name~...]` — or even a broad
+// `nwr[amenity~"regex"]` / `nwr[healthcare]` (key-presence) prefix — forces a
+// scan of every named/amenity element in the radius and times out in dense
+// cities. This also keeps precision high (a "Cardio" gym is not amenity=clinic).
+// The `match` predicate below stays deliberately lenient: it only ever runs on
+// elements a selector already returned, so it must accept all of them.
+const namedMedical = (re: string): string[] =>
+  ["hospital", "clinic", "doctors"].map((a) => `nwr[amenity=${a}][name~"${re}",i]`);
+
+const FACILITY_DEFS: Record<FacilityType, FacilityDef> = {
+  dialysis: {
+    selectors: [
+      `nwr[healthcare=dialysis]`,
+      `nwr["healthcare:speciality"~"dialysis",i]`,
+      ...namedMedical("dialysis"),
+    ],
+    match: (t) =>
+      t.healthcare === "dialysis" ||
+      NAME_RE.dialysis.test(t["healthcare:speciality"] || "") ||
+      nameMatches(t, NAME_RE.dialysis),
+  },
+  hospital: {
+    selectors: [`nwr[amenity=hospital]`, `nwr[healthcare=hospital]`],
+    match: (t) => t.amenity === "hospital" || t.healthcare === "hospital",
+  },
+  pharmacy: {
+    selectors: [`nwr[amenity=pharmacy]`, `nwr[healthcare=pharmacy]`],
+    match: (t) => t.amenity === "pharmacy" || t.healthcare === "pharmacy",
+  },
+  clinic: {
+    selectors: [`nwr[amenity=clinic]`, `nwr[healthcare=clinic]`],
+    match: (t) => t.amenity === "clinic" || t.healthcare === "clinic",
+  },
+  doctors: {
+    selectors: [`nwr[amenity=doctors]`, `nwr[healthcare=doctor]`],
+    match: (t) => t.amenity === "doctors" || t.healthcare === "doctor",
+  },
+  cardiology: {
+    selectors: [
+      `nwr["healthcare:speciality"~"cardiolog|cardiac",i]`,
+      ...namedMedical("cardiolog|cardiac"),
+    ],
+    match: (t) =>
+      NAME_RE.cardiology.test(t["healthcare:speciality"] || "") ||
+      nameMatches(t, NAME_RE.cardiology),
+  },
+  pulmonology: {
+    selectors: [
+      `nwr["healthcare:speciality"~"pulmonolog|pulmonar|respiratory",i]`,
+      ...namedMedical("pulmonolog|pulmonar|respiratory"),
+    ],
+    match: (t) =>
+      NAME_RE.pulmonology.test(t["healthcare:speciality"] || "") ||
+      nameMatches(t, NAME_RE.pulmonology),
+  },
 };
 
 export function isFacilityType(v: unknown): v is FacilityType {
   return typeof v === "string" && (FACILITY_TYPES as readonly string[]).includes(v);
 }
 
-type OsmTags = Record<string, string>;
-
 /** Does an element's tags match the given facility type's selector(s)? */
 function matchesType(tags: OsmTags, type: FacilityType): boolean {
-  switch (type) {
-    case "dialysis":
-      return tags.healthcare === "dialysis";
-    case "hospital":
-      return tags.amenity === "hospital";
-    case "pharmacy":
-      return tags.amenity === "pharmacy";
-    case "clinic":
-      return tags.amenity === "clinic";
-    case "doctors":
-      return tags.amenity === "doctors";
-    case "cardiology":
-      return Boolean(tags.healthcare) && /cardiology/i.test(tags["healthcare:speciality"] || "");
-    case "pulmonology":
-      return Boolean(tags.healthcare) && /pulmonology/i.test(tags["healthcare:speciality"] || "");
-  }
+  return FACILITY_DEFS[type].match(tags);
 }
 
 /**
@@ -175,7 +241,7 @@ export function buildOverpassQuery(
   types: FacilityType[],
 ): string {
   const selectors = types
-    .flatMap((t) => OSM_SELECTORS[t])
+    .flatMap((t) => FACILITY_DEFS[t].selectors)
     .map((sel) => `  ${sel}(around:${radius},${lat},${lon});`)
     .join("\n");
   // `out center tags` returns tags plus a centroid for ways/relations.
