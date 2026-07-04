@@ -253,7 +253,7 @@ export default function FindCarePage() {
           <div>
             <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Find Care</h2>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              Nearby care facilities from OpenStreetMap, sorted by distance.
+              Nearby care facilities from OpenStreetMap and Ola Maps, sorted by distance.
             </p>
           </div>
         </div>
@@ -519,9 +519,9 @@ export default function FindCarePage() {
 
         {/* Privacy note */}
         <p className="text-xs text-center text-gray-400 dark:text-gray-500 pb-4">
-          Find Care queries OpenStreetMap. Your search location and chosen filters are sent to our
-          server to look up facilities. Nothing is saved. Location access is optional and used only
-          when you tap “Use my location”.
+          Find Care queries OpenStreetMap and Ola Maps. Your search location and chosen filters are
+          sent to our server to look up facilities. Nothing is saved. Location access is optional and
+          used only when you tap “Use my location”.
         </p>
       </main>
     </>

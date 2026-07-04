@@ -81,7 +81,29 @@ export const FIND_CARE_CONFIG = {
   userAgent: "CareCompanion/1.2.0 (+https://carecompanion.app)",
   overpassEndpoint: "https://overpass-api.de/api/interpreter",
   nominatimEndpoint: "https://nominatim.openstreetmap.org/search",
+  // Ola Maps (India-only POI). The API key is read from process.env.OLA_MAPS_API_KEY
+  // in the server route — never placed here, since this constant is bundled to the
+  // client. See probing notes in the Ola section below for why these values.
+  olaEndpoint: "https://api.olamaps.io/places/v1/nearbysearch",
+  olaTimeoutMs: 8_000,      // per Ola request; per-type requests run in parallel
+  olaResultLimit: 50,       // Ola caps a nearby-search response at 50 regardless
+  olaCacheTtlMs: 300_000,   // 300 s, mirrors Overpass
 } as const;
+
+// ─── Region gating ────────────────────────────────────────────────────────────
+// Ola Maps only has POI coverage in India, so we route to it solely for origins
+// inside this bounding box (mainland + islands + Kashmir); everywhere else falls
+// through to the global OpenStreetMap/Overpass path. The bbox is intentionally
+// coarse — it catches a few border slivers, where Ola simply returns nothing and
+// the OSM fallback covers the request.
+export const INDIA_BBOX = { south: 6.5, west: 68.0, north: 37.5, east: 97.5 } as const;
+
+export function isInIndia(lat: number, lon: number): boolean {
+  return (
+    lat >= INDIA_BBOX.south && lat <= INDIA_BBOX.north &&
+    lon >= INDIA_BBOX.west && lon <= INDIA_BBOX.east
+  );
+}
 
 // ─── Facility classification ─────────────────────────────────────────────────
 // Order = selector priority. An element matching multiple selectors is assigned
@@ -374,6 +396,22 @@ export function dedupeFacilities(facilities: Facility[]): Facility[] {
  * outside the radius (the bbox query returns a square, so trim to the circle),
  * de-duplicate, sort by distance ascending, and cap at the result limit.
  */
+/**
+ * Shared tail for every provider (OSM and Ola): drop anything outside the radius
+ * (bbox / nearby queries can overshoot), de-duplicate, sort by distance ascending,
+ * and cap at the result limit. Behaviour is identical to the previous inline logic
+ * in processElements.
+ */
+export function finalizeFacilities(facilities: Facility[], radius: number): SearchResponse {
+  const withinRadius = facilities.filter((f) => f.distanceMeters <= radius);
+  const deduped = dedupeFacilities(withinRadius).sort(
+    (a, b) => a.distanceMeters - b.distanceMeters,
+  );
+  const truncated = deduped.length > FIND_CARE_CONFIG.resultCap;
+  const list = truncated ? deduped.slice(0, FIND_CARE_CONFIG.resultCap) : deduped;
+  return { facilities: list, count: list.length, truncated };
+}
+
 export function processElements(
   elements: OverpassElement[],
   origin: { lat: number; lon: number },
@@ -382,17 +420,113 @@ export function processElements(
 ): SearchResponse {
   const normalized = elements
     .map((el) => normalizeElement(el, origin, requested))
-    .filter((f): f is Facility => f !== null)
-    .filter((f) => f.distanceMeters <= radius);
+    .filter((f): f is Facility => f !== null);
+  return finalizeFacilities(normalized, radius);
+}
 
-  const deduped = dedupeFacilities(normalized).sort(
-    (a, b) => a.distanceMeters - b.distanceMeters,
-  );
+// ─── Ola Maps (India) ──────────────────────────────────────────────────────────
+// Ola's Nearby Search is category-based with a narrow, fixed vocabulary. Probing
+// the live API established: only `hospital`, `pharmacy`, and `doctor` are valid
+// query types (`clinic`/`dialysis`/`doctors` return nothing); a request honours
+// only ONE type, so we issue one request per type and merge; the response is
+// capped at 50; and coordinates appear only when `withCentroid=true`. We therefore
+// map each of our categories to the Ola query type(s) that can surface it, then
+// re-classify every returned place with the SAME priority order and name regexes
+// used for OpenStreetMap, so results stay shaped and filtered consistently.
 
-  const truncated = deduped.length > FIND_CARE_CONFIG.resultCap;
-  const facilities = truncated ? deduped.slice(0, FIND_CARE_CONFIG.resultCap) : deduped;
+export interface OlaPrediction {
+  description?: string;
+  place_id?: string;
+  reference?: string;
+  structured_formatting?: { main_text?: string; secondary_text?: string };
+  types?: string[];
+  geometry?: { location?: { lat?: number; lng?: number } };
+}
 
-  return { facilities, count: facilities.length, truncated };
+// Our category → Ola query type(s). The union across requested categories is at
+// most {hospital, pharmacy, doctor} → three parallel requests. Specialty and
+// clinic categories have no Ola type, so they ride on the broad hospital/doctor
+// results and are isolated by name matching in olaMatchesType.
+const OLA_QUERY_TYPES: Record<FacilityType, readonly string[]> = {
+  dialysis: ["hospital", "doctor"],
+  hospital: ["hospital"],
+  pharmacy: ["pharmacy"],
+  clinic: ["doctor"],
+  doctors: ["doctor"],
+  cardiology: ["hospital", "doctor"],
+  pulmonology: ["hospital", "doctor"],
+};
+
+/** The de-duplicated set of Ola query types needed for the requested categories. */
+export function olaQueryTypesFor(requested: FacilityType[]): string[] {
+  const set = new Set<string>();
+  for (const t of requested) for (const q of OLA_QUERY_TYPES[t]) set.add(q);
+  return Array.from(set);
+}
+
+function olaMatchesType(place: OlaPrediction, type: FacilityType): boolean {
+  const types = new Set((place.types || []).map((s) => s.toLowerCase()));
+  const name = place.structured_formatting?.main_text || place.description || "";
+  switch (type) {
+    case "dialysis":    return NAME_RE.dialysis.test(name);
+    case "hospital":    return types.has("hospital");
+    case "pharmacy":    return types.has("pharmacy") || types.has("drugstore");
+    case "clinic":      return types.has("clinic") || /\bclinic\b|polyclinic/i.test(name);
+    case "doctors":     return types.has("doctor");
+    case "cardiology":  return NAME_RE.cardiology.test(name);
+    case "pulmonology": return NAME_RE.pulmonology.test(name);
+  }
+  return false;
+}
+
+/** Assign a single category by priority order, restricted to the requested types. */
+export function classifyOlaPlace(place: OlaPrediction, requested: FacilityType[]): FacilityType | null {
+  const requestedSet = new Set(requested);
+  for (const type of FACILITY_TYPES) {
+    if (requestedSet.has(type) && olaMatchesType(place, type)) return type;
+  }
+  return null;
+}
+
+/** Normalize one Ola prediction to a Facility, or null if unusable/unmatched. */
+export function normalizeOlaPlace(
+  place: OlaPrediction,
+  origin: { lat: number; lon: number },
+  requested: FacilityType[],
+): Facility | null {
+  const lat = place.geometry?.location?.lat;
+  const lon = place.geometry?.location?.lng;
+  if (typeof lat !== "number" || typeof lon !== "number") return null;
+
+  const type = classifyOlaPlace(place, requested);
+  if (!type) return null;
+
+  const id = place.place_id || place.reference;
+  if (!id) return null;
+
+  return {
+    id: `ola/${id}`,
+    name: place.structured_formatting?.main_text || FACILITY_TYPE_LABELS[type],
+    lat,
+    lon,
+    type,
+    address: place.structured_formatting?.secondary_text || undefined,
+    phone: undefined, // Ola's basic nearby search does not return phone numbers
+    distanceMeters: Math.round(haversineMeters(origin.lat, origin.lon, lat, lon)),
+  };
+}
+
+/** Full Ola pipeline: normalize → shared radius-trim / dedupe / sort / cap. */
+export function processOlaPredictions(
+  preds: OlaPrediction[],
+  origin: { lat: number; lon: number },
+  requested: FacilityType[],
+  radius: number,
+): SearchResponse {
+  const normalized = preds
+    .map((p) => normalizeOlaPlace(p, origin, requested))
+    .filter((f): f is Facility => f !== null);
+  return finalizeFacilities(normalized, radius);
 }
 
 // ─── Validation ───────────────────────────────────────────────────────────────
