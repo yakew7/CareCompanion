@@ -412,16 +412,24 @@ export function finalizeFacilities(facilities: Facility[], radius: number): Sear
   return { facilities: list, count: list.length, truncated };
 }
 
+/** Normalize raw Overpass elements to Facilities (no radius trim / dedupe / cap). */
+export function normalizeElements(
+  elements: OverpassElement[],
+  origin: { lat: number; lon: number },
+  requested: FacilityType[],
+): Facility[] {
+  return elements
+    .map((el) => normalizeElement(el, origin, requested))
+    .filter((f): f is Facility => f !== null);
+}
+
 export function processElements(
   elements: OverpassElement[],
   origin: { lat: number; lon: number },
   requested: FacilityType[],
   radius: number,
 ): SearchResponse {
-  const normalized = elements
-    .map((el) => normalizeElement(el, origin, requested))
-    .filter((f): f is Facility => f !== null);
-  return finalizeFacilities(normalized, radius);
+  return finalizeFacilities(normalizeElements(elements, origin, requested), radius);
 }
 
 // ─── Ola Maps (India) ──────────────────────────────────────────────────────────
@@ -516,6 +524,17 @@ export function normalizeOlaPlace(
   };
 }
 
+/** Normalize Ola predictions to Facilities (no radius trim / dedupe / cap). */
+export function normalizeOlaPredictions(
+  preds: OlaPrediction[],
+  origin: { lat: number; lon: number },
+  requested: FacilityType[],
+): Facility[] {
+  return preds
+    .map((p) => normalizeOlaPlace(p, origin, requested))
+    .filter((f): f is Facility => f !== null);
+}
+
 /** Full Ola pipeline: normalize → shared radius-trim / dedupe / sort / cap. */
 export function processOlaPredictions(
   preds: OlaPrediction[],
@@ -523,10 +542,7 @@ export function processOlaPredictions(
   requested: FacilityType[],
   radius: number,
 ): SearchResponse {
-  const normalized = preds
-    .map((p) => normalizeOlaPlace(p, origin, requested))
-    .filter((f): f is Facility => f !== null);
-  return finalizeFacilities(normalized, radius);
+  return finalizeFacilities(normalizeOlaPredictions(preds, origin, requested), radius);
 }
 
 // ─── Validation ───────────────────────────────────────────────────────────────

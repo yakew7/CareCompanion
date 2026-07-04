@@ -4,11 +4,14 @@ import {
   FIND_CARE_CONFIG,
   buildOverpassQuery,
   processElements,
+  finalizeFacilities,
+  normalizeElements,
+  normalizeOlaPredictions,
   validateSearchRequest,
   isInIndia,
   olaQueryTypesFor,
-  processOlaPredictions,
   type FacilityType,
+  type Facility,
   type OlaPrediction,
 } from "@/lib/find-care";
 import {
@@ -28,6 +31,12 @@ const cache = new TtlCache<OverpassElement[]>(FIND_CARE_CONFIG.overpassCacheTtlM
 // Separate cache for Ola predictions (India only), keyed by grid + radius + the
 // Ola query-type set. Distances are recomputed per request from the exact origin.
 const olaCache = new TtlCache<OlaPrediction[]>(FIND_CARE_CONFIG.olaCacheTtlMs);
+
+// Which categories Ola serves well (dense commercial POI). Everything else —
+// dialysis, clinic, cardiology, pulmonology — has no Ola category and is far
+// better covered by OpenStreetMap's structured medical tags (probed live: ~271
+// clinics vs Ola's ~7 near Mumbai), so those are sourced from OSM instead.
+const OLA_SERVED_TYPES: FacilityType[] = ["hospital", "pharmacy", "doctors"];
 
 const roundGrid = (n: number) => Math.round(n * 1000) / 1000; // ~111 m grid
 
@@ -91,6 +100,34 @@ async function fetchOlaPredictions(
   return Array.from(byId.values());
 }
 
+/** Cached Ola fetch → normalized (uncapped) Facilities for the given types. */
+async function olaFacilities(
+  lat: number,
+  lon: number,
+  radius: number,
+  types: FacilityType[],
+): Promise<Facility[]> {
+  const key = `ola:${roundGrid(lat)},${roundGrid(lon)},${radius},${olaQueryTypesFor(types).sort().join(",")}`;
+  const { value: preds } = await olaCache.getOrCompute(key, () =>
+    fetchOlaPredictions(lat, lon, radius, types),
+  );
+  return normalizeOlaPredictions(preds, { lat, lon }, types);
+}
+
+/** Cached Overpass fetch → normalized (uncapped) Facilities for the given types. */
+async function osmFacilities(
+  lat: number,
+  lon: number,
+  radius: number,
+  types: FacilityType[],
+): Promise<Facility[]> {
+  const key = `${roundGrid(lat)},${roundGrid(lon)},${radius},${[...types].sort().join(",")}`;
+  const { value: elements } = await cache.getOrCompute(key, () =>
+    fetchOverpassElements(lat, lon, radius, types),
+  );
+  return normalizeElements(elements, { lat, lon }, types);
+}
+
 async function fetchOverpassElements(
   lat: number,
   lon: number,
@@ -137,22 +174,39 @@ export async function POST(req: NextRequest) {
 
   const { lat, lon, radius, types } = validated.value;
 
-  // India + key present → try Ola Maps first (deeper local coverage). Any failure,
-  // timeout, or empty result falls through to the global OpenStreetMap path below,
-  // so Find Care never goes dark because of Ola. Disable at will with
-  // FIND_CARE_DISABLE_OLA=1 without removing the key.
+  // India + key present → split the query by each source's strength and merge:
+  //   • Ola for hospital/pharmacy/doctors (dense, fresh commercial POI), and
+  //   • OpenStreetMap for dialysis/clinic/cardiology/pulmonology (structured
+  //     medical tags Ola doesn't model).
+  // Both run in parallel, so latency is the slower of the two (≈ the pre-Ola OSM
+  // baseline). Whatever succeeds is merged, deduped, and capped over the union.
+  // Any total failure or empty result falls through to the whole-request OSM path
+  // below, so Find Care never goes dark. Disable with FIND_CARE_DISABLE_OLA=1.
   const olaEnabled = !!process.env.OLA_MAPS_API_KEY && process.env.FIND_CARE_DISABLE_OLA !== "1";
   if (olaEnabled && isInIndia(lat, lon)) {
+    const olaTypes = types.filter((t) => OLA_SERVED_TYPES.includes(t));
+    const osmTypes = types.filter((t) => !OLA_SERVED_TYPES.includes(t));
     try {
-      const olaKey = `ola:${roundGrid(lat)},${roundGrid(lon)},${radius},${olaQueryTypesFor(types).sort().join(",")}`;
-      const { value: preds } = await olaCache.getOrCompute(olaKey, () =>
-        fetchOlaPredictions(lat, lon, radius, types),
-      );
-      const result = processOlaPredictions(preds, { lat, lon }, types, radius);
-      if (result.count > 0) return Response.json(result, { status: 200 });
-      // Ola returned nothing usable → fall through to OpenStreetMap for coverage.
+      const [olaRes, osmRes] = await Promise.allSettled([
+        olaTypes.length ? olaFacilities(lat, lon, radius, olaTypes) : Promise.resolve<Facility[]>([]),
+        osmTypes.length ? osmFacilities(lat, lon, radius, osmTypes) : Promise.resolve<Facility[]>([]),
+      ]);
+      // Use the split result only if the Ola portion didn't fail; if it did, the
+      // common types are missing, so defer to the whole-request OSM path below
+      // which can still supply them. A failed OSM-specialty portion alone is
+      // tolerated — we still return Ola's common results rather than block on OSM.
+      const olaUsable = olaTypes.length === 0 || olaRes.status === "fulfilled";
+      if (olaUsable) {
+        const merged = [
+          ...(olaRes.status === "fulfilled" ? olaRes.value : []),
+          ...(osmRes.status === "fulfilled" ? osmRes.value : []),
+        ];
+        const result = finalizeFacilities(merged, radius);
+        if (result.count > 0) return Response.json(result, { status: 200 });
+      }
+      // Ola failed, or nothing found → fall through to whole-request OSM below.
     } catch {
-      // Ola unavailable/timed out → fall through to OpenStreetMap.
+      // Unexpected error → fall through to OpenStreetMap.
     }
   }
 
