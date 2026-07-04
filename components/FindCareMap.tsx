@@ -5,6 +5,25 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { FACILITY_TYPE_LABELS, type Facility, type FacilityType } from "@/lib/find-care";
 
+// Basemap tiles. When NEXT_PUBLIC_MAPTILER_KEY is configured we use MapTiler
+// (nicer, global, retina @2x); otherwise we fall back to OpenStreetMap raster
+// so the map works unchanged with no key set. The key is inlined at build time
+// and is safe to expose ONLY because it is domain-restricted in the MapTiler
+// dashboard. Any host used here must also be allowed in the CSP img-src
+// (see next.config.js).
+const MAPTILER_KEY = process.env.NEXT_PUBLIC_MAPTILER_KEY;
+const BASEMAP = MAPTILER_KEY
+  ? {
+      url: `https://api.maptiler.com/maps/streets-v2/256/{z}/{x}/{y}@2x.png?key=${MAPTILER_KEY}`,
+      attribution:
+        '&copy; <a href="https://www.maptiler.com/copyright/">MapTiler</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    }
+  : {
+      url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    };
+
 // Distinct colour per facility type so markers are distinguishable on the map.
 const TYPE_COLORS: Record<FacilityType, string> = {
   dialysis: "#dc2626",
@@ -89,10 +108,7 @@ export default function FindCareMap({
       className="h-full w-full"
       aria-label="Map of nearby care facilities"
     >
-      <TileLayer
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-      />
+      <TileLayer url={BASEMAP.url} attribution={BASEMAP.attribution} />
       <Recenter center={center} />
       <PanToSelected facilities={facilities} selectedId={selectedId} />
 

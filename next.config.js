@@ -15,8 +15,9 @@ const nextConfig = {
       // Next.js requires 'unsafe-inline' for hydration; dev mode needs 'unsafe-eval' for HMR
       `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
       "style-src 'self' 'unsafe-inline'",
-      // OpenStreetMap tile hosts are the only external image source (Find Care map)
-      "img-src 'self' data: blob: https://lh3.googleusercontent.com https://*.tile.openstreetmap.org",
+      // Find Care map tile hosts: MapTiler (when NEXT_PUBLIC_MAPTILER_KEY is set)
+      // with OpenStreetMap as the keyless fallback.
+      "img-src 'self' data: blob: https://lh3.googleusercontent.com https://*.tile.openstreetmap.org https://api.maptiler.com",
       "font-src 'self' data:",
       "connect-src 'self' https://*.supabase.co",
       "frame-ancestors 'none'",
