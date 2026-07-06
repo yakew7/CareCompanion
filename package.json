@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.2.8",
-    "@supabase/supabase-js": "^2.108.2",
+    "@supabase/supabase-js": "^2.110.0",
     "@tailwindcss/typography": "^0.5.20",
     "groq-sdk": "^0.37.0",
     "leaflet": "^1.9.4",
